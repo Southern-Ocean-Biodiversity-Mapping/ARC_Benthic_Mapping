@@ -1,15 +1,20 @@
 ---
-title: "DP190101858_Analysis_FullOverview"
+title: "DP190101858 Biologcial Data Overview"
 author: "Jan Jansen"
 date: "2019-2022"
 output: html_document
 ---
 
-This is an overview of the methods, scripts and code used to generate the biological and environmental data for the 2019-2022 ARC-DP
+This is an overview of the methods, scripts and code used to generate the biological data for the 2019-2022 ARC-DP  
+
+Main contents:  
+* Overview of image sampling locations  
+* Overview of Diatom sampling locations  
+* Overview of Diatom abundances  
 
 ```{r, warning=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(SOmap)
+library(raster)
 library(viridis) ## for a nice continuous color palette (viridis or magma)
 library(RColorBrewer)
 library(graticule)
@@ -41,7 +46,7 @@ source(paste0(tools.dir,"SOmap_functions_JJ.R"))
 ## from "Readin_Circumpolar_DownwardImage_Data.Rmd"
 load(paste0(ARC_Data.dir,"Circumpolar_DownwardImages_metadata.Rdata"))
 
-## from ???
+## from "Readin_Circumpolar_Diatom_Data.Rmd"
 load(paste0(ARC_Data.dir,"Circumpolar_Diatom_metadata.Rdata"))
 
 ## from "ReadIn_Circumpolar_Environmental_Data.Rmd"
@@ -119,20 +124,20 @@ leg.steps <- c(1,2,2.75,3)
 * AUS data: AA2011 (Mertz region)
 * ITA data: never received due to COVID19-restrictions preventing access
 
-Each survey has their own script (to read in raw data and create an image subset) named:  
-* "Readin_Circumpolar_DownwardImages_...R"
+Each survey has their own script to read in raw data and create an image subset. The scripts are in the folder _ReadIn_Circumpolar_DownwardImage_Data_And_Subset_Surveys_ and are named:  
+__Readin_Circumpolar_DownwardImages_...R__  
 
 Summary file containing all survey data:  
-* "Readin_Circumpolar_DownwardImage_Data.Rmd"
+__Readin_Circumpolar_DownwardImage_Data.Rmd__  
 
 Overview script containing plots for each individual transect + locations of the image subset:  
-* "DP190101858_Circumpolar_Data_Overview_Transects.Rmd"
+__DP190101858_Circumpolar_Data_Overview_Transects.Rmd__
 
 Image annotation on CoralNet (every image of the subset) and Biigle (the first 50% of the subset images)
 
 Image-Annotation Quality Control and Final Library:  
-* "AnnotationLibrary_counts.R"
-* "AnnotationQualityControl_CoralNet_SurveyBySurvey.R"  
+__AnnotationLibrary_counts.R__  
+__AnnotationQualityControl_CoralNet_SurveyBySurvey.R__  
 
 
 ```{r}
@@ -392,11 +397,9 @@ text.plot(levels(dat.list$PS96$transectID),dat.list$PS96,polar.dat.PS96,col=wap_
 #plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
 
-## Diatom Data
+## Diatom Data - Sampling locations
 
-#### Overview of sampling locations
-
-```{r, fig.width=10, fig.height=10, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 #### Diatom survey sites on bathymetry (excluding CEAMARC sites, and splitting AP from the rest for plotting)
 ceamarc <- which(diatom.dat$Cruise=="CEAMARC")
 AP_cruises <- which(diatom.dat$Longitude<0&diatom.dat$Longitude>-90)
@@ -411,18 +414,27 @@ AP.cols <- c(brewer.pal(12,"Paired"),"black")[c(3:13,1,2)]
 rest.cols <- brewer.pal(8,"Set1")
 rest.cols.lab <- c(rep("white",4),brewer.pal(8,"Set1")[c(3,5,8,6,1,7,2,4)])
 t.labs.rest <- c("","","","",levels(diatom.rest$Cruise)[c(3,5,8,6,1,7,2,4)])
+```
 
+#### Overview
+
+```{r, fig.width=10, fig.height=10, warning=FALSE}
 #pdf(file="Circumpolar_overview_diatoms.pdf", width=10, height=10)
 par(oma=c(0,0,0,0))
+## main map
 JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps)
+## legend top left with surveys from that area
 JJ_SOleg(col=AP.cols, ticks = length(AP.cols), border_width = 0, label="Survey IDs\nAntarctic Peninsula", position = "topleft",tlabs=levels(diatom.AP$Cruise), leg.steps=leg.steps)
+## legend bottom rigth with surveys from that area
 JJ_SOleg(col=rest.cols.lab, ticks = length(rest.cols), border_width = 0, label="Survey IDs\nother regions", position = "bottomright",tlabs=t.labs.rest, leg.steps=leg.steps)
+## add sampling points
 for(i in 1:length(levels(diatom.AP$Cruise))){
   plot(polar.dat.diatom[diatom.dat$Cruise==levels(diatom.AP$Cruise)[i]], add=TRUE, pch=pch, cex=cex, col=AP.cols[i])
 }
 for(i in 1:length(levels(diatom.rest$Cruise))){
   plot(polar.dat.diatom[diatom.dat$Cruise==levels(diatom.rest$Cruise)[i]], add=TRUE, pch=pch, cex=cex, col=rest.cols[i])
 }
+## and a scalebar to get a sense of distance
 scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
 #dev.off()
 ```
@@ -517,6 +529,145 @@ legend("topright",pch=pch, pt.cex=cex, col=AP.cols, legend=levels(diatom.AP$Crui
 # text.plot(levels(dat.PS118$transectID),dat.start.list$PS118,polar.dat.start.list$PS118, col=wap_cols[4])
 plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
+
+## Diatom Data - Abundances
+
+```{r}
+## specify colour gradient
+g.cols <- rev(heat.colors(10))
+## split range of diatom values into 10
+val.10 <- cut(log(diatom.dat$Absolute_diatom_abundance_in_million_valves_per_gram_dry_sediment),breaks = 10)
+val.range <- range(log(diatom.dat[,7]))
+val.seq <- seq(val.range[1],val.range[2],length.out=length(g.cols))
+val.labels <- round(exp(val.seq),3)
+
+## colour by abundance of diatoms
+diatom.dat$Col <- g.cols[as.numeric(val.10)]
+```
+
+#### Overview
+
+```{r, fig.width=10, fig.height=10, warning=FALSE}
+#pdf(file="Circumpolar_overview_diatoms_abundances.pdf", width=10, height=10)
+par(oma=c(0,0,0,0))
+## main map
+JJ_SOmap(ramp.col=better.ramp2, border=FALSE, graticules=TRUE, label="depth\n(m)", leg.steps=leg.steps)
+## legend top right with surveys from that area
+JJ_SOleg(col=g.cols, ticks=length(val.seq), border_width=0, label="Diatoms\n(millions/gram)", position="bottomright", tlabs=val.labels, leg.steps=leg.steps, type="continuous")
+## add sampling points
+points(polar.dat.diatom, pch=20, col=diatom.dat$Col)
+## and a scalebar to get a sense of distance
+scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
+#dev.off()
+```
+
+### Region specific overviews {.tabset}
+
+```{r}
+## setup legend
+leg.vals <- round(exp(seq(min(log(diatom.dat[,7])),max(log(diatom.dat[,7])),length.out=10)),2)
+leg.title <- "counts in million"
+pt.cex <- 2
+pt.pch <- 20
+main <- ""
+
+## specify plotting variables:
+lons <- seq(-70, -50, by = 10)
+lats <- seq(-75, -50, by = 2)
+xl <-  range(lons) + c(-0.4, 0.4)
+yl <- range(lats) + c(-0.4, 0.4)
+grat <- graticule(lons, lats, proj = stereo, ylim = yl, xlim = xl)
+labs <- graticule_labels(lons, lats, xline = min(xl), yline = max(yl), proj = stereo) #
+```
+
+#### Antarctic Peninsula
+```{r, fig.height=10, fig.width=8, echo=FALSE}
+plot(r2, xlim=c(-2800000,-1800000), ylim=c(600000,2000000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km")
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+legend("topright",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+```{r, fig.height=10, fig.width=8, echo=FALSE}
+plot(r2, xlim=c(-2800000,-1800000), ylim=c(600000,2000000),col=cols, main=main, axes=FALSE)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km")
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+## the lines are a SpatialLinesDataFrame
+plot(grat, add = TRUE, lty = 5, col = rgb(0, 0, 0, 0.8))
+## the labels are a SpatialPointsDataFrame, and islon tells us which kind
+text(subset(labs, labs$islon), lab = parse(text = labs$lab[labs$islon]), pos = 3)
+text(subset(labs, !labs$islon), lab = parse(text = labs$lab[!labs$islon]), pos = 2)
+
+legend("topright",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+
+##### Tip only
+```{r, fig.height=7.5, fig.width=8, echo=FALSE}
+plot(r2, xlim=c(-2800000,-2200000), ylim=c(1100000,1700000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km")
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+legend("topright",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+#### Amundsen
+```{r, fig.height=7, fig.width=8, echo=FALSE}
+plot(r2, xlim=c(-2100000,-1000000), ylim=c(-1300000,-300000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km")
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+legend("topright",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+#### Ross Sea
+```{r, fig.height=7, fig.width=10, echo=FALSE}
+plot(r2, xlim=c(-800000,500000), ylim=c(-2000000,-1200000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km")
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+legend("left",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+##### Ross Sea - including sample IDs
+```{r, fig.height=7, fig.width=10, echo=FALSE}
+plot(r2, xlim=c(-800000,500000), ylim=c(-2000000,-1200000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km")
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+text(polar.dat.diatom, labels=diatom.dat$SampleID, adj=c(0,-1))
+legend("left",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+#### Sabrina Coast & CEAMARC
+```{r, fig.height=7, fig.width=7, echo=FALSE}
+plot(r2, xlim=c(1300000,2500000), ylim=c(-2300000,-1100000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km",xy=c(2300000,-2200000))
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+legend("topleft",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+```{r, fig.height=6, fig.width=10, echo=FALSE}
+plot(r2, xlim=c(1370000,1800000), ylim=c(-2200000,-1950000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km",xy=c(2300000,-2200000))
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+text(polar.dat.diatom, labels=diatom.dat$SampleID, adj=c(0,-1),cex=0.5)
+legend("topleft",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
+#### East-Antarctic
+```{r, fig.height=10, fig.width=6, echo=FALSE}
+plot(r2, xlim=c(2000000,3000000), ylim=c(-400000,1500000),col=cols, main=main)
+plot(coast.proj, add=TRUE)
+scalebar(200000, type="bar", label=c("0","100","200"), below="km")
+points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
+legend("topright",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
+```
+
 
 
 
