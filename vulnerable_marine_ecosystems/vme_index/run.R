@@ -53,8 +53,10 @@ cat("Curating VME risk areas data...")
 # Get VME Risk Areas data
 df_risk_areas <- data_ccamlr[["vme.risk.areas"]]
 df_risk_areas_taxa <- data_ccamlr[["vme.risk.areas.taxa"]]
-df_risk_areas_taxa <- df_risk_areas_taxa %>% separate(VMEIndicatorTaxon, c("TaxonName", "TaxonCode"), "\\(")
-df_risk_areas_taxa <- df_risk_areas_taxa %>% separate(TaxonCode, c("TaxonCode"), "\\)")
+df_risk_areas_taxa <- df_risk_areas_taxa %>% separate(VMEIndicatorTaxon,
+                                                      c("TaxonName", "TaxonCode"), "\\(")
+df_risk_areas_taxa <- df_risk_areas_taxa %>% separate(TaxonCode,
+                                                      c("TaxonCode"), "\\)")
 # Remove records of taxa for which score is not available
 taxa_2_rm <- unique(df_risk_areas_taxa$TaxonCode[!(df_risk_areas_taxa$TaxonCode %in% vulnerability_scores_taxa$Taxon_Code)])
 cat("\tWARNING: Removing the following taxa records:", taxa_2_rm,
@@ -72,22 +74,25 @@ cat("\tINFO: Available data include", length(list_taxa_code), "VME indicator tax
 list_vme_risk_areas_code <- intersect(df_risk_areas_taxa$VMECode, df_risk_areas$VMECode)
 cat("\tINFO: Available data include", length(list_vme_risk_areas_code), "VME Risk Areas.")
 df_abundance <- df_risk_areas[df_risk_areas$VMECode %in% list_vme_risk_areas_code, ]
-df_abundance[ ,c("Number VME taxa", "VME-indicator units", "DepthMid")] <- list(NULL)
+df_abundance[ , c("Number VME taxa", "VME-indicator units", "DepthMid")] <- list(NULL)
 
 ################################################################################
-#                           CURRATNG RISK AREAS DATA
+#                           COMPUTE ABUNDANCE SCORES
 ################################################################################
-# Get Abundance data
-for (row in 1:nrow(abundance_df)) {
-  dat_area <- df.risk.areas.taxa[df.risk.areas.taxa$VMECode == abundance_df[row, "VMECode"], c("TaxonCode", "VMESpecimenWeight")]
-  taxa_cur <- unique(dat_area$TaxonCode)
+cat("Computing abundance scores...")
+for (row in 1:nrow(df_abundance)) {
+  data_area <- df_risk_areas_taxa[df_risk_areas_taxa$VMECode == df_abundance[row, "VMECode"],
+                                 c("TaxonCode", "VMESpecimenWeight")]
+  taxa_cur <- unique(data_area$TaxonCode)
   for (taxon in taxa_cur) {
-    abundance_df[row, taxon] <- sum(as.numeric(dat_area[dat_area$TaxonCode == taxon, "VMESpecimenWeight"]))
+    df_abundance[row, taxon] <- sum(data_area[data_area$TaxonCode == taxon,
+                                              "VMESpecimenWeight"])
   }
 }
-
+cat("\tGrouping abundance data of each taxon into", n_abundance_categories,
+    "categories using Jenks breaks method...")
+# TODO
 # Get Jenks breaks for abundance data
-abundance_vals <- as.numeric(df.risk.areas.taxa$VMESpecimenWeight)
 abundance_breaks <- getJenksBreaks(abundance_vals, n_abundance_categories+1)
 
 # Get Abundance scores
@@ -108,13 +113,9 @@ for (row in 1:nrow(abundance_df)) {
   }
 }
 
-
-
-
-
-
-
-
+################################################################################
+#                           COMPUTE VME INDEX
+################################################################################
 # Modulate abundance score by indicator score
 df_indicator_abundance_score <- data.frame(df_abundance_score)
 for (taxon in list_taxa_code) {
@@ -148,6 +149,9 @@ for (row in 1:nrow(df_vme_index)) {
   }
 }
 
+################################################################################
+#                           MAPPING
+################################################################################
 # Get CCAMLR coordinates
 coords <- data.frame(x = as.numeric(df_vme_index$LongitudeMid), 
                      y= as.numeric(df_vme_index$LatitudeMid))
