@@ -1,43 +1,50 @@
+################################################################################
+#                                 INIT
+################################################################################
 # Set working directory
-setwd("C:/Users/cgros/code/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index")
+setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index")
 
-# Load config file
-readRenviron("config.R")
-path.ccamlr.registry = Sys.getenv("path.ccamlr.registry")
-path.taxa.scores = Sys.getenv("path.taxa.scores")
-resolution.raster = as.numeric(Sys.getenv("resolution.raster"))
-score.agg = Sys.getenv("score.agg")
-n_abundance_categories = as.numeric(Sys.getenv("n_abundance_categories"))
-vme_index_agg = Sys.getenv("vme_index_agg")
-n_index_categories = as.numeric(Sys.getenv("n_index_categories"))
-
-# Load functions
+# Source method variables and load packages
+source("config.R")
+# Source utils functions
 source("utils.R")
 
-# Packages
-library(raster)
-library(RColorBrewer)
-library(SOmap)
-library(dplyr)
-library(tidyr)
-library(CCAMLRGIS)
-library(BAMMtools)
-
-# Read CCAMLR registry
-ccamlr.registry <- read_excel_allsheets(path.ccamlr.registry)
+################################################################################
+#                                 LOAD DATA
+################################################################################
+# Read CCAMLR Registry
+ccamlr_registry <- read_excel_allsheets(path_ccamlr_registry)
 # Curate data
-ccamlr.data <- curate_ccamlr_registry(ccamlr.registry)
+data_ccamlr <- curate_ccamlr_registry(ccamlr_registry)
 # Read VME Taxa Scores
-scores.data <- read.csv(path.taxa.scores)
+vulnerability_scores_taxa <- read.csv(path_taxa_scores)
+head(vulnerability_scores_taxa)
 
-# Compute VME indicator score
-if (score.agg == "mean") {
-  scores.data$score <- rowMeans(subset(scores.data, select = 5:11), na.rm = TRUE)
+################################################################################
+#                   COMPUTE VULNERABILITY SCORE OF EACH TAXA
+################################################################################
+cat("Computing vulnerability score of each taxa using",
+    toupper(agg_vulnerability_score),
+    "aggregation method...")
+if (agg_vulnerability_score == "mean") {
+  result <- apply(vulnerability_scores_taxa[, 5:11], 1,
+                  function(x) mean(x, na.rm=TRUE))
+} else if (agg_vulnerability_score == "quadratic_mean") {
+  quadratic_mean <- function(x) {
+    x_ <- x[!is.na(x)]
+    return(sqrt(sum(x_^2)/length(x_)))
+  }
+  result <- apply(vulnerability_scores_taxa[, 5:11], 1,
+                  function(x) quadratic_mean(x))
+} else {
+  cat("ERROR: Unknown aggregation method:", agg_vulnerability_score,
+      "\nPlease choose among:", c("mean", "quadratic_mean"))
+  exit()
 }
-# TODO: other method eg quadratic mean
-# Order for visualisation
-scores.data <- scores.data[order(scores.data$score, decreasing = TRUE),]
-print(scores.data[ , c("Taxon", "score")])
+vulnerability_scores_taxa$score <- result
+vulnerability_scores_taxa <- vulnerability_scores_taxa[order(vulnerability_scores_taxa$score,
+                                                             decreasing = TRUE),]
+print(vulnerability_scores_taxa[ , c("Taxon", "score")])
 
 # Get VME Risk Areas
 df.risk.areas <- ccamlr.data[["vme.risk.areas"]]
