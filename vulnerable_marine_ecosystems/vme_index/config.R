@@ -10,7 +10,7 @@ proj_def = "+proj=longlat +datum=WGS84"
 # Indicator taxa vulnerability scores
 path_taxa_scores = "C:/Users/cgros/data/20210806_ccamlr_records/taxa_scores.csv"
 # Aggregation method for vulnerability scores across taxa
-agg_vulnerability_score = "quadraticmean"
+agg_vulnerability_score = "quadratic_mean"
 # Number of categories for the abundance scores
 n_abundance_categories = 5
 # Aggregation method for VME indexes across taxa
@@ -22,7 +22,7 @@ n_index_categories = 3
 library(raster)
 library(RColorBrewer)
 library(SOmap)
-#library(dplyr)
-#library(tidyr)
+library(dplyr)
+library(tidyr)
 #library(CCAMLRGIS)
 #library(BAMMtools)

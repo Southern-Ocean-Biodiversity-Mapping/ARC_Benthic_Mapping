@@ -37,8 +37,8 @@ if (agg_vulnerability_score == "mean") {
   result <- apply(vulnerability_scores_taxa[, 5:11], 1,
                   function(x) quadratic_mean(x))
 } else {
-  cat("ERROR: Unknown aggregation method:", agg_vulnerability_score,
-      "\nPlease choose among:", c("mean", "quadratic_mean"))
+  cat("\tERROR: Unknown aggregation method:", agg_vulnerability_score,
+      "\n\t\tPlease choose among:", c("mean", "quadratic_mean"))
   exit()
 }
 vulnerability_scores_taxa$score <- result
@@ -46,22 +46,37 @@ vulnerability_scores_taxa <- vulnerability_scores_taxa[order(vulnerability_score
                                                              decreasing = TRUE),]
 print(vulnerability_scores_taxa[ , c("Taxon", "score")])
 
-# Get VME Risk Areas
-df.risk.areas <- ccamlr.data[["vme.risk.areas"]]
-df.risk.areas.taxa <- ccamlr.data[["vme.risk.areas.taxa"]]
-df.risk.areas.taxa <- df.risk.areas.taxa %>% separate(VMEIndicatorTaxon, c("TaxonName", "TaxonCode"), "\\(")
-df.risk.areas.taxa <- df.risk.areas.taxa %>% separate(TaxonCode, c("TaxonCode"), "\\)")
+################################################################################
+#                           CURRATNG RISK AREAS DATA
+################################################################################
+cat("Curating VME risk areas data...")
+# Get VME Risk Areas data
+df_risk_areas <- data_ccamlr[["vme.risk.areas"]]
+df_risk_areas_taxa <- data_ccamlr[["vme.risk.areas.taxa"]]
+df_risk_areas_taxa <- df_risk_areas_taxa %>% separate(VMEIndicatorTaxon, c("TaxonName", "TaxonCode"), "\\(")
+df_risk_areas_taxa <- df_risk_areas_taxa %>% separate(TaxonCode, c("TaxonCode"), "\\)")
 # Remove records of taxa for which score is not available
-taxa_2_rm <- unique(df.risk.areas.taxa$TaxonCode[!(df.risk.areas.taxa$TaxonCode %in% scores.data$Taxon_Code)])
-df.risk.areas.taxa <- df.risk.areas.taxa[!(df.risk.areas.taxa$TaxonCode %in% taxa_2_rm), ]
-list_taxa_code <- unique(df.risk.areas.taxa$TaxonCode)
-
+taxa_2_rm <- unique(df_risk_areas_taxa$TaxonCode[!(df_risk_areas_taxa$TaxonCode %in% vulnerability_scores_taxa$Taxon_Code)])
+cat("\tWARNING: Removing the following taxa records:", taxa_2_rm,
+    " ... because vulnerability score is not available for these taxa.")
+df_risk_areas_taxa <- df_risk_areas_taxa[!(df_risk_areas_taxa$TaxonCode %in% taxa_2_rm), ]
+# Remove areas where abundance data is not available
+df_risk_areas_taxa$VMESpecimenWeight <- as.numeric(df_risk_areas_taxa$VMESpecimenWeight)
+cat("\tWARNING: Removing", sum(is.na(df_risk_areas_taxa$VMESpecimenWeight)),
+    "taxa records because VMESpecimenWeight is not available for them.")
+df_risk_areas_taxa <- df_risk_areas_taxa[!is.na(df_risk_areas_taxa$VMESpecimenWeight), ]
+# List taxa included in the analysis
+list_taxa_code <- unique(df_risk_areas_taxa$TaxonCode)
+cat("\tINFO: Available data include", length(list_taxa_code), "VME indicator taxa.")
 # List of VME risk areas
-vme_risk_areas_code <- intersect(df.risk.areas.taxa$VMECode, df.risk.areas$VMECode)
-# Build dataset
-abundance_df <- df.risk.areas[df.risk.areas$VMECode %in% vme_risk_areas_code, ]
-abundance_df[ ,c("Number VME taxa", "VME-indicator units", "DepthMid")] <- list(NULL)
+list_vme_risk_areas_code <- intersect(df_risk_areas_taxa$VMECode, df_risk_areas$VMECode)
+cat("\tINFO: Available data include", length(list_vme_risk_areas_code), "VME Risk Areas.")
+df_abundance <- df_risk_areas[df_risk_areas$VMECode %in% list_vme_risk_areas_code, ]
+df_abundance[ ,c("Number VME taxa", "VME-indicator units", "DepthMid")] <- list(NULL)
 
+################################################################################
+#                           CURRATNG RISK AREAS DATA
+################################################################################
 # Get Abundance data
 for (row in 1:nrow(abundance_df)) {
   dat_area <- df.risk.areas.taxa[df.risk.areas.taxa$VMECode == abundance_df[row, "VMECode"], c("TaxonCode", "VMESpecimenWeight")]
@@ -92,6 +107,13 @@ for (row in 1:nrow(abundance_df)) {
     }
   }
 }
+
+
+
+
+
+
+
 
 # Modulate abundance score by indicator score
 df_indicator_abundance_score <- data.frame(df_abundance_score)
