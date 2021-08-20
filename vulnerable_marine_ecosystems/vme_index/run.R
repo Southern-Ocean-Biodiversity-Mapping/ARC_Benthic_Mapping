@@ -91,26 +91,13 @@ for (row in 1:nrow(df_abundance)) {
 }
 cat("\tGrouping abundance data of each taxon into", n_abundance_categories,
     "categories using Jenks breaks method...")
-# TODO
-# Get Jenks breaks for abundance data
-abundance_breaks <- getJenksBreaks(abundance_vals, n_abundance_categories+1)
-
 # Get Abundance scores
-df_abundance_score <- data.frame(abundance_df)
-for (row in 1:nrow(abundance_df)) {
-  for (taxon in list_taxa_code) {
-    abundance_taxon <- df_abundance_score[row, taxon]
-    if (! is.na(abundance_taxon)) {
-      for (abundance_break_idx in 1:(length(abundance_breaks)-1)) {
-        abundance_break <- abundance_breaks[abundance_break_idx]
-        if (abundance_taxon >= abundance_break) {
-          df_abundance_score[row, taxon] <- abundance_break_idx
-        } else {
-          break
-        }
-      }
-    }
-  }
+df_abundance_score <- data.frame(df_abundance)
+for (taxon in list_taxa_code) {
+  abundance_taxon <- df_abundance[ , taxon]
+  jenks_breaks <- get_jenks_breaks(abundance_taxon, n_abundance_categories)
+  abundance_scores <- apply_jenks_breaks(abundance_taxon, jenks_breaks, n_abundance_categories)
+  df_abundance_score[ , taxon] <- abundance_scores
 }
 
 ################################################################################
