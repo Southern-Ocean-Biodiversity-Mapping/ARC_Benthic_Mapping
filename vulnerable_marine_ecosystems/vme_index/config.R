@@ -12,7 +12,7 @@ path_taxa_scores = "C:/Users/cgros/data/20210806_ccamlr_records/taxa_scores.csv"
 # Aggregation method for vulnerability scores across taxa
 agg_vulnerability_score = "quadratic_mean"
 # Number of categories for the abundance scores
-n_abundance_categories = 5
+n_abundance_categories = 3
 # Aggregation method for VME indexes across taxa
 vme_index_agg = "max"
 # Number of categories for the VME indexes
@@ -25,4 +25,4 @@ library(SOmap)
 library(dplyr)
 library(tidyr)
 #library(CCAMLRGIS)
-#library(BAMMtools)
+library(BAMMtools)

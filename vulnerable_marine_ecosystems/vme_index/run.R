@@ -99,24 +99,38 @@ for (taxon in list_taxa_code) {
   abundance_scores <- apply_jenks_breaks(abundance_taxon, jenks_breaks, n_abundance_categories)
   df_abundance_score[ , taxon] <- abundance_scores
 }
+print(head(df_abundance_score[ , c()]))
 
 ################################################################################
 #                           COMPUTE VME INDEX
 ################################################################################
-# Modulate abundance score by indicator score
+cat("Computing VME indexes...")
+cat("\tModulating abundance scores with vulnerability scores...")
 df_indicator_abundance_score <- data.frame(df_abundance_score)
 for (taxon in list_taxa_code) {
-  taxon_score <- scores.data[scores.data$Taxon_Code == taxon, "score"]
+  taxon_score <- vulnerability_scores_taxa[vulnerability_scores_taxa$Taxon_Code == taxon, "score"]
   df_indicator_abundance_score[ , taxon] <- df_abundance_score[ , taxon] * taxon_score
 }
-
-# Aggregate scores to compute VME index
+print(head(df_indicator_abundance_score))
+cat("\tAggregate scores across taxa for each records using", toupper(vme_index_agg),"method...")
+vme_index_agg = "max"
 if (vme_index_agg == "max") {
-  df_indicator_abundance_score$vme_index <- do.call(pmax, c(df_indicator_abundance_score[list_taxa_code], list(na.rm=TRUE)))
+  result <- apply(df_indicator_abundance_score[, list_taxa_code], 1,
+                  function(x) max(x, na.rm=TRUE))
+} else if (vme_index_agg == "mean") {
+  result <- apply(df_indicator_abundance_score[, list_taxa_code], 1,
+                  function(x) mean(x, na.rm=TRUE))
+} else if (vme_index_agg == "median") {
+  result <- apply(df_indicator_abundance_score[, list_taxa_code], 1,
+                  function(x) median(x, na.rm=TRUE))
+} else {
+  cat("\tERROR: Unknown aggregation method:", agg_vulnerability_score,
+      "\n\t\tPlease choose among:", c("mean", "median", "max"))
+  exit()
 }
-# TODO: add other methods
+df_indicator_abundance_score$vme_index <- result
 print(head(df_indicator_abundance_score[c("VMECode", "vme_index")]))
-
+# TODO
 # Get Jenks breaks for vme indexes
 vme_index_vals <- as.numeric(df_indicator_abundance_score$vme_index)
 vme_index_breaks <- getJenksBreaks(vme_index_vals, n_index_categories+1)
