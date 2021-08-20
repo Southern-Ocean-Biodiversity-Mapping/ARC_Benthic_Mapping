@@ -129,10 +129,11 @@ SOmap_auto(coords, input_points = FALSE, input_lines = FALSE)
 plot(coords, add = TRUE, pch = 19, col = 3, cex=1)
 
 # Create mask around one of the records, with some buffer
-#mask <- buffer(coords[20, ], 50000)
+mask <- buffer(coords[20, ], 50000)
 #mask <- buffer(coords[1, ], 50000)
 #mask <- buffer(coords[2, ], 50000)
-mask <- buffer(coords[75, ], 50000)
+#mask <- buffer(coords[75, ], 50000)
+#mask <- buffer(coords[48, ], 50000)
 SOmap_auto(coords, input_points = FALSE, input_lines = FALSE)
 plot(coords, add = TRUE, pch = 19, col = 3, cex=1)
 plot(mask, add=TRUE)
@@ -141,9 +142,9 @@ plot(mask, add=TRUE)
 raster.crop <- crop(SmallBathy, mask)
 # Aesthetic
 blue.col <- colorRampPalette(c("darkblue", "lightblue"))
-blue.br <- seq(from=-2500, to=0, by=100)
+blue.br <- seq(from=-11000, to=0, by=1000)
 # Plot
-plot(raster.crop, col=blue.col(25), breaks=blue.br, legend=FALSE)
+plot(raster.crop, col=blue.col(22), breaks=blue.br, legend=FALSE)
 plot(coords, add = TRUE, pch = 19, col = 3, cex=1)
 
 # Create Risk areas circle shapes
@@ -176,11 +177,15 @@ crs(raster_circles) <- "+proj=longlat +datum=WGS84"
 # TODO: MOve between sf_circles and raster_circles
 yellow.col <- colorRampPalette(c("yellow", "orange"))
 yellow.br <- seq(from=1, to=max(n_index_categories)+1, by=1)
-plot(raster.crop.res, col=blue.col(25), breaks=blue.br, legend=FALSE)
+par(mar=c(2, 2, 2, 2))
+plot(raster.crop.res, col=blue.col(22), breaks=blue.br, legend=FALSE)
 plot(rasterToPolygons(raster_circles), add=TRUE, col=yellow.col(n_index_categories), breaks=yellow.br, legend=FALSE, border="black")
 legend("topright", legend=unique(raster_circles), col=yellow.col(n_index_categories), pch=15, border="black", title = "VME index")
 plot(sf_circles, add=TRUE, col=yellow.col(6), legend=TRUE)
 
+par(mar=c(2, 2, 2, 2))
+plot(raster.crop.res, col=blue.col(22), breaks=blue.br, legend=FALSE)
+plot(rasterToPolygons(raster_circles), add=TRUE, col=yellow.col(n_index_categories), breaks=yellow.br, legend=FALSE, border="black")
 
 
 
