@@ -34,3 +34,33 @@ curate_ccamlr_registry <- function(data) {
 }
 
 exit <- function() { invokeRestart("abort") }
+
+get_jenks_breaks <- function(vals, n_categories) {
+  vals <- vals[!is.na(vals)]
+  return(getJenksBreaks(vals, n_categories+1))
+}
+
+apply_jenks_breaks <- function(vals, list_jenks_breaks, n_category) {
+  categories <- c()
+  for (val in vals) {
+    if (is.na(val)) {
+      category <- NA
+    } else {
+      category <- 1
+      if (val == tail(list_jenks_breaks, n=1)) {
+        category <- n_category
+      } else {
+        for (break_idx in 1:(length(list_jenks_breaks)-1)) {
+          break_ <- list_jenks_breaks[break_idx]
+          if (val > break_) {
+            category <- break_idx
+          } else {
+            break
+          }
+        }
+      }
+    }
+    categories <- c(categories, category)
+  }
+  return(categories)
+}
