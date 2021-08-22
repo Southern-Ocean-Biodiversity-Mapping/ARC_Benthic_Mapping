@@ -1,0 +1,24 @@
+﻿Phylum,Phylum_Code,Taxon,Taxon_Code,Habitat_forming,Rare_or_unique,Longevity,Slow_growth,Fragility,Larval_dispersion,Sessility
+Cnidaria,CNI,Gorgonacea,GGW,2,1,3,3,3,2,3
+Cnidaria,CNI,Anthoathecatae,AZN,1,1,,,1,,3
+Cnidaria,CNI,Stylasteridae,AXT,3,1,3,2,3,3,3
+Cnidaria,CNI,Scleractinia,CSS,3,2,3,3,3,2,3
+Cnidaria,CNI,Antipatharia,AQZ,2,1,3,3,3,1,3
+Cnidaria,CNI,Zoantharia,ZOT,1,1,,,2,1,3
+Porifera,PFR,Hexactinellida,HXY,3,1,3,3,3,2,3
+Porifera,PFR,Demospongiae,DMO,3,2,3,3,3,2,3
+Cnidaria,CNI,Actiniaria,ATX,1,1,3,1,1,2,2
+Cnidaria,CNI,Alcyonacea,AJZ,2,1,2,1,2,2,3
+Cnidaria,CNI,Pennatulacea,NTW,1,3,3,2,3,1,2
+Chordata,CZR,Ascidiacea,SSX,2,1,,1,1,1,3
+Bryozoan,BZN,Bryozoan,BZN,3,1,3,2,3,3,3
+Chemosynthetic,CXV,Chemosynthetic,CXV,3,3,3,3,3,1,3
+Brachiopoda,BRQ,Brachiopoda,BRQ,1,3,3,1,2,2,3
+Hemichordata,HET,Pterobranchia,PBQ,2,2,,,2,3,3
+Annelida,NHE,Serpulidae,SZS,2,1,,,3,1,3
+Xenophyophora,XEF,Xenophyophora,XEF,1,3,,,3,,3
+Arthropoda,AXX,Bathylasmatidae,BWY,1,3,3,,2,1,3
+Mollusca,MOL,Adamussium colbecki,DMK,1,3,3,2,2,1,2
+Echinodermata,ECH,Stalked crinoid,CWD,1,3,3,,3,,3
+Echinodermata,ECH,Euryalida,OEQ,1,1,,,3,1,2
+Echinodermata,ECH,Cidaroida,CVD,2,1,3,3,2,3,1
