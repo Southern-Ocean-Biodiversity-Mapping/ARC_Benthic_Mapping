@@ -1,12 +1,9 @@
 import os
-import zipfile
-import shutil
+import math
+import copy
 import argparse
-import requests
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from biigle.biigle import Api
 
 
 # Example:
@@ -81,39 +78,83 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
     print("\tTODO: FETCH THIS INFO...")
     df.drop(df_nan_height_rows.index, axis="index", inplace=True)
 
+    df_nan_longitude_rows = df[df["image_longitude"].isnull()]
+    print("Dropping {} rows with missing longitude info...".format(len(df_nan_longitude_rows)))
+    print("\tTODO: FETCH THIS INFO...")
+    df.drop(df_nan_longitude_rows.index, axis="index", inplace=True)
+
+    df_nan_latitude_rows = df[df["image_latitude"].isnull()]
+    print("Dropping {} rows with missing latitude info...".format(len(df_nan_latitude_rows)))
+    print("\tTODO: FETCH THIS INFO...")
+    df.drop(df_nan_latitude_rows.index, axis="index", inplace=True)
+
     print("\nComputing annotation area in m2...")
     print(df.head())
     for i_row, row in df.iterrows():
+        area_image_m2 = float(row["area"])
+        area_image_pix = float(row["width"]) * float(row["height"])
+        lst_points = row["points"].split("[")[1].split("]")[0]
+        lst_points = lst_points.split(',')
+        lst_points = [float(p) for p in lst_points]
         if row["shape_name"] == "Circle":
-            lst_points = row["points"].split("[")[1].split("]")[0]
-            lst_points = lst_points.split(',')
-            area_annotation_pix = np.pi * (float(lst_points[2]) ** 2)
-            area_image_m2 = float(row["area"])
-            area_image_pix = float(row["width"]) * float(row["height"])
-            area_annotation_m2 = area_annotation_pix * area_image_m2 / area_image_pix
-            print(area_annotation_pix, area_annotation_m2, area_image_pix, area_image_m2)
+            area_annotation_pix = np.pi * (lst_points[2] ** 2)
+
         elif row["shape_name"] == "Rectangle":
-            print(row["points"])
-            exit()
+            length_one_pix = math.sqrt((lst_points[2] - lst_points[0]) ** 2 + (lst_points[3] - lst_points[1]) ** 2)
+            length_two_pix = math.sqrt((lst_points[6] - lst_points[0]) ** 2 + (lst_points[7] - lst_points[1]) ** 2)
+            area_annotation_pix = length_one_pix * length_two_pix
+
         else:
             print("ERROR: Unknown shape_name {} ..." .format(row["shape"]))
             exit()
 
+        area_annotation_m2 = area_annotation_pix * area_image_m2 / area_image_pix
+        df.loc[i_row, "area_annotation"] = area_annotation_m2
 
+    df['area'] = df['area'].astype(float)
 
     print("\n\tTODO: ADD ACQUISITION METHOD...")
     print("\n\tTODO: ADD IMAGE QUALITY...")
 
     # Clean
     df.rename(columns={"image_longitude": "longitude", "image_latitude": "latitude", "label_hierarchy": "label"}, inplace=True)
-    df.drop(["attributes", "filename", "shape_name", "points"], axis=1, inplace=True)
+    df.drop(["attributes", "shape_name", "points", "width", "height"], axis=1, inplace=True)
     print(df.head())
 
+    dct_ = {"filename": [], "survey": [], "longitude": [], "latitude": [], "area": []}
+    for k in df["label"].unique():
+        if k not in dct_:
+            dct_[k] = []
+
+    dct_count, dct_cover = copy.deepcopy(dct_), copy.deepcopy(dct_)
+    for f in df["filename"].unique():
+        df_cur = df[df["filename"] == f]
+        for k in dct_.keys():
+            if k not in df["label"].unique():
+                dct_count[k].append(df_cur[k].tolist()[0])
+                dct_cover[k].append(df_cur[k].tolist()[0])
+            else:
+                df_cur_k = df_cur[df_cur["label"] == k]
+                if len(df_cur_k):
+                    dct_count[k].append(len(df_cur_k))
+                    dct_cover[k].append(df_cur_k["area_annotation"].sum())
+                else:
+                    dct_count[k].append(0)
+                    dct_cover[k].append(0)
+
+    df_count = pd.DataFrame.from_dict(dct_count)
+    df_cover = pd.DataFrame.from_dict(dct_cover)
+    print(df_count.head())
+    print(df_cover.head())
+
     print("\n\tTODO: GET EMPTY IMAGES...")
-    exit()
-    print("\nTotal number of annotations: {}...".format(len(df)))
-    print("Saving result in: {}...".format(fname_o))
-    df.to_csv(fname_o, index=False)
+
+    fname_o_count = fname_o.split(".csv")[0] + "_count.csv"
+    print("Saving COUNT result in: {}...".format(fname_o_count))
+    df_count.to_csv(fname_o_count, index=False)
+    fname_o_cover = fname_o.split(".csv")[0] + "_cover.csv"
+    print("Saving COVER result in: {}...".format(fname_o_cover))
+    df_count.to_csv(fname_o_cover, index=False)
 
 
 def main():
@@ -126,4 +167,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
