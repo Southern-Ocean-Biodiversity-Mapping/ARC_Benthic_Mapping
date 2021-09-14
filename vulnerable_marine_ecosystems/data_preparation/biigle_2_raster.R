@@ -74,8 +74,10 @@ raster_bio <- rasterize(pts,
                         fun=sum)
 raster_survey <- rasterize(pts,
                            raster_ref,
-                           pts$survey,
+                           c("survey"),
                            fun="first")
+names(raster_survey) <- "survey"
+
 # Stack rasters
 raster_tot <- stack(raster_bio, raster_survey)
 cat("Number of layers:", nlayers(raster_tot), "...")
