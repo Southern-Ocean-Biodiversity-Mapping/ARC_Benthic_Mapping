@@ -14,7 +14,8 @@
 - [ ] Fetch missing infos: Long, Lat, Width, Height, Area
 - [ ] Account for empty images
 2. `curate_coralnet_report.py`: TODO
-3. `combine_coralnet_biigle.py`: TODO
+3. `combine_coralnet_biigle.py`:
+- [ ] Modify `ReadIn_Circumpolar_Annotation_Data_Prep.Rmd` to output the annotation area for Vic_Jan BIIGLEs
 4. `biigle_2_raster.R`:
 - [ ] Rename to `csv_2_raster.R`
 
