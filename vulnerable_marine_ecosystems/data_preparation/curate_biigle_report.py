@@ -137,7 +137,9 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
                 df_cur_k = df_cur[df_cur["label"] == k]
                 if len(df_cur_k):
                     dct_count[k].append(len(df_cur_k))
-                    dct_cover[k].append(df_cur_k["area_annotation"].sum())
+                    sum_area_annotation = df_cur_k["area_annotation"].sum()
+                    percent_cover = sum_area_annotation * 100. / df_cur_k["area"].values.tolist()[0]
+                    dct_cover[k].append(percent_cover)
                 else:
                     dct_count[k].append(0)
                     dct_cover[k].append(0)
@@ -154,7 +156,7 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
     df_count.to_csv(fname_o_count, index=False)
     fname_o_cover = fname_o.split(".csv")[0] + "_cover.csv"
     print("Saving COVER result in: {}...".format(fname_o_cover))
-    df_count.to_csv(fname_o_cover, index=False)
+    df_cover.to_csv(fname_o_cover, index=False)
 
 
 def main():

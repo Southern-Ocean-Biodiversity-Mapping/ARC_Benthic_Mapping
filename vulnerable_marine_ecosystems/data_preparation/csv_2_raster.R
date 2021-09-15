@@ -23,7 +23,10 @@ path_biigle <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_e
 resolution_raster <- 500
 
 # Output filename
-path_out <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210914_raster_cover.tif"
+path_out <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210914_raster_cover/raster_"
+
+# Save raster as file
+save_raster = FALSE
 
 ################################################################################
 #                                 XX
@@ -83,8 +86,13 @@ raster_tot <- stack(raster_bio, raster_survey)
 cat("Number of layers:", nlayers(raster_tot), "...")
 
 # Save raster
-cat("Saving raster:", path_out, "...")
-writeRaster(raster_tot,
-            filename=path_out,
-            options="INTERLEAVE=BAND",
-            overwrite=TRUE)
+if (save_raster) {
+  cat("Saving raster:", path_out, "...")
+  writeRaster(raster_tot,
+              filename=path_out,
+              suffix=names(raster_tot),
+              bylayer=TRUE,
+              format="GTiff",
+              overwrite=TRUE)
+}
+
