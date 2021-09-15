@@ -1,7 +1,5 @@
 ## Scripts dealing with VME analysis
 
-Work in progress :-)
-
 ### Data preparation
 
 1. `curate_biigle_report.py`: Cleans the BIIGLE report, removes rows with missing info (e.g., width, area, longitude). Saves a csv file where each row is an image, columns are: survey, image area, coordinates, and the coverage in m2 of each VME morpho-taxa (sum of annotations present in the current image for this label).
@@ -22,4 +20,9 @@ Work in progress :-)
 
 ### VME index
 
-TODO: show prelim results
+1. `run.R`: VME index mapping based on CCAMLR records. `config.R` contains the parameters needed for this analysis.
+2. `ccamlr_vme_taxa_prevalence.py`: compare the `VMESpecimenWeight` and `VMESpecimenCount` for each VME taxon across the VME risk areas
+
+![VMESpecimenCount_tot](https://user-images.githubusercontent.com/14353425/133349457-985fd82c-a1a8-4d67-9e72-a3299cbd73ac.png)
+
+
