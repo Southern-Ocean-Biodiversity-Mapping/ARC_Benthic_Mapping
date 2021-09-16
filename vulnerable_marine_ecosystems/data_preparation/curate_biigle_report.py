@@ -40,58 +40,13 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
     df["survey"] = df["filename"].str.split('_').str[0]
     df["label_hierarchy"] = df["label_hierarchy"].str.replace(" > ", "_")
     df["width"] = df["attributes"].str.split('"width":').str[1].str.split(',').str[0]
-    df["height"] = df["attributes"].str.split('"height":').str[1].str.split(',').str[0]
+    df["height"] = df["attributes"].str.split('"height":').str[1].str.split(',').str[0].str.split('}').str[0]
     df["area"] = df["attributes"].str.split('"area":').str[1].str.split(',').str[0]
-    # Fill area missing values
-    df_nan_area_rows = df[df["area"].isnull()]
-    lst_nan_area_fname = list(set(df_nan_area_rows["filename"].to_list()))
-    lst_nan_area_fname_no_extension = [f.split(".")[0] for f in lst_nan_area_fname]
-    lst_nan_area_survey = list(set(df_nan_area_rows["survey"].to_list()))
-    for survey in lst_nan_area_survey:
-        fname_survey = os.path.join(folder_area, survey+"_area.xlsx")
-        # TODO: correct for other surveys. Not available now
-        if os.path.isfile(fname_survey) and survey == "PS96":
-            df_area = pd.read_excel(fname_survey)
-            if survey == "PS96":
-                lst_nan_area_fname_no_extension_ps96 = [f.split("__")[1] for f in lst_nan_area_fname_no_extension if f.startswith("PS96")]
-                df_area = df_area[df_area["image filename"].isin(lst_nan_area_fname_no_extension_ps96)]
-            else:
-                df_area = df_area[df_area["image filename"].isin(lst_nan_area_fname)]
-            df_area = df_area[["image area in m²", "image filename"]]
-            for i_row_area, row_area in df_area.iterrows():
-                fname_area, area_area = row_area["image filename"], row_area["image area in m²"]
-                for i_row, row in df.iterrows():
-                    if fname_area in row["filename"]:
-                        df.loc[i_row, "area"] = area_area
-    df_nan_area_rows_new = df[df["area"].isnull()]
-    print("\nDropping {} rows with missing area info...".format(len(df_nan_area_rows_new)))
-    print("\tTODO: ASK JAN...")
-    df.drop(df_nan_area_rows_new.index, axis="index", inplace=True)
-
-    df_nan_width_rows = df[df["width"].isnull()]
-    print("Dropping {} rows with missing width info...".format(len(df_nan_width_rows)))
-    print("\tTODO: FETCH THIS INFO...")
-    df.drop(df_nan_width_rows.index, axis="index", inplace=True)
-
-    df_nan_height_rows = df[df["height"].isnull()]
-    print("Dropping {} rows with missing height info...".format(len(df_nan_height_rows)))
-    print("\tTODO: FETCH THIS INFO...")
-    df.drop(df_nan_height_rows.index, axis="index", inplace=True)
-
-    df_nan_longitude_rows = df[df["image_longitude"].isnull()]
-    print("Dropping {} rows with missing longitude info...".format(len(df_nan_longitude_rows)))
-    print("\tTODO: FETCH THIS INFO...")
-    df.drop(df_nan_longitude_rows.index, axis="index", inplace=True)
-
-    df_nan_latitude_rows = df[df["image_latitude"].isnull()]
-    print("Dropping {} rows with missing latitude info...".format(len(df_nan_latitude_rows)))
-    print("\tTODO: FETCH THIS INFO...")
-    df.drop(df_nan_latitude_rows.index, axis="index", inplace=True)
 
     print("\nComputing annotation area in m2...")
     print(df.head())
     for i_row, row in df.iterrows():
-        area_image_m2 = float(row["area"])
+        #area_image_m2 = float(row["area"])
         area_image_pix = float(row["width"]) * float(row["height"])
         lst_points = row["points"].split("[")[1].split("]")[0]
         lst_points = lst_points.split(',')
@@ -108,20 +63,19 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
             print("ERROR: Unknown shape_name {} ..." .format(row["shape"]))
             exit()
 
-        area_annotation_m2 = area_annotation_pix * area_image_m2 / area_image_pix
-        df.loc[i_row, "area_annotation"] = area_annotation_m2
+        #area_annotation_m2 = area_annotation_pix * area_image_m2 / area_image_pix
+        df.loc[i_row, "area_annotation_pix"] = area_annotation_pix
+        df.loc[i_row, "area_pix"] = area_image_pix
+        #df.loc[i_row, "area_annotation"] = area_annotation_m2
 
     df['area'] = df['area'].astype(float)
-
-    print("\n\tTODO: ADD ACQUISITION METHOD...")
-    print("\n\tTODO: ADD IMAGE QUALITY...")
 
     # Clean
     df.rename(columns={"image_longitude": "longitude", "image_latitude": "latitude", "label_hierarchy": "label"}, inplace=True)
     df.drop(["attributes", "shape_name", "points", "width", "height"], axis=1, inplace=True)
     print(df.head())
 
-    dct_ = {"filename": [], "survey": [], "longitude": [], "latitude": [], "area": []}
+    dct_ = {"filename": [], "survey": [], "longitude": [], "latitude": [], "area": [], "area_pix": []}
     for k in df["label"].unique():
         if k not in dct_:
             dct_[k] = []
@@ -137,9 +91,10 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
                 df_cur_k = df_cur[df_cur["label"] == k]
                 if len(df_cur_k):
                     dct_count[k].append(len(df_cur_k))
-                    sum_area_annotation = df_cur_k["area_annotation"].sum()
-                    percent_cover = sum_area_annotation * 100. / df_cur_k["area"].values.tolist()[0]
-                    dct_cover[k].append(percent_cover)
+                    #sum_area_annotation = df_cur_k["area_annotation"].sum()
+                    #percent_cover = sum_area_annotation * 100. / df_cur_k["area"].values.tolist()[0]
+                    dct_cover[k].append(df_cur_k["area_annotation_pix"].sum())
+                    #dct_cover[k].append(percent_cover)
                 else:
                     dct_count[k].append(0)
                     dct_cover[k].append(0)
