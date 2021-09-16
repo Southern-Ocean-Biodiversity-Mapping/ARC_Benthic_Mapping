@@ -10,15 +10,18 @@
 #### TODO
 
 1. `curate_biigle_reports.py`
-- [ ] Add infos: Image quality, acquisition method
-- [ ] Fetch missing infos: Long, Lat, Width, Height, Area
-- [ ] Account for empty images
+- [ ] Do not through missing: Long, Lat, Width, Height, Area **
 - [ ] Add Victor and Jan label tree
+- [ ] Remove percent cover **
 2. `curate_coralnet_report.py`:
-- [ ] Discuss UBS_Sp and UBS_B
-- [ ] Rename columns to match BIIGLE convention
+- [ ] Discuss UBS_Sp and UBS_B **
+- [ ] Rename columns to match BIIGLE convention **
 4. `combine_coralnet_biigle.py`:
-- [ ] Account for different spatial coverage between BIIGLE and CoralNet (annotated images).
+- [ ] Account for different spatial coverage between BIIGLE and CoralNet (annotated images). + VictarJan_BIIGLE vs Mine **
+- [ ] Add infos: Image quality, acquisition method, date
+- [ ] Fetch missing infos: Long, Lat, Width, Height, Area **
+- [ ] Account for empty images **
+- [ ] Compute percent cover **
 5. `csv_2_raster.R`:
 - [ ] XX
 
