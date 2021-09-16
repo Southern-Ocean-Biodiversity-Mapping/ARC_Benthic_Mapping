@@ -11,11 +11,11 @@ path_taxa_scores = "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_mari
 # Aggregation method for vulnerability scores across taxa
 agg_vulnerability_score = "quadratic_mean"
 # Number of categories for the abundance scores
-n_abundance_categories = 3
+n_abundance_categories = 10
 # Aggregation method for VME indexes across taxa
-vme_index_agg = "max"
+vme_index_agg = "median"
 # Number of categories for the VME indexes
-n_index_categories = 3
+n_index_categories = 10
 
 ## PACKAGES
 library(raster)

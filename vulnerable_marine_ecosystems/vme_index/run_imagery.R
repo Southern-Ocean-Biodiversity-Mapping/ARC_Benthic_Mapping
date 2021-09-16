@@ -82,7 +82,6 @@ for (taxon in morpho_taxa_list) {
 }
 print(head(df_indicator_abundance_score))
 cat("\tAggregate scores across taxa for each records using", toupper(vme_index_agg),"method...")
-vme_index_agg = "max"
 if (vme_index_agg == "max") {
   result <- apply(df_indicator_abundance_score[, morpho_taxa_list], 1,
                   function(x) max(x, na.rm=TRUE))
@@ -133,7 +132,7 @@ cat("Cropping and resampling (",
     resolution_raster, "x", resolution_raster, "m ) the reference raster...")
 # Crop reference raster according to pts extent
 
-mask <- buffer(pts[20, ], 50000)
+mask <- buffer(pts[1, ], 10000)
 
 raster_ref <- crop(SmallBathy, mask)
 # Set raster resolution
@@ -156,21 +155,29 @@ cat("Using the projection system:", proj4string(raster_ref), "...")
 proj4string(pts) <- proj4string(raster_ref)
 
 # Rasterise data
+# TODO: change fun
 cat("Rasterizing data ...")
 raster_vme <- rasterize(pts,
                         raster_ref,
                         "vme_index",
-                        fun=max)
+                        fun=mean)
 
 
 blue.col <- colorRampPalette(c("darkblue", "lightblue"))
 blue.br <- seq(from=-11000, to=0, by=1000)
-yellow.col <- colorRampPalette(c("yellow", "orange"))
+yellow.col <- colorRampPalette(c("yellow", "red"))
 yellow.br <- seq(from=1, to=max(n_index_categories), by=1)
 
-par(mar=c(2, 2, 2, 2))
+par(mar=c(3,3,3,3))
 plot(raster_ref, col=blue.col(22), breaks=blue.br, legend=FALSE)
-plot(rasterToPolygons(raster_vme), add=TRUE, col=yellow.col(n_index_categories), breaks=yellow.br, legend=TRUE)
+plot(rasterToPolygons(raster_vme), add=TRUE, col=yellow.col(n_index_categories), breaks=yellow.br, legend=FALSE)
+legend("left", legend=unique(pts$vme_index), col=yellow.col(n_index_categories), pch=15, border="black", title = "VME index")
+
+
+
+
+
+
 
 
 
