@@ -105,6 +105,7 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
     print(df_cover.head())
 
     print("\n\tTODO: GET EMPTY IMAGES...")
+    print("\nTODO: Pull Jan's and Victor's data.")
 
     fname_o_count = fname_o.split(".csv")[0] + "_count.csv"
     print("Saving COUNT result in: {}...".format(fname_o_count))
