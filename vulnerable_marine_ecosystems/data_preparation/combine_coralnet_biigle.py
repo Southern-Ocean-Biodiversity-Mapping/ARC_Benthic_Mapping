@@ -4,40 +4,11 @@ import copy
 import argparse
 import numpy as np
 import pandas as pd
+import pyreadr
 
 
 # Example:
-#   python combine_coralnet_biigle.py -b ..\20210909_biigle_vme_cover.csv -c ..\20210909_coralnet.csv -o ..\20210915_biigle_coralnet.csv
-
-DCT_CORALNET = {"BH_BrAnt": "bryozoans_hard_branching_antler-bryozoans",
-                "BH_BrHead": "bryozoans_hard_branching_coralhead-bryozoans",
-                "BH_BrLeaf": "",
-                "BH_Encr": "",
-                "BH_Fenestr": "",
-                "BH_Lettuce": "",
-                "BH_Mass": "",
-                "B_Purple": "",
-                "BS_Dendr": "",
-                "BS_FAN": "",
-                "BS_Foliac": "",
-                "HydrC_Br": "",
-                "S_Amorph": "",
-                "S_Ball": "",
-                "S_Barrel": "",
-                "S_bead": "",
-                "S_Buried": "",
-                "S_Creep": "",
-                "S_CupCmplt": "",
-                "S_CupIncmp": "",
-                "S_Disc": "",
-                "S_Encr": "",
-                "S_Er_Br": "",
-                "S_Er_Lam": "",
-                "S_Er_Palm": "",
-                "S_Er_Simp": "",
-                "S_Er_St": "",
-                "S_Tube": ""
-                }
+#   python data_preparation\combine_coralnet_biigle.py -b 20210917_biigle_vme_cover.csv -c 20210917_coralnet_cover.csv -m ../../ARC_data/Circumpolar_Annotation_Data.Rdata -o 20210920
 
 
 def get_parser():
@@ -49,8 +20,10 @@ def get_parser():
                                 help='BIIGLE CSV filename.')
     mandatory_args.add_argument('-c', '--cfname', required=True, type=str,
                                 help='CoralNet CSV filename.')
-    mandatory_args.add_argument('-o', '--ofname', required=True, type=str,
-                                help='CSV filename output.')
+    mandatory_args.add_argument('-m', '--mfname', required=True, type=str,
+                                help='Metadata Rdata filename.')
+    mandatory_args.add_argument('-o', '--ofolder', required=True, type=str,
+                                help='Output folder.')
 
     # OPTIONAL ARGUMENTS
     optional_args = parser.add_argument_group('OPTIONAL ARGUMENTS')
@@ -60,74 +33,78 @@ def get_parser():
     return parser
 
 
-def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_o):
+def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder_o):
     # Read data
     df_b = pd.read_csv(fname_biigle)
     df_c = pd.read_csv(fname_coralnet)
+    df_m = pyreadr.read_r(fname_metadata)["image_metadata"].reset_index()
 
-    # Convert CoralNet count to cover data
-    tot_coralnet = df_c.sum(axis=1)
-    df_c.loc[:, df_c.columns != 'Unnamed: 0'] = df_c.loc[:, df_c.columns != 'Unnamed: 0'].div(tot_coralnet, axis=0)
+    # Cleanup
+    df_m.drop(columns=["rownames", "proj_coord_x", "proj_coord_y", "cellID"], inplace=True)
+    df_m.rename(columns={"Filename.standardised": "filename",
+                         "lon": "longitude",
+                         "lat": "latitude",
+                         "cover": "coralnet",
+                         "counts": "biigle254"}, inplace=True)
+    df_m.loc[:, "coralnet"] = [1 if i == "yes" else 0 for i in df_m.coralnet.tolist()]
+    df_m.loc[:, "biigle254"] = [1 if i == "yes" else 0 for i in df_m.biigle254.tolist()]
+    df_m.loc[:, "biigle839"] = [0 for i in df_m.biigle254.tolist()]
+    df_m.drop(index=df_m[df_m.coralnet == 0].index, inplace=True)
+    print("\nTODO: Pull biigle839 annotated images.")
 
-    # Find images in common
-    print("\nTODO: FIND CORALNET METADATA and DO NOT ONLY TAKE INTERSECTION")
-    list_interection_filename = list(set(df_b["filename"].tolist()) & set(df_c["Unnamed: 0"].tolist()))
-    print(len(df_c), len(df_b))
-    df_c = df_c[df_c["Unnamed: 0"].isin(list_interection_filename)]
-    df_b = df_b[df_b["filename"].isin(list_interection_filename)]
-    print(len(df_c), len(df_b))
+    list_area_m = list(set([row["filename"] for i_r, row in df_m.iterrows() if row["area"] != "nan"]))
+    list_area_b = list(set([row["filename"] for i_r, row in df_b.iterrows() if row["area"] != "nan"]))
+    if len([f for f in list_area_b if f not in list_area_m]):
+        print("ERROR: BIIGLE has more area data than METADATA.")
+        print([f for f in list_area_b if f not in list_area_m][:10])
 
-    # Select columns of interest
-    print("\nTODO: TAKE UBS_B and UBS_Sp into account?")
+    print(df_b.keys())
+    print(df_c.keys())
+    print(df_m.keys())
 
+    print("\nTODO: Check missing Area missing data + disprecancy between BIIGLE vs Jan's data.")
+    df_b.drop(columns=["area"], inplace=True)
 
-    """
-    # Fill area missing values
-    df_nan_area_rows = df[df["area"].isnull()]
-    lst_nan_area_fname = list(set(df_nan_area_rows["filename"].to_list()))
-    lst_nan_area_fname_no_extension = [f.split(".")[0] for f in lst_nan_area_fname]
-    lst_nan_area_survey = list(set(df_nan_area_rows["survey"].to_list()))
-    for survey in lst_nan_area_survey:
-        fname_survey = os.path.join(folder_area, survey+"_area.xlsx")
-        # TODO: correct for other surveys. Not available now
-        if os.path.isfile(fname_survey) and survey == "PS96":
-            df_area = pd.read_excel(fname_survey)
-            if survey == "PS96":
-                lst_nan_area_fname_no_extension_ps96 = [f.split("__")[1] for f in lst_nan_area_fname_no_extension if f.startswith("PS96")]
-                df_area = df_area[df_area["image filename"].isin(lst_nan_area_fname_no_extension_ps96)]
-            else:
-                df_area = df_area[df_area["image filename"].isin(lst_nan_area_fname)]
-            df_area = df_area[["image area in m²", "image filename"]]
-            for i_row_area, row_area in df_area.iterrows():
-                fname_area, area_area = row_area["image filename"], row_area["image area in m²"]
-                for i_row, row in df.iterrows():
-                    if fname_area in row["filename"]:
-                        df.loc[i_row, "area"] = area_area
-    #df_nan_area_rows_new = df[df["area"].isnull()]
-    #print("\nDropping {} rows with missing area info...".format(len(df_nan_area_rows_new)))
-    #print("\tTODO: ASK JAN...")
-    #df.drop(df_nan_area_rows_new.index, axis="index", inplace=True)
+    dct_taxon_source = {"morpho_taxon": [], "source": []}
+    for taxon_coralnet in [c for c in df_c.keys() if c not in ["filename", "n_annotation"]]:
+        dct_taxon_source["morpho_taxon"].append(taxon_coralnet)
+        dct_taxon_source["source"].append("coralnet")
+    for taxon_biigle839 in [c for c in df_b.keys() if c not in ['filename', 'area', 'area_pix']]:
+        dct_taxon_source["morpho_taxon"].append(taxon_biigle839)
+        dct_taxon_source["source"].append("biigle839")
+    #for taxon_biigle254 in [c for c in df_b.keys() if c not in ['filename', 'area', 'area_pix']]:
+    #    dct_taxon_source["morpho_taxon"].append(taxon_biigle254)
+    #         dct_taxon_source["source"].append("biigle254")
+    df_taxon_source = pd.DataFrame.from_dict(dct_taxon_source)
+    df_m.drop(columns=["coralnet", "biigle839", "biigle254"], inplace=True)
+    print("\nTODO: Pull Jan's and Victor's data.")
 
-    #df_nan_width_rows = df[df["width"].isnull()]
-    #print("Dropping {} rows with missing width info...".format(len(df_nan_width_rows)))
-    #print("\tTODO: FETCH THIS INFO...")
-    #df.drop(df_nan_width_rows.index, axis="index", inplace=True)
+    if len(df_m[df_m["longitude"].isnull()]):
+        print("ERROR: MISSING LONGITUDE")
+        # df_nan_longitude_rows = df[df["image_longitude"].isnull()]
+        # print("Dropping {} rows with missing longitude info...".format(len(df_nan_longitude_rows)))
+        # print("\tTODO: FETCH THIS INFO...")
+        # df.drop(df_nan_longitude_rows.index, axis="index", inplace=True)
+        exit()
+    if len(df_m[df_m["latitude"].isnull()]):
+        print("ERROR: MISSING LATITUDE")
+        exit()
 
-    #df_nan_height_rows = df[df["height"].isnull()]
-    #print("Dropping {} rows with missing height info...".format(len(df_nan_height_rows)))
-    #print("\tTODO: FETCH THIS INFO...")
-    #df.drop(df_nan_height_rows.index, axis="index", inplace=True)
+    print("\nMerging datasets ...")
+    df_merged = pd.merge(df_m, df_b, on="filename", how="left")
+    df_merged = pd.merge(df_merged, df_c, on="filename", how="left")
 
-    #df_nan_longitude_rows = df[df["image_longitude"].isnull()]
-    #print("Dropping {} rows with missing longitude info...".format(len(df_nan_longitude_rows)))
-    #print("\tTODO: FETCH THIS INFO...")
-    #df.drop(df_nan_longitude_rows.index, axis="index", inplace=True)
+    if not os.path.isdir(folder_o):
+        print("\nCreating output folder: {} ...".format(folder_o))
+        os.makedirs(folder_o)
 
-    #df_nan_latitude_rows = df[df["image_latitude"].isnull()]
-    #print("Dropping {} rows with missing latitude info...".format(len(df_nan_latitude_rows)))
-    #print("\tTODO: FETCH THIS INFO...")
-    #df.drop(df_nan_latitude_rows.index, axis="index", inplace=True)
-    """
+    fname_o = os.path.join(folder_o, "bio_data.csv")
+    print("\nSaving data: {} ...".format(fname_o))
+    df_merged.to_csv(fname_o, index=False)
+    fname_o_src = os.path.join(folder_o, "bio_data_source.csv")
+    print("\nSaving data: {} ...".format(fname_o_src))
+    df_taxon_source.to_csv(fname_o_src, index=False)
+
 
 def main():
     parser = get_parser()
@@ -136,7 +113,8 @@ def main():
     # Run function
     combine_coralnet_biigle(fname_biigle=args.bfname,
                             fname_coralnet=args.cfname,
-                            fname_o=args.ofname)
+                            fname_metadata=args.mfname,
+                            folder_o=args.ofolder)
 
 
 if __name__ == "__main__":
