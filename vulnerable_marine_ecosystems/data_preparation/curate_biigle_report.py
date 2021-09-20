@@ -7,7 +7,7 @@ import pandas as pd
 
 
 # Example:
-#   python curate_biigle_report.py -i ..\..\..\biigle_scripts\20210908_biigle_vme.csv -a C:\Users\cgros\data\image_area -o 20210909_biigle_vme.csv
+#   python data_preparation\curate_biigle_report.py -i ..\..\..\biigle_scripts\20210908_biigle_vme.csv -a C:\Users\cgros\data\image_area -o 20210917_biigle_vme.csv
 
 
 def get_parser():
@@ -37,7 +37,7 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
     # Clean df
     df = df.drop(["annotation_label_id", "label_id", "label_name", "firstname", "lastname", "user_id",
                                   "image_id", "shape_id", "annotation_id"], axis=1)
-    df["survey"] = df["filename"].str.split('_').str[0]
+    #df["survey"] = df["filename"].str.split('_').str[0]
     df["label_hierarchy"] = df["label_hierarchy"].str.replace(" > ", "_")
     df["width"] = df["attributes"].str.split('"width":').str[1].str.split(',').str[0]
     df["height"] = df["attributes"].str.split('"height":').str[1].str.split(',').str[0].str.split('}').str[0]
@@ -71,11 +71,11 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
     df['area'] = df['area'].astype(float)
 
     # Clean
-    df.rename(columns={"image_longitude": "longitude", "image_latitude": "latitude", "label_hierarchy": "label"}, inplace=True)
-    df.drop(["attributes", "shape_name", "points", "width", "height"], axis=1, inplace=True)
+    df.rename(columns={"label_hierarchy": "label"}, inplace=True)
+    df.drop(["attributes", "shape_name", "points", "width", "height", "image_latitude", "image_longitude"], axis=1, inplace=True)
     print(df.head())
 
-    dct_ = {"filename": [], "survey": [], "longitude": [], "latitude": [], "area": [], "area_pix": []}
+    dct_ = {"filename": [], "area": [], "area_pix": []}
     for k in df["label"].unique():
         if k not in dct_:
             dct_[k] = []
