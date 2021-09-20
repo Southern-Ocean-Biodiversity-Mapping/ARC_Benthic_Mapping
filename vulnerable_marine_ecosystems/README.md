@@ -12,6 +12,7 @@
 1. `curate_biigle_reports.py`
 - [ ] Add Victor and Jan label tree 254
 - [ ] Add 839 coverage
+- [ ] Have area_pix254 and area_pix839
 2. `curate_coralnet_report.py`:
 - [ ] Read directly from RData instead of csv
 4. `combine_coralnet_biigle.py`:
