@@ -7,7 +7,7 @@ import pandas as pd
 
 
 # Example:
-#   python curate_coralnet_report.py -i ..\20210915_coralnet.csv -o ..\20210917_coralnet_cover.csv
+#   python data_preparation\curate_coralnet_report.py -i 20210915_coralnet.csv -o 20210917_coralnet_cover.csv
 
 DCT_CORALNET = {"BH_BrAnt": "bryozoans_hard_branching_antler-bryozoans",
                 "BH_BrHead": "bryozoans_hard_branching_coralhead-bryozoans",
@@ -62,16 +62,16 @@ def curate_coralnet_report(fname_i, fname_o):
     # Read data
     df = pd.read_csv(fname_i)
 
-    # Convert CoralNet count to cover data
-    tot_coralnet = df.sum(axis=1) - df["Unscorable"]
-    df.loc[:, df.columns != 'Unnamed: 0'] = df.loc[:, df.columns != 'Unnamed: 0'].div(tot_coralnet, axis=0)
-    df.loc[:, df.columns != 'Unnamed: 0'] *= 100.
+    print("\nTODO: Use RData instead")
+
+    # Get n annotation per images
+    df["n_annotation"] = df.sum(axis=1) - df["Unscorable"]
 
     # Rename column
     df.rename(columns={"Unnamed: 0": "filename"}, inplace=True)
 
     # Select columns of interest
-    df.drop(columns=[c for c in df.keys() if c not in ["filename"] + list(DCT_CORALNET.keys())], inplace=True)
+    df.drop(columns=[c for c in df.keys() if c not in ["filename", "n_annotation"] + list(DCT_CORALNET.keys())], inplace=True)
 
     # Rename columns
     df.rename(columns=DCT_CORALNET, inplace=True)
