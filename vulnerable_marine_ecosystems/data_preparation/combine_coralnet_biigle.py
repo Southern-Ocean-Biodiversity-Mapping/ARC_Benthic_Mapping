@@ -78,6 +78,8 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     df_taxon_source = pd.DataFrame.from_dict(dct_taxon_source)
     df_m.drop(columns=["coralnet", "biigle839", "biigle254"], inplace=True)
 
+    df_m["survey"] = df_m["filename"].str.split('_').str[0]
+
     if len(df_m[df_m["longitude"].isnull()]):
         print("ERROR: MISSING LONGITUDE")
         # df_nan_longitude_rows = df[df["image_longitude"].isnull()]
