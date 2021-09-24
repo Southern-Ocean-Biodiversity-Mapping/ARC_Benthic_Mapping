@@ -33,24 +33,6 @@ JJ_SOmap()
 
 ASDs <- load_ASDs()
 
-get_points_in_asd <- function(df_, asd_object, asd_name) {
-  asd_interest <- asd_object[asd_object$GAR_Short_Label==asd_name, ]
-  asd_interest_spPoly = as(asd_interest, "SpatialPolygons")
-  
-  pts <- df_
-  coordinates(pts) <- c("proj_coord_x", "proj_coord_y")
-  projection(pts) <- crs(asd_interest)
-  
-  pts_in = pts[!is.na(over(pts, asd_interest_spPoly)), ]
-  df_interest = as.data.frame(pts_in)
-  
-  cat("\nSelecting points in ASD #", asd_name, " ...\n")
-  cat("Number of points: ", nrow(df_interest), "\n")
-  return(df_interest)
-}
-
-
-
 # Create area
 df$section_col <- "black"
 df$section_name <- "out_of_scope"
@@ -116,8 +98,11 @@ dff$section_col <- df_$section_col[match(dff$section_name, df_$section_name)]
 
 p <- dff %>%
   ggplot( aes(x=section_name, y=area, fill=section_col)) +
-  geom_bar(stat="identity") +
-  xlab("Regions") +
+  geom_bar(stat="identity", fill=dff$section_col, width=.4) +
+  #geom_segment( aes(xend=section_name, yend=0)) +
+  #geom_point( size=5, color=dff$section_col) +
+  xlab("Subareas") +
   theme_bw() +
-  ylab("Sampling effort (m2)")
-
+  ylab("Sampling effort (m2)") +
+  theme(legend.position = "none")
+p
