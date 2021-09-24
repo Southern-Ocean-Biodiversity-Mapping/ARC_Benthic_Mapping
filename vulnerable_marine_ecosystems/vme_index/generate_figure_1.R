@@ -18,19 +18,24 @@ library(dplyr)
 # Set working directory
 setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index")
 
+# Source functions
 source("../../../Useful_Functions_Tools/SOmap_functions_JJ.R")
+source("utils.R")
 
 # Path towards data
 path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210920_raster_cover/raster_data.csv"
-#source("../data_preparation/csv_to_raster.R")
 
 ################################################################################
-#                                XX
+#                                PROCESS
 ################################################################################
+# Read Data
 df <- read.csv(path_raster)
+
+# Init map
 JJ_SOmap()
 #SOplot(x = df$longitude, y = df$latitude, pch = 19, col = 2)
 
+# Load ASDs
 ASDs <- load_ASDs()
 
 # Create area
@@ -79,14 +84,14 @@ df_486 <- get_points_in_asd(df_=df,
 df[df$cellID %in% df_486$cellID, "section_col"] = "#e81123"
 df[df$cellID %in% df_486$cellID, "section_name"] = "48.6"
 
+# Plot
 SOplot(x = df$longitude, y = df$latitude,  pch = 19, col = df$section_col, cex = 0.9)
-
 JJ_SOleg(col = unique(df$section_col),
       type = "discrete",
       ladj = -0.5,
       tlabs = unique(df$section_name))
 
-
+# Get sampling effort
 df_ <- df[c("section_name", "area", "section_col")]
 dff <- as.data.frame(df_ 
                      %>% group_by(section_name) 
@@ -95,7 +100,9 @@ dff <- as.data.frame(df_
                                             {if (!all(is.na(x))){sum(na.omit(x))} 
                                             else{NA}})))
 dff$section_col <- df_$section_col[match(dff$section_name, df_$section_name)]
+dff
 
+# Plot Sampling effort
 p <- dff %>%
   ggplot( aes(x=section_name, y=area, fill=section_col)) +
   geom_bar(stat="identity", fill=dff$section_col, width=.4) +
