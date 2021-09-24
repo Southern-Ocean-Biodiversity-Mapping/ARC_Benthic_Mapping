@@ -25,7 +25,10 @@
 
 1. `run.R`: VME index mapping based on CCAMLR records. `config.R` contains the parameters needed for this analysis.
 2. `ccamlr_vme_taxa_prevalence.py`: compare the `VMESpecimenWeight` and `VMESpecimenCount` for each VME taxon across the VME risk areas
-
 ![VMESpecimenCount_tot](https://user-images.githubusercontent.com/14353425/133349457-985fd82c-a1a8-4d67-9e72-a3299cbd73ac.png)
+
+4. `generate_figure_1.R`: Show data distribution around Antarctica and sampling effort.
+![image](https://user-images.githubusercontent.com/14353425/134629430-ecec814d-0b02-494e-a5ca-982b4c7c2895.png)
+![image](https://user-images.githubusercontent.com/14353425/134629403-465f24e0-1e51-4201-a46c-7fa4cfd29457.png)
 
 
