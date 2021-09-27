@@ -27,7 +27,7 @@ fname_src <- "bio_data_source.csv"
 resolution_raster <- 500
 
 # Output filename
-path_out <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210920_raster_cover/raster_"
+path_out <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_"
 
 # Save raster as file
 save_raster = FALSE
@@ -94,7 +94,7 @@ if (resolution_raster < res(raster_ref)[1]) {
 }
 
 # Get cell IDs
-df$cellID <- extract(raster_ref,
+df$cellID <- raster::extract(raster_ref,
                      df[,c("proj_coord_x", "proj_coord_y")],
                      cellnumbers=TRUE)[,1]
 list_cells <- unique(df$cellID)
@@ -111,10 +111,29 @@ df_sum <- as.data.frame(df_to_sum
                         %>% group_by(cellID)
                         %>% summarise(across(everything(),
                                              function(x,...){if (!all(is.na(x))){sum(na.omit(x))} else{NA}})))
+
+# Aggregate for CCAMLR taxa
+list_taxonomic <- colnames(df_sum)[!(colnames(df_sum) %in% c("n_annotation", "area_pix", "area", "cellID"))]
+list_taxonomic <- unique(list_taxonomic %>% strsplit( "--" ) %>% sapply(tail, 1))
+df_sum_taxonomic <- df_sum[, c("n_annotation", "area_pix", "area", "cellID")]
+for (taxa in list_taxonomic) {
+  list_morpho_taxa_cur <- colnames(df_sum)[endsWith(colnames(df_sum), taxa)]
+  if (length(list_morpho_taxa_cur) > 1) {
+    df_sum_taxonomic[, taxa] <- rowSums(df_sum[, list_morpho_taxa_cur], na.rm=TRUE)
+  } else {
+    df_sum_taxonomic[, taxa] <- df_sum[, list_morpho_taxa_cur]
+  }
+}
+
 # Normalise to compute percentage cover
 df_sum[, list_taxa_coralnet] <- df_sum[, list_taxa_coralnet] * 100. / df_sum[, "n_annotation"]
 df_sum[, list_taxa_biigle839] <- df_sum[, list_taxa_biigle839] * 100. / df_sum[, "area_pix"]
 #df_sum[, list_taxa_biigle254] <- df_sum[, list_taxa_biigle254] * 100. / df_sum[, "area_pix"]
+df_sum_taxonomic[, c("bryozoans", "porifera", "stylasterids")] <- df_sum_taxonomic[, c("bryozoans", "porifera", "stylasterids")] * 100. / df_sum_taxonomic[, "n_annotation"]
+list_taxonomic_biigle <- list_taxonomic[!(list_taxonomic %in% c("bryozoans", "porifera", "stylasterids"))]
+df_sum_taxonomic[, list_taxonomic_biigle] <- df_sum_taxonomic[, list_taxonomic_biigle] * 100. / df_sum_taxonomic[, "area_pix"]
+#df_sum_taxonomic[, list_taxa_biigle254] <- df_sum_taxonomic[, list_taxa_biigle254] * 100. / df_sum_taxonomic[, "area_pix"]
+
 # Join dataframes
 df_to_rasterize <- left_join(df_sum, df_not_to_sum)
 df_to_rasterize$survey <- as.numeric(as.factor(df_to_rasterize$survey))
@@ -124,6 +143,15 @@ if (save_df) {
             paste0(path_out, "data.csv"),
             row.names = FALSE)
 }
+df_to_rasterize_ccamlr <- left_join(df_sum_taxonomic, df_not_to_sum)
+df_to_rasterize_ccamlr$survey <- as.numeric(as.factor(df_to_rasterize_ccamlr$survey))
+if (save_df) {
+  cat("\nSaving CCAMLR dataframe:", path_out, "...\n")
+  write.csv(df_to_rasterize_ccamlr,
+            paste0(path_out, "data_ccamlr.csv"),
+            row.names = FALSE)
+}
+
 pts_to_rasterize <- df_to_rasterize
 coordinates(pts_to_rasterize) <- c("proj_coord_x", "proj_coord_y")
 
