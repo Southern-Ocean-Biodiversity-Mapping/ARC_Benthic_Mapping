@@ -1,0 +1,139 @@
+---
+title: "generate_figure_2.R"
+author: "charley"
+date: "29/09/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Init
+
+```{r init, include=FALSE, echo=FALSE}
+# Packages
+library(CCAMLRGIS)
+library(raster)
+library(SOmap)
+library(qwraps2)
+options(qwraps2_markup = "markdown")
+library(ggplot2)
+library(dplyr)
+
+# Set working directory
+setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index")
+
+# Source functions
+source("utils.R")
+
+# Path towards data
+path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data_ccamlr.csv"
+#path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data.csv"
+#path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/morpho_taxa_scores.csv"
+path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/taxa_scores.csv"
+```
+
+## Read data
+
+```{r read_data, inclde=FALSE, echo=FALSE}
+# Read Data
+df <- read.csv(path_raster)
+df_taxa <- read.csv(path_scores)
+if ("morpho_taxon" %in% colnames(df_taxa)) {
+  list_taxa_all <- gsub("-", "..", df_taxa$morpho_taxon)
+} else {
+  list_taxa_all <- NA
+  #list_taxa_all <- tolower(df_taxa$Taxon)
+}
+```
+
+## Split per CCAMLR Statistical area
+
+```{r ccamlr_asd, echo=FALSE}
+# Load ASDs
+ASDs <- load_ASDs()
+
+# Create area
+df$section_col <- "black"
+df$section_name <- "out_of_scope"
+# ASD 58.4.1
+df_5841 <- get_points_in_asd(df_=df,
+                             asd_object=ASDs,
+                             asd_name="5841")
+df[df$cellID %in% df_5841$cellID, "section_col"] = "#00188f"
+df[df$cellID %in% df_5841$cellID, "section_name"] = "58.4.1"
+# ASD 881
+df_881 <- get_points_in_asd(df_=df,
+                            asd_object=ASDs,
+                            asd_name="881")
+df[df$cellID %in% df_881$cellID, "section_col"] = "#00b294"
+df[df$cellID %in% df_881$cellID, "section_name"] = "88.1"
+# ASD 882
+df_882 <- get_points_in_asd(df_=df,
+                            asd_object=ASDs,
+                            asd_name="882")
+df[df$cellID %in% df_882$cellID, "section_col"] = "#bad80a"
+df[df$cellID %in% df_882$cellID, "section_name"] = "88.2"
+# ASD 481
+df_481 <- get_points_in_asd(df_=df,
+                            asd_object=ASDs,
+                            asd_name="481")
+df[df$cellID %in% df_481$cellID, "section_col"] = "#ec008c"
+df[df$cellID %in% df_481$cellID, "section_name"] = "48.1"
+# ASD 482
+df_482 <- get_points_in_asd(df_=df,
+                            asd_object=ASDs,
+                            asd_name="482")
+df[df$cellID %in% df_482$cellID, "section_col"] = "#ff8c00"
+df[df$cellID %in% df_482$cellID, "section_name"] = "48.2"
+# ASD 485
+df_485 <- get_points_in_asd(df_=df,
+                            asd_object=ASDs,
+                            asd_name="485")
+df[df$cellID %in% df_485$cellID, "section_col"] = "#68217a"
+df[df$cellID %in% df_485$cellID, "section_name"] = "48.5"
+# ASD 486
+df_486 <- get_points_in_asd(df_=df,
+                            asd_object=ASDs,
+                            asd_name="486")
+df[df$cellID %in% df_486$cellID, "section_col"] = "#e81123"
+df[df$cellID %in% df_486$cellID, "section_name"] = "48.6"
+
+# Select columns
+if (is.na(list_taxa_all)) {
+  list_taxa_selected <- colnames(df)[!(colnames(df) %in% c("n_annotation", "area_pix", "area", "cellID", "survey", "longitude", "latitude", "filename", "proj_coord_x", "proj_coord_y", "section_col", "section_name"))]
+} else {
+  list_taxa_selected <- intersect(list_taxa_all, colnames(df))
+}
+df_ <- df[, c(list_taxa_selected, "section_name", "section_col")]
+```
+
+## Compute statistics
+
+```{r statistics, include = FALSE}
+df_mean <- as.data.frame(df_ 
+                         %>% summarise(across(list_taxa_selected,
+                                              function(x,...)
+                                              {if (!all(is.na(x))){mean(na.omit(x))} 
+                                                else{NA}})))
+
+df_sd <- as.data.frame(df_ 
+                       %>% summarise(across(list_taxa_selected,
+                                            function(x,...)
+                                            {if (!all(is.na(x))){sd(na.omit(x))} 
+                                              else{NA}})))
+```
+
+```{r summary_table, results = "asis"}
+my_summary <-
+  qsummary(df_[, list_taxa_selected],
+           numeric_summaries = list("min" = "~ min(%s)",
+                                    "mean (sd)" = "~ qwraps2::mean_sd(%s)",
+                                    "max" = "~ max(%s)"),
+           n_perc_args = list(digits = 4, show_symbol = TRUE, show_denom = "always"))
+
+summary_table(df_[, list_taxa_selected], my_summary)
+
+summary_table(df_[, c("section_name", list_taxa_selected)], my_summary, by = c("section_name"))
+```
