@@ -28,10 +28,10 @@ setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems
 source("utils.R")
 
 # Path towards data
-path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data_ccamlr.csv"
-#path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data.csv"
-#path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/morpho_taxa_scores.csv"
-path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/taxa_scores.csv"
+#path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data_ccamlr.csv"
+path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data.csv"
+path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/morpho_taxa_scores.csv"
+#path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/taxa_scores.csv"
 ```
 
 ## Read data
