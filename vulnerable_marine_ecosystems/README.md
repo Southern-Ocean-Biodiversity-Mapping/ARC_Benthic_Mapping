@@ -27,8 +27,11 @@
 2. `ccamlr_vme_taxa_prevalence.py`: compare the `VMESpecimenWeight` and `VMESpecimenCount` for each VME taxon across the VME risk areas
 ![VMESpecimenCount_tot](https://user-images.githubusercontent.com/14353425/133349457-985fd82c-a1a8-4d67-9e72-a3299cbd73ac.png)
 
-4. `generate_figure_1.R`: Show data distribution around Antarctica and sampling effort.
+3. `generate_figure_1.R`: Show data distribution around Antarctica and sampling effort.
 ![image](https://user-images.githubusercontent.com/14353425/134629430-ecec814d-0b02-494e-a5ca-982b4c7c2895.png)
 ![image](https://user-images.githubusercontent.com/14353425/134629403-465f24e0-1e51-4201-a46c-7fa4cfd29457.png)
 
+4. `generate_figure_2.R`: Looks at the variability in taxa abundance
+
+![image](https://user-images.githubusercontent.com/14353425/135181915-1f616f0f-aded-4e5a-8bc2-186100662c9d.png)
 
