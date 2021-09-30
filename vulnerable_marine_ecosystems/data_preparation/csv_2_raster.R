@@ -27,7 +27,7 @@ fname_src <- "bio_data_source.csv"
 resolution_raster <- 500
 
 # Output filename
-path_out <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_"
+path_out <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210930_raster_cover/raster_"
 
 # Save raster as file
 save_raster = FALSE
@@ -58,7 +58,7 @@ list_taxa_biigle839 = df_src[df_src$source == "biigle839", "morpho_taxon"]
 list_taxa_biigle254 = df_src[df_src$source == "biigle254", "morpho_taxon"]
 
 ################################################################################
-#                                 RASTERIZATION
+#                                 PREPARE RASTER
 ################################################################################
 
 # Get reference
@@ -125,6 +125,10 @@ for (taxa in list_taxonomic) {
   }
 }
 
+################################################################################
+#                                 COMPUTE PERCENT COVER
+################################################################################
+
 # Normalise to compute percentage cover
 df_sum[, list_taxa_coralnet] <- df_sum[, list_taxa_coralnet] * 100. / df_sum[, "n_annotation"]
 df_sum[, list_taxa_biigle839] <- df_sum[, list_taxa_biigle839] * 100. / df_sum[, "area_pix"]
@@ -134,23 +138,52 @@ list_taxonomic_biigle <- list_taxonomic[!(list_taxonomic %in% c("bryozoans", "po
 df_sum_taxonomic[, list_taxonomic_biigle] <- df_sum_taxonomic[, list_taxonomic_biigle] * 100. / df_sum_taxonomic[, "area_pix"]
 #df_sum_taxonomic[, list_taxa_biigle254] <- df_sum_taxonomic[, list_taxa_biigle254] * 100. / df_sum_taxonomic[, "area_pix"]
 
+################################################################################
+#                                CLEAN DATA FRAMES
+################################################################################
+
 # Join dataframes
 df_to_rasterize <- left_join(df_sum, df_not_to_sum)
 df_to_rasterize$survey <- as.numeric(as.factor(df_to_rasterize$survey))
+
+rm_row_na <- function(data, desiredCols) {
+  completeVec <- complete.cases(data[, desiredCols])
+  return(data[completeVec, ])
+}
+
+# Remove rows where BIIGLE and Coralnet are not both present
+df_to_rasterize <- rm_row_na(df_to_rasterize, list_taxa_biigle839)
+df_to_rasterize <- rm_row_na(df_to_rasterize, list_taxa_coralnet)
+df_to_rasterize <- rm_row_na(df_to_rasterize, list_taxa_biigle254)
+
+df_to_rasterize_ccamlr <- left_join(df_sum_taxonomic, df_not_to_sum)
+df_to_rasterize_ccamlr$survey <- as.numeric(as.factor(df_to_rasterize_ccamlr$survey))
+
+df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle839)
+df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_coralnet)
+df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle254)
+
+################################################################################
+#                                CLEAN DATA FRAMES
+################################################################################
+
 if (save_df) {
   cat("\nSaving dataframe:", path_out, "...\n")
   write.csv(df_to_rasterize,
             paste0(path_out, "data.csv"),
             row.names = FALSE)
 }
-df_to_rasterize_ccamlr <- left_join(df_sum_taxonomic, df_not_to_sum)
-df_to_rasterize_ccamlr$survey <- as.numeric(as.factor(df_to_rasterize_ccamlr$survey))
+
 if (save_df) {
   cat("\nSaving CCAMLR dataframe:", path_out, "...\n")
   write.csv(df_to_rasterize_ccamlr,
             paste0(path_out, "data_ccamlr.csv"),
             row.names = FALSE)
 }
+
+################################################################################
+#                                RASTERIZE
+################################################################################
 
 pts_to_rasterize <- df_to_rasterize
 coordinates(pts_to_rasterize) <- c("proj_coord_x", "proj_coord_y")
