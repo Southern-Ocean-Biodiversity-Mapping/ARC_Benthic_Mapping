@@ -28,10 +28,10 @@ setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems
 source("utils.R")
 
 # Path towards data
-#path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data_ccamlr.csv"
-path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210927_raster_cover/raster_data.csv"
+path_raster <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210930_raster_cover/raster_data.csv"
 path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/morpho_taxa_scores.csv"
-#path_scores <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/taxa_scores.csv"
+
+n_subplots <- 4
 ```
 
 ## Read data
@@ -48,92 +48,81 @@ if ("morpho_taxon" %in% colnames(df_taxa)) {
 }
 ```
 
-## Split per CCAMLR Statistical area
-
-```{r ccamlr_asd, echo=FALSE}
-# Load ASDs
-ASDs <- load_ASDs()
-
-# Create area
-df$section_col <- "black"
-df$section_name <- "out_of_scope"
-# ASD 58.4.1
-df_5841 <- get_points_in_asd(df_=df,
-                             asd_object=ASDs,
-                             asd_name="5841")
-df[df$cellID %in% df_5841$cellID, "section_col"] = "#00188f"
-df[df$cellID %in% df_5841$cellID, "section_name"] = "58.4.1"
-# ASD 881
-df_881 <- get_points_in_asd(df_=df,
-                            asd_object=ASDs,
-                            asd_name="881")
-df[df$cellID %in% df_881$cellID, "section_col"] = "#00b294"
-df[df$cellID %in% df_881$cellID, "section_name"] = "88.1"
-# ASD 882
-df_882 <- get_points_in_asd(df_=df,
-                            asd_object=ASDs,
-                            asd_name="882")
-df[df$cellID %in% df_882$cellID, "section_col"] = "#bad80a"
-df[df$cellID %in% df_882$cellID, "section_name"] = "88.2"
-# ASD 481
-df_481 <- get_points_in_asd(df_=df,
-                            asd_object=ASDs,
-                            asd_name="481")
-df[df$cellID %in% df_481$cellID, "section_col"] = "#ec008c"
-df[df$cellID %in% df_481$cellID, "section_name"] = "48.1"
-# ASD 482
-df_482 <- get_points_in_asd(df_=df,
-                            asd_object=ASDs,
-                            asd_name="482")
-df[df$cellID %in% df_482$cellID, "section_col"] = "#ff8c00"
-df[df$cellID %in% df_482$cellID, "section_name"] = "48.2"
-# ASD 485
-df_485 <- get_points_in_asd(df_=df,
-                            asd_object=ASDs,
-                            asd_name="485")
-df[df$cellID %in% df_485$cellID, "section_col"] = "#68217a"
-df[df$cellID %in% df_485$cellID, "section_name"] = "48.5"
-# ASD 486
-df_486 <- get_points_in_asd(df_=df,
-                            asd_object=ASDs,
-                            asd_name="486")
-df[df$cellID %in% df_486$cellID, "section_col"] = "#e81123"
-df[df$cellID %in% df_486$cellID, "section_name"] = "48.6"
-
-# Select columns
-if (is.na(list_taxa_all)) {
-  list_taxa_selected <- colnames(df)[!(colnames(df) %in% c("n_annotation", "area_pix", "area", "cellID", "survey", "longitude", "latitude", "filename", "proj_coord_x", "proj_coord_y", "section_col", "section_name"))]
-} else {
-  list_taxa_selected <- intersect(list_taxa_all, colnames(df))
-}
-df_ <- df[, c(list_taxa_selected, "section_name", "section_col")]
-```
-
 ## Compute statistics
 
-```{r statistics, include = FALSE}
-df_mean <- as.data.frame(df_ 
-                         %>% summarise(across(list_taxa_selected,
-                                              function(x,...)
-                                              {if (!all(is.na(x))){mean(na.omit(x))} 
-                                                else{NA}})))
-
-df_sd <- as.data.frame(df_ 
-                       %>% summarise(across(list_taxa_selected,
-                                            function(x,...)
-                                            {if (!all(is.na(x))){sd(na.omit(x))} 
-                                              else{NA}})))
-```
-
 ```{r summary_table, results = "asis"}
+list_taxa_selected <- intersect(list_taxa_all, colnames(df))
 my_summary <-
-  qsummary(df_[, list_taxa_selected],
+  qsummary(df[, list_taxa_selected],
            numeric_summaries = list("min" = "~ min(%s)",
                                     "mean (sd)" = "~ qwraps2::mean_sd(%s)",
                                     "max" = "~ max(%s)"),
            n_perc_args = list(digits = 4, show_symbol = TRUE, show_denom = "always"))
 
-summary_table(df_[, list_taxa_selected], my_summary)
+summary_table(df[, list_taxa_selected], my_summary)
+```
 
-summary_table(df_[, c("section_name", list_taxa_selected)], my_summary, by = c("section_name"))
+## Violin plots
+
+```{r jenks, echo=FALSE, include=FALSE}
+df_mean <- as.data.frame(df 
+                         %>% summarise(across(list_taxa_selected,
+                                              function(x,...)
+                                              {if (!all(is.na(x))){mean(na.omit(x))} 
+                                                else{NA}})))
+df_mean <- df_mean %>% tidyr::pivot_longer(df_mean,
+                                           cols=list_taxa_selected,
+                                           names_to="taxa",
+                                           values_to="avg")
+
+df_mean <- arrange(df_mean, avg)
+step_ <- round(nrow(df_mean) / n_subplots)
+for (i_subplot in 0:3) {
+  df_mean[(i_subplot * step_+1) : ((i_subplot+1) * step_), "subplot"] = i_subplot+1
+}
+#jenks_breaks <- get_jenks_breaks(df_mean$avg, n_subplots)
+#df_mean$subplot <- apply_jenks_breaks(df_mean$avg, jenks_breaks, n_subplots)
+```
+
+```{r group_4}
+taxa_4 <- na.omit(df_mean[df_mean$subplot == 4, ]$taxa)
+df_4 <- df[, taxa_4]
+
+df_4 <- tidyr::pivot_longer(df_4,
+                            cols=taxa_4,
+                            names_to="morpho_taxa",
+                            values_to="percent_cover")
+
+df_4 <- df_4[df_4$percent_cover > 0, ]
+df_4$percent_cover <- df_4$percent_cover * 1000
+df_4 <- cbind(df_4$morpho_taxa, 
+              tidyr::separate(df_4, col=morpho_taxa, sep="\\..", into=c("morpho", "taxa")))
+colnames(df_4)[1] <- "morpho_taxa"
+p_4 <- df_4 %>% 
+  ggplot( aes(x=morpho_taxa, y=percent_cover, fill=taxa)) +
+    geom_violin(width=1.4, trim=FALSE) +
+    #geom_boxplot(width=0.1, color="grey", alpha=0.2) +
+    #scale_fill_viridis(discrete = TRUE) +
+    #theme_ipsum() +
+    theme(
+      #legend.position="none",
+      #plot.title = element_text(size=11)
+      axis.text.x = element_text(angle = 45) #, vjust = 0.5, hjust=1)
+    ) +
+    ggtitle("A Violin wrapping a boxplot") +
+    xlab("") +
+    ylim(c(0, 10000))
+p_4
+```
+
+```{r group_2}
+print(df_mean[df_mean$subplot == 2, "taxa"])
+```
+
+```{r group_3}
+print(df_mean[df_mean$subplot == 3, "taxa"])
+```
+
+```{r group_4}
+print(df_mean[df_mean$subplot == 4, "taxa"])
 ```
