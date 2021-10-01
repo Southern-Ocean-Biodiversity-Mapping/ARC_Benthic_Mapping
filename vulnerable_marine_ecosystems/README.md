@@ -33,10 +33,4 @@
 
 4. `generate_figure_2.R`: Looks at the variability in taxa abundance
 
-![image](https://user-images.githubusercontent.com/14353425/135181915-1f616f0f-aded-4e5a-8bc2-186100662c9d.png)
-
-
-#### TODO:
-
-1. `generate_figure_2.R`:
-- [ ] Make sure results are consistent between taxa vs morphotaxa
+![image](https://user-images.githubusercontent.com/14353425/135571117-8d0fabe0-23c9-4173-9dea-986707494bf7.png)
