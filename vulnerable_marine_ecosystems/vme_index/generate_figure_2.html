@@ -412,7 +412,6 @@ summary {
 
 <h1 class="title toc-ignore">generate_figure_2.R</h1>
 <h4 class="author">charley</h4>
-<h4 class="date">29/09/2021</h4>
 
 </div>
 
@@ -420,53 +419,27 @@ summary {
 <div id="init" class="section level2">
 <h2>Init</h2>
 </div>
-<div id="read-data" class="section level2">
-<h2>Read data</h2>
-</div>
-<div id="split-per-ccamlr-statistical-area" class="section level2">
-<h2>Split per CCAMLR Statistical area</h2>
-<pre><code>## 
-## Selecting points in ASD # 5841  ...
-## Number of points:  95</code></pre>
-<pre><code>## 
-## Selecting points in ASD # 881  ...
-## Number of points:  231</code></pre>
-<pre><code>## 
-## Selecting points in ASD # 882  ...
-## Number of points:  33</code></pre>
-<pre><code>## 
-## Selecting points in ASD # 481  ...
-## Number of points:  448</code></pre>
-<pre><code>## 
-## Selecting points in ASD # 482  ...
-## Number of points:  41</code></pre>
-<pre><code>## 
-## Selecting points in ASD # 485  ...
-## Number of points:  60</code></pre>
-<pre><code>## 
-## Selecting points in ASD # 486  ...
-## Number of points:  67</code></pre>
-</div>
 <div id="compute-statistics" class="section level2">
 <h2>Compute statistics</h2>
-<pre class="r"><code>my_summary &lt;-
-  qsummary(df_[, list_taxa_selected],
+<pre class="r"><code>list_morpho_detected &lt;- intersect(list_morpho, colnames(df_morpho))
+my_summary_morpho &lt;-
+  qsummary(df_morpho[, list_morpho_detected],
            numeric_summaries = list(&quot;min&quot; = &quot;~ min(%s)&quot;,
                                     &quot;mean (sd)&quot; = &quot;~ qwraps2::mean_sd(%s)&quot;,
                                     &quot;max&quot; = &quot;~ max(%s)&quot;),
            n_perc_args = list(digits = 4, show_symbol = TRUE, show_denom = &quot;always&quot;))
 
-summary_table(df_[, list_taxa_selected], my_summary)</code></pre>
+summary_table(df_morpho[, list_morpho_detected], my_summary_morpho)</code></pre>
 <table>
 <thead>
 <tr class="header">
 <th align="left"></th>
-<th align="left">df_[, list_taxa_selected] (N = 975)</th>
+<th align="left">df_morpho[, list_morpho_detected] (N = 664)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left"><strong>antarctic_scallop</strong></td>
+<td align="left"><strong>anemones_colonial..zoantharia</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
@@ -475,158 +448,14 @@ summary_table(df_[, list_taxa_selected], my_summary)</code></pre>
 </tr>
 <tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.01 ± 0.04</td>
+<td align="left">0.02 ± 0.11</td>
 </tr>
 <tr class="even">
 <td align="left">   max</td>
-<td align="left">0.530439863717438</td>
+<td align="left">1.52572638918057</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>bathylasmatidae</strong></td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.00 ± 0.01</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">0.125426162364631</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>gorgonacea</strong></td>
-<td align="left">  </td>
-</tr>
-<tr class="even">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="odd">
-<td align="left">   mean (sd)</td>
-<td align="left">0.49 ± 1.34</td>
-</tr>
-<tr class="even">
-<td align="left">   max</td>
-<td align="left">21.669394118395</td>
-</tr>
-<tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>antipatharia</strong></td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.04 ± 0.20</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">2.56762944192571</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>brachiopoda</strong></td>
-<td align="left">  </td>
-</tr>
-<tr class="even">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="odd">
-<td align="left">   mean (sd)</td>
-<td align="left">0.02 ± 0.26</td>
-</tr>
-<tr class="even">
-<td align="left">   max</td>
-<td align="left">3.94391704366267</td>
-</tr>
-<tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>hydroidolina</strong></td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.22 ± 0.88</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">8.64503483154081</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>alcyonacea</strong></td>
-<td align="left">  </td>
-</tr>
-<tr class="even">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="odd">
-<td align="left">   mean (sd)</td>
-<td align="left">0.07 ± 0.37</td>
-</tr>
-<tr class="even">
-<td align="left">   max</td>
-<td align="left">4.53629373710415</td>
-</tr>
-<tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>pennatulacea</strong></td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.00 ± 0.02</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">0.352975316535772</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>actiniaria</strong></td>
+<td align="left"><strong>anemones_solitary..actiniaria</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
@@ -642,31 +471,279 @@ summary_table(df_[, list_taxa_selected], my_summary)</code></pre>
 <td align="left">9.62873587051074</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>zoantharia</strong></td>
+<td align="left"><strong>brachiopods..brachiopoda</strong></td>
 <td align="left">  </td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">   min</td>
 <td align="left">0</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.02 ± 0.11</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">1.52572638918057</td>
+<td align="left">0.02 ± 0.26</td>
 </tr>
 <tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
+<td align="left">   max</td>
+<td align="left">3.94391704366267</td>
 </tr>
 <tr class="odd">
-<td align="left"><strong>scleractinia</strong></td>
+<td align="left"><strong>barnacles..bathylasmatidae</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.01</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.125426162364631</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>hydroids_colonial_feather..hydroidolina</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.15 ± 0.76</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">8.64503483154081</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>hydroids_solitary..hydroidolina</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.07 ± 0.45</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">8.20517934964466</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>antarctic_scallop..antarctic_scallop</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.01 ± 0.04</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.530439863717438</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_bottle_brush_complex..gorgonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.10 ± 0.63</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">8.40324840257179</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_bottle_brush_simple..gorgonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.32 ± 1.05</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">21.669394118395</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_bottle_brush_simple..antipatharia</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.04 ± 0.19</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">2.56762944192571</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_fleshy_arborescent..alcyonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.01 ± 0.17</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">3.60543378495588</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_fleshy_mushroom..alcyonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.04 ± 0.32</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">4.53629373710415</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_branching_arborescent..gorgonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.02 ± 0.22</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">3.67557459511099</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_branching_bushy..alcyonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.06</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">1.36266746965595</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_branching_bushy..gorgonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.01 ± 0.07</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">1.38027358002714</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_seafan_flexible..gorgonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.04 ± 0.20</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">2.8320415447166</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_seafan_flexible..alcyonacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.06</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">1.37567362470267</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_seafan_fern_simple..antipatharia</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.03</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.47703801699204</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>octocorals_quill..pennatulacea</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.02</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.352975316535772</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>stony_corals_solitary..scleractinia</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
@@ -682,756 +759,1712 @@ summary_table(df_[, list_taxa_selected], my_summary)</code></pre>
 <td align="left">2.81997064706406</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">311 (31.90%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>bryozoans</strong></td>
+<td align="left"><strong>stony_corals_colonial..scleractinia</strong></td>
 <td align="left">  </td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">   min</td>
 <td align="left">0</td>
 </tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">2.37 ± 6.50</td>
-</tr>
 <tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.01</td>
+</tr>
+<tr class="even">
 <td align="left">   max</td>
-<td align="left">61.1005692599621</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>stylasterids</strong></td>
-<td align="left">  </td>
+<td align="left">0.347280476535936</td>
 </tr>
 <tr class="odd">
+<td align="left"><strong>hydrocorals_branching..stylasterids</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
 <td align="left">   min</td>
 <td align="left">0</td>
 </tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.35 ± 2.25</td>
-</tr>
 <tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.39 ± 2.31</td>
+</tr>
+<tr class="even">
 <td align="left">   max</td>
 <td align="left">37.037037037037</td>
 </tr>
-<tr class="even">
-<td align="left"><strong>porifera</strong></td>
-<td align="left">  </td>
-</tr>
 <tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.76 ± 2.00</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">25</td>
-</tr>
-</tbody>
-</table>
-<pre class="r"><code>summary_table(df_[, c(&quot;section_name&quot;, list_taxa_selected)], my_summary, by = c(&quot;section_name&quot;))</code></pre>
-<table style="width:100%;">
-<colgroup>
-<col width="17%"></col>
-<col width="11%"></col>
-<col width="11%"></col>
-<col width="11%"></col>
-<col width="12%"></col>
-<col width="11%"></col>
-<col width="11%"></col>
-<col width="12%"></col>
-</colgroup>
-<thead>
-<tr class="header">
-<th align="left"></th>
-<th align="left">48.1 (N = 448)</th>
-<th align="left">48.2 (N = 41)</th>
-<th align="left">48.5 (N = 60)</th>
-<th align="left">48.6 (N = 67)</th>
-<th align="left">58.4.1 (N = 95)</th>
-<th align="left">88.1 (N = 231)</th>
-<th align="left">88.2 (N = 33)</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left"><strong>antarctic_scallop</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
+<td align="left"><strong>bryozoans_hard_branching_leaf..bryozoans</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
 <td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
 <td align="left">0</td>
 </tr>
 <tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.01 ± 0.07</td>
-<td align="left">0.02 ± 0.07</td>
-<td align="left">0.01 ± 0.04</td>
-<td align="left">0.00 ± 0.00</td>
+<td align="left">0.44 ± 1.52</td>
 </tr>
 <tr class="even">
 <td align="left">   max</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0.0234894362725277</td>
-<td align="left">0.530439863717438</td>
-<td align="left">0.335953875202292</td>
-<td align="left">0.304005743388235</td>
-<td align="left">0.00988775555631786</td>
+<td align="left">24.0740740740741</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>bathylasmatidae</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.01</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.01</td>
-<td align="left">0.00 ± 0.00</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0.0411866408818261</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0.125426162364631</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>gorgonacea</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
+<td align="left"><strong>bryozoans_hard_lettuce..bryozoans</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
 <td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
 <td align="left">0</td>
 </tr>
 <tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.38 ± 0.98</td>
-<td align="left">0.79 ± 1.26</td>
-<td align="left">0.32 ± 0.51</td>
-<td align="left">1.36 ± 3.16</td>
-<td align="left">1.24 ± 2.08</td>
-<td align="left">0.17 ± 0.43</td>
-<td align="left">0.55 ± 0.55</td>
+<td align="left">0.30 ± 1.18</td>
 </tr>
 <tr class="even">
 <td align="left">   max</td>
-<td align="left">11.6308544659053</td>
-<td align="left">4.11932219213797</td>
-<td align="left">2.43803556262784</td>
-<td align="left">21.669394118395</td>
-<td align="left">9.2183634083544</td>
-<td align="left">2.58222231576477</td>
-<td align="left">1.98360720350369</td>
+<td align="left">13.0111524163569</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>antipatharia</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.01 ± 0.04</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.07 ± 0.16</td>
-<td align="left">0.10 ± 0.39</td>
-<td align="left">0.14 ± 0.43</td>
-<td align="left">0.04 ± 0.18</td>
-<td align="left">0.04 ± 0.08</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">0.621210751286318</td>
-<td align="left">0</td>
-<td align="left">0.702466167749366</td>
-<td align="left">2.56762944192571</td>
-<td align="left">2.37003325144574</td>
-<td align="left">1.57117943933447</td>
-<td align="left">0.270039471609654</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>brachiopoda</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
+<td align="left"><strong>bryozoans_soft_dendroid..bryozoans</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
 <td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
 <td align="left">0</td>
 </tr>
 <tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.01 ± 0.02</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.55 ± 1.27</td>
+<td align="left">0.64 ± 3.82</td>
 </tr>
 <tr class="even">
 <td align="left">   max</td>
-<td align="left">0.024156488568726</td>
-<td align="left">0</td>
-<td align="left">0.113210430074622</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0.0196252332160455</td>
-<td align="left">3.94391704366267</td>
+<td align="left">51.3317191283293</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>hydroidolina</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.34 ± 1.18</td>
-<td align="left">0.01 ± 0.02</td>
-<td align="left">0.11 ± 0.26</td>
-<td align="left">0.38 ± 0.95</td>
-<td align="left">0.07 ± 0.17</td>
-<td align="left">0.09 ± 0.41</td>
-<td align="left">0.00 ± 0.01</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">8.64503483154081</td>
-<td align="left">0.107296432021098</td>
-<td align="left">1.49464654223317</td>
-<td align="left">5.03172570874522</td>
-<td align="left">0.690092364404681</td>
-<td align="left">4.39839737140975</td>
-<td align="left">0.0626972544171312</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>alcyonacea</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
+<td align="left"><strong>bryozoans_hard_encrusting..bryozoans</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
 <td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
 <td align="left">0</td>
 </tr>
 <tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.12 ± 0.53</td>
-<td align="left">0.03 ± 0.11</td>
-<td align="left">0.01 ± 0.03</td>
-<td align="left">0.04 ± 0.15</td>
-<td align="left">0.04 ± 0.18</td>
-<td align="left">0.02 ± 0.07</td>
-<td align="left">0.01 ± 0.04</td>
+<td align="left">0.14 ± 0.83</td>
 </tr>
 <tr class="even">
 <td align="left">   max</td>
-<td align="left">4.53629373710415</td>
-<td align="left">0.447581060190053</td>
-<td align="left">0.201726903953085</td>
-<td align="left">1.01278243564796</td>
-<td align="left">1.36266746965595</td>
-<td align="left">0.620462201393767</td>
-<td align="left">0.181832677691375</td>
+<td align="left">14.6616541353383</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>pennatulacea</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.00 ± 0.03</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.01</td>
-<td align="left">0.00 ± 0.01</td>
-<td align="left">0.00 ± 0.00</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">0.352975316535772</td>
-<td align="left">0</td>
-<td align="left">0.0250654146437326</td>
-<td align="left">0</td>
-<td align="left">0.0798881308182377</td>
-<td align="left">0.15903138245406</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="odd">
-<td align="left"><strong>actiniaria</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
+<td align="left"><strong>sponges_massive_round..porifera</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
 <td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
 <td align="left">0</td>
 </tr>
 <tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.32 ± 1.07</td>
-<td align="left">0.29 ± 0.92</td>
-<td align="left">0.14 ± 0.46</td>
-<td align="left">0.10 ± 0.16</td>
-<td align="left">0.27 ± 1.05</td>
-<td align="left">0.05 ± 0.17</td>
-<td align="left">0.11 ± 0.23</td>
+<td align="left">0.11 ± 0.49</td>
 </tr>
 <tr class="even">
 <td align="left">   max</td>
-<td align="left">9.62873587051074</td>
-<td align="left">3.99977586084919</td>
-<td align="left">2.83762033448851</td>
-<td align="left">0.544018997795599</td>
-<td align="left">7.15128310938222</td>
-<td align="left">1.61328201296491</td>
-<td align="left">0.968347420294204</td>
+<td align="left">5.36585365853659</td>
 </tr>
 <tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
+<td align="left"><strong>sponges_massive_simple..porifera</strong></td>
+<td align="left">  </td>
 </tr>
 <tr class="even">
-<td align="left"><strong>zoantharia</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
 <td align="left">   min</td>
 <td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">   mean (sd)</td>
-<td align="left">0.03 ± 0.13</td>
-<td align="left">0.02 ± 0.07</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.00 ± 0.00</td>
-<td align="left">0.01 ± 0.12</td>
-<td align="left">0.00 ± 0.00</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">1.15789737982966</td>
-<td align="left">0.274873481453874</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">1.52572638918057</td>
-<td align="left">0</td>
+<td align="left">0.21 ± 0.67</td>
 </tr>
 <tr class="even">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
+<td align="left">   max</td>
+<td align="left">7.73694390715667</td>
 </tr>
 <tr class="odd">
-<td align="left"><strong>scleractinia</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
+<td align="left"><strong>bryozoans_soft_foliaceous..bryozoans</strong></td>
 <td align="left">  </td>
 </tr>
 <tr class="even">
 <td align="left">   min</td>
 <td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.22 ± 0.92</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">11.1111111111111</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>bryozoans_hard_branching_coralhead..bryozoans</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
 <td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.06 ± 0.48</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">6.94444444444444</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_crust_encrusting..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
 <td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.16 ± 0.51</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">7.54716981132075</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_erect_palmate..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
 <td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.04</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.925925925925926</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_bead..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
 <td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.10 ± 0.34</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">3.53535353535354</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>bryozoans_soft_fan..bryozoans</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
 <td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.09 ± 0.48</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">8.69565217391304</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_hollow_tube_chimney..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.01 ± 0.09</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">1.04166666666667</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>bryozoans_hard_fenestrate..bryozoans</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.03 ± 0.14</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">1.11317254174397</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_erect_simple..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.02 ± 0.14</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">1.88679245283019</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>bryozoans_purple..bryozoans</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.02 ± 0.15</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">1.90217391304348</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_cup_table_disc..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.01 ± 0.08</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.9375</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_massive_barrel..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.10 ± 0.76</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">15.1696606786427</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_erect_laminar..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.03 ± 0.15</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">2.46305418719212</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_massive_cryptic..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
 <td align="left">0</td>
 </tr>
 <tr class="odd">
 <td align="left">   mean (sd)</td>
 <td align="left">0.00 ± 0.02</td>
-<td align="left">0.22 ± 0.68</td>
-<td align="left">0.00 ± 0.01</td>
-<td align="left">0.02 ± 0.08</td>
-<td align="left">0.02 ± 0.08</td>
-<td align="left">0.07 ± 0.16</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.465116279069767</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_cup_cup_goblet..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.01 ± 0.10</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">2.53411306042885</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_crust_creeping_ramose..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.03 ± 0.16</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">2.29508196721311</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_erect_stalked..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.00 ± 0.04</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">0.483091787439614</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_erect_branching..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
+<td align="left">0.07 ± 0.40</td>
+</tr>
+<tr class="even">
+<td align="left">   max</td>
+<td align="left">6.76818950930626</td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>sponges_cup_incomplete_curled..porifera</strong></td>
+<td align="left">  </td>
+</tr>
+<tr class="even">
+<td align="left">   min</td>
+<td align="left">0</td>
+</tr>
+<tr class="odd">
+<td align="left">   mean (sd)</td>
 <td align="left">0.00 ± 0.00</td>
 </tr>
 <tr class="even">
 <td align="left">   max</td>
-<td align="left">0.259468710165012</td>
-<td align="left">2.81997064706406</td>
-<td align="left">0.0905092171788004</td>
-<td align="left">0.36725264141422</td>
-<td align="left">0.468950523712027</td>
-<td align="left">1.0203262068046</td>
-<td align="left">0.00310420790989457</td>
-</tr>
-<tr class="odd">
-<td align="left">   Unknown/Missing</td>
-<td align="left">149 (33.26%)</td>
-<td align="left">22 (53.66%)</td>
-<td align="left">20 (33.33%)</td>
-<td align="left">16 (23.88%)</td>
-<td align="left">38 (40.00%)</td>
-<td align="left">57 (24.68%)</td>
-<td align="left">9 (27.27%)</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>bryozoans</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
 <td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">1.23 ± 2.86</td>
-<td align="left">0.37 ± 0.76</td>
-<td align="left">4.27 ± 7.85</td>
-<td align="left">10.07 ± 11.78</td>
-<td align="left">4.32 ± 8.68</td>
-<td align="left">1.70 ± 7.24</td>
-<td align="left">0.33 ± 0.37</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">22.9032258064516</td>
-<td align="left">3.82775119617225</td>
-<td align="left">36.0742705570292</td>
-<td align="left">49.0740740740741</td>
-<td align="left">50</td>
-<td align="left">61.1005692599621</td>
-<td align="left">1.15740740740741</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>stylasterids</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.27 ± 1.42</td>
-<td align="left">0.14 ± 0.34</td>
-<td align="left">0.21 ± 0.57</td>
-<td align="left">0.27 ± 0.70</td>
-<td align="left">0.12 ± 0.48</td>
-<td align="left">0.73 ± 4.12</td>
-<td align="left">0.03 ± 0.08</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">16.3013698630137</td>
-<td align="left">1.54320987654321</td>
-<td align="left">3.14814814814815</td>
-<td align="left">4.16666666666667</td>
-<td align="left">2.80373831775701</td>
-<td align="left">37.037037037037</td>
-<td align="left">0.3125</td>
-</tr>
-<tr class="even">
-<td align="left"><strong>porifera</strong></td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-<td align="left">  </td>
-</tr>
-<tr class="odd">
-<td align="left">   min</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-<td align="left">0</td>
-</tr>
-<tr class="even">
-<td align="left">   mean (sd)</td>
-<td align="left">0.57 ± 1.31</td>
-<td align="left">0.39 ± 0.91</td>
-<td align="left">1.27 ± 2.98</td>
-<td align="left">2.30 ± 5.05</td>
-<td align="left">0.61 ± 1.73</td>
-<td align="left">0.78 ± 1.28</td>
-<td align="left">0.07 ± 0.18</td>
-</tr>
-<tr class="odd">
-<td align="left">   max</td>
-<td align="left">9.45945945945946</td>
-<td align="left">3.08641975308642</td>
-<td align="left">16.5668662674651</td>
-<td align="left">25</td>
-<td align="left">11.3207547169811</td>
-<td align="left">6.73076923076923</td>
-<td align="left">0.72463768115942</td>
 </tr>
 </tbody>
 </table>
+<pre class="r"><code>stat_mean &lt;- df_morpho %&gt;% summarise(across(list_morpho_detected, function(x, ...) {mean(x[!is.na(x) &amp; x != 0])}))</code></pre>
+<pre><code>## Note: Using an external vector in selections is ambiguous.
+## i Use `all_of(list_morpho_detected)` instead of `list_morpho_detected` to silence this message.
+## i See &lt;https://tidyselect.r-lib.org/reference/faq-external-vector.html&gt;.
+## This message is displayed once per session.</code></pre>
+<pre class="r"><code>stat_sd &lt;- df_morpho %&gt;% summarise(across(list_morpho_detected, function(x, ...) {sd(x[!is.na(x) &amp; x != 0])}))
+stat_max &lt;- df_morpho %&gt;% summarise(across(list_morpho_detected, function(x, ...) {max(x[!is.na(x) &amp; x != 0])}))</code></pre>
+<pre><code>## Warning in max(x[!is.na(x) &amp; x != 0]): no non-missing arguments to max;
+## returning -Inf</code></pre>
+<pre class="r"><code>stat_min &lt;- df_morpho %&gt;% summarise(across(list_morpho_detected, function(x, ...) {min(x[!is.na(x) &amp; x != 0])}))</code></pre>
+<pre><code>## Warning in min(x[!is.na(x) &amp; x != 0]): no non-missing arguments to min;
+## returning Inf</code></pre>
+<pre class="r"><code>stat_count &lt;- df_morpho %&gt;% summarise(across(list_morpho_detected, function(x, ...) {length(x[!is.na(x) &amp; x != 0]) * 100. / length(x)}))
+
+df_stat_morpho &lt;- data.frame(&quot;morpho_taxa&quot;=colnames(stat_mean),
+                              &quot;perc_cell_present&quot; = as.numeric(stat_count[1,]),
+                             &quot;mean_COP&quot; = as.numeric(stat_mean[1,]),
+                             &quot;sd_COP&quot; = as.numeric(stat_sd[1,]),
+                             &quot;min_COP&quot; = as.numeric(stat_min[1,]),
+                             &quot;max_COP&quot; = as.numeric(stat_min[1,])
+                             )
+df_stat_morpho &lt;- tidyr::separate(df_stat_morpho, col=morpho_taxa, sep=&quot;\\..&quot;, into=c(&quot;morpho&quot;, &quot;taxa&quot;))
+df_stat_morpho &lt;- dplyr::arrange(df_stat_morpho, taxa)
+df_stat_morpho &lt;- df_stat_morpho %&gt;% select(taxa, morpho, perc_cell_present, mean_COP, sd_COP, min_COP, max_COP)
+
+kable(df_stat_morpho, digits = 4)</code></pre>
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+taxa
+</th>
+<th style="text-align:left;">
+morpho
+</th>
+<th style="text-align:right;">
+perc_cell_present
+</th>
+<th style="text-align:right;">
+mean_COP
+</th>
+<th style="text-align:right;">
+sd_COP
+</th>
+<th style="text-align:right;">
+min_COP
+</th>
+<th style="text-align:right;">
+max_COP
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+actiniaria
+</td>
+<td style="text-align:left;">
+anemones_solitary
+</td>
+<td style="text-align:right;">
+48.4940
+</td>
+<td style="text-align:right;">
+0.4327
+</td>
+<td style="text-align:right;">
+1.1339
+</td>
+<td style="text-align:right;">
+0.0012
+</td>
+<td style="text-align:right;">
+0.0012
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+alcyonacea
+</td>
+<td style="text-align:left;">
+octocorals_fleshy_arborescent
+</td>
+<td style="text-align:right;">
+3.3133
+</td>
+<td style="text-align:right;">
+0.4251
+</td>
+<td style="text-align:right;">
+0.8575
+</td>
+<td style="text-align:right;">
+0.0097
+</td>
+<td style="text-align:right;">
+0.0097
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+alcyonacea
+</td>
+<td style="text-align:left;">
+octocorals_fleshy_mushroom
+</td>
+<td style="text-align:right;">
+8.5843
+</td>
+<td style="text-align:right;">
+0.5004
+</td>
+<td style="text-align:right;">
+0.9837
+</td>
+<td style="text-align:right;">
+0.0066
+</td>
+<td style="text-align:right;">
+0.0066
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+alcyonacea
+</td>
+<td style="text-align:left;">
+octocorals_branching_bushy
+</td>
+<td style="text-align:right;">
+1.8072
+</td>
+<td style="text-align:right;">
+0.2115
+</td>
+<td style="text-align:right;">
+0.3683
+</td>
+<td style="text-align:right;">
+0.0214
+</td>
+<td style="text-align:right;">
+0.0214
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+alcyonacea
+</td>
+<td style="text-align:left;">
+octocorals_seafan_flexible
+</td>
+<td style="text-align:right;">
+1.3554
+</td>
+<td style="text-align:right;">
+0.3256
+</td>
+<td style="text-align:right;">
+0.4250
+</td>
+<td style="text-align:right;">
+0.0257
+</td>
+<td style="text-align:right;">
+0.0257
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+antarctic_scallop
+</td>
+<td style="text-align:left;">
+antarctic_scallop
+</td>
+<td style="text-align:right;">
+6.1747
+</td>
+<td style="text-align:right;">
+0.1013
+</td>
+<td style="text-align:right;">
+0.1101
+</td>
+<td style="text-align:right;">
+0.0045
+</td>
+<td style="text-align:right;">
+0.0045
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+antipatharia
+</td>
+<td style="text-align:left;">
+octocorals_bottle_brush_simple
+</td>
+<td style="text-align:right;">
+10.6928
+</td>
+<td style="text-align:right;">
+0.3409
+</td>
+<td style="text-align:right;">
+0.5009
+</td>
+<td style="text-align:right;">
+0.0045
+</td>
+<td style="text-align:right;">
+0.0045
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+antipatharia
+</td>
+<td style="text-align:left;">
+octocorals_seafan_fern_simple
+</td>
+<td style="text-align:right;">
+1.6566
+</td>
+<td style="text-align:right;">
+0.1565
+</td>
+<td style="text-align:right;">
+0.1426
+</td>
+<td style="text-align:right;">
+0.0161
+</td>
+<td style="text-align:right;">
+0.0161
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bathylasmatidae
+</td>
+<td style="text-align:left;">
+barnacles
+</td>
+<td style="text-align:right;">
+0.6024
+</td>
+<td style="text-align:right;">
+0.0470
+</td>
+<td style="text-align:right;">
+0.0542
+</td>
+<td style="text-align:right;">
+0.0107
+</td>
+<td style="text-align:right;">
+0.0107
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+brachiopoda
+</td>
+<td style="text-align:left;">
+brachiopods
+</td>
+<td style="text-align:right;">
+1.5060
+</td>
+<td style="text-align:right;">
+1.3417
+</td>
+<td style="text-align:right;">
+1.7145
+</td>
+<td style="text-align:right;">
+0.0140
+</td>
+<td style="text-align:right;">
+0.0140
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_hard_branching_leaf
+</td>
+<td style="text-align:right;">
+25.1506
+</td>
+<td style="text-align:right;">
+1.7586
+</td>
+<td style="text-align:right;">
+2.6244
+</td>
+<td style="text-align:right;">
+0.1144
+</td>
+<td style="text-align:right;">
+0.1144
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_hard_lettuce
+</td>
+<td style="text-align:right;">
+17.7711
+</td>
+<td style="text-align:right;">
+1.7001
+</td>
+<td style="text-align:right;">
+2.3510
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_soft_dendroid
+</td>
+<td style="text-align:right;">
+20.9337
+</td>
+<td style="text-align:right;">
+3.0698
+</td>
+<td style="text-align:right;">
+7.9165
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_hard_encrusting
+</td>
+<td style="text-align:right;">
+11.4458
+</td>
+<td style="text-align:right;">
+1.2564
+</td>
+<td style="text-align:right;">
+2.1679
+</td>
+<td style="text-align:right;">
+0.1385
+</td>
+<td style="text-align:right;">
+0.1385
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_soft_foliaceous
+</td>
+<td style="text-align:right;">
+15.8133
+</td>
+<td style="text-align:right;">
+1.3793
+</td>
+<td style="text-align:right;">
+1.9416
+</td>
+<td style="text-align:right;">
+0.1157
+</td>
+<td style="text-align:right;">
+0.1157
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_hard_branching_coralhead
+</td>
+<td style="text-align:right;">
+4.0663
+</td>
+<td style="text-align:right;">
+1.4916
+</td>
+<td style="text-align:right;">
+1.9179
+</td>
+<td style="text-align:right;">
+0.1326
+</td>
+<td style="text-align:right;">
+0.1326
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_soft_fan
+</td>
+<td style="text-align:right;">
+9.1867
+</td>
+<td style="text-align:right;">
+0.9305
+</td>
+<td style="text-align:right;">
+1.3307
+</td>
+<td style="text-align:right;">
+0.0931
+</td>
+<td style="text-align:right;">
+0.0931
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_hard_fenestrate
+</td>
+<td style="text-align:right;">
+7.9819
+</td>
+<td style="text-align:right;">
+0.4294
+</td>
+<td style="text-align:right;">
+0.2630
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+bryozoans
+</td>
+<td style="text-align:left;">
+bryozoans_purple
+</td>
+<td style="text-align:right;">
+3.4639
+</td>
+<td style="text-align:right;">
+0.6467
+</td>
+<td style="text-align:right;">
+0.4848
+</td>
+<td style="text-align:right;">
+0.2315
+</td>
+<td style="text-align:right;">
+0.2315
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+gorgonacea
+</td>
+<td style="text-align:left;">
+octocorals_bottle_brush_complex
+</td>
+<td style="text-align:right;">
+9.7892
+</td>
+<td style="text-align:right;">
+1.0168
+</td>
+<td style="text-align:right;">
+1.7695
+</td>
+<td style="text-align:right;">
+0.0048
+</td>
+<td style="text-align:right;">
+0.0048
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+gorgonacea
+</td>
+<td style="text-align:left;">
+octocorals_bottle_brush_simple
+</td>
+<td style="text-align:right;">
+50.1506
+</td>
+<td style="text-align:right;">
+0.6337
+</td>
+<td style="text-align:right;">
+1.4091
+</td>
+<td style="text-align:right;">
+0.0112
+</td>
+<td style="text-align:right;">
+0.0112
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+gorgonacea
+</td>
+<td style="text-align:left;">
+octocorals_branching_arborescent
+</td>
+<td style="text-align:right;">
+6.0241
+</td>
+<td style="text-align:right;">
+0.4007
+</td>
+<td style="text-align:right;">
+0.7993
+</td>
+<td style="text-align:right;">
+0.0062
+</td>
+<td style="text-align:right;">
+0.0062
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+gorgonacea
+</td>
+<td style="text-align:left;">
+octocorals_branching_bushy
+</td>
+<td style="text-align:right;">
+1.8072
+</td>
+<td style="text-align:right;">
+0.3340
+</td>
+<td style="text-align:right;">
+0.4024
+</td>
+<td style="text-align:right;">
+0.0272
+</td>
+<td style="text-align:right;">
+0.0272
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+gorgonacea
+</td>
+<td style="text-align:left;">
+octocorals_seafan_flexible
+</td>
+<td style="text-align:right;">
+10.5422
+</td>
+<td style="text-align:right;">
+0.3939
+</td>
+<td style="text-align:right;">
+0.4770
+</td>
+<td style="text-align:right;">
+0.0133
+</td>
+<td style="text-align:right;">
+0.0133
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hydroidolina
+</td>
+<td style="text-align:left;">
+hydroids_colonial_feather
+</td>
+<td style="text-align:right;">
+16.8675
+</td>
+<td style="text-align:right;">
+0.9183
+</td>
+<td style="text-align:right;">
+1.6569
+</td>
+<td style="text-align:right;">
+0.0092
+</td>
+<td style="text-align:right;">
+0.0092
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+hydroidolina
+</td>
+<td style="text-align:left;">
+hydroids_solitary
+</td>
+<td style="text-align:right;">
+14.6084
+</td>
+<td style="text-align:right;">
+0.4484
+</td>
+<td style="text-align:right;">
+1.0943
+</td>
+<td style="text-align:right;">
+0.0040
+</td>
+<td style="text-align:right;">
+0.0040
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+pennatulacea
+</td>
+<td style="text-align:left;">
+octocorals_quill
+</td>
+<td style="text-align:right;">
+1.8072
+</td>
+<td style="text-align:right;">
+0.1243
+</td>
+<td style="text-align:right;">
+0.1111
+</td>
+<td style="text-align:right;">
+0.0251
+</td>
+<td style="text-align:right;">
+0.0251
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_massive_round
+</td>
+<td style="text-align:right;">
+12.3494
+</td>
+<td style="text-align:right;">
+0.8770
+</td>
+<td style="text-align:right;">
+1.1222
+</td>
+<td style="text-align:right;">
+0.1032
+</td>
+<td style="text-align:right;">
+0.1032
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_massive_simple
+</td>
+<td style="text-align:right;">
+24.3976
+</td>
+<td style="text-align:right;">
+0.8793
+</td>
+<td style="text-align:right;">
+1.1340
+</td>
+<td style="text-align:right;">
+0.1122
+</td>
+<td style="text-align:right;">
+0.1122
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_crust_encrusting
+</td>
+<td style="text-align:right;">
+22.5904
+</td>
+<td style="text-align:right;">
+0.6952
+</td>
+<td style="text-align:right;">
+0.8950
+</td>
+<td style="text-align:right;">
+0.1159
+</td>
+<td style="text-align:right;">
+0.1159
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_erect_palmate
+</td>
+<td style="text-align:right;">
+0.1506
+</td>
+<td style="text-align:right;">
+0.9259
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+0.9259
+</td>
+<td style="text-align:right;">
+0.9259
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_bead
+</td>
+<td style="text-align:right;">
+15.6627
+</td>
+<td style="text-align:right;">
+0.6473
+</td>
+<td style="text-align:right;">
+0.6365
+</td>
+<td style="text-align:right;">
+0.1159
+</td>
+<td style="text-align:right;">
+0.1159
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_hollow_tube_chimney
+</td>
+<td style="text-align:right;">
+3.0120
+</td>
+<td style="text-align:right;">
+0.4514
+</td>
+<td style="text-align:right;">
+0.3219
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+<td style="text-align:right;">
+0.1323
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_erect_simple
+</td>
+<td style="text-align:right;">
+2.7108
+</td>
+<td style="text-align:right;">
+0.6145
+</td>
+<td style="text-align:right;">
+0.6038
+</td>
+<td style="text-align:right;">
+0.1279
+</td>
+<td style="text-align:right;">
+0.1279
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_cup_table_disc
+</td>
+<td style="text-align:right;">
+4.3675
+</td>
+<td style="text-align:right;">
+0.3380
+</td>
+<td style="text-align:right;">
+0.1689
+</td>
+<td style="text-align:right;">
+0.1543
+</td>
+<td style="text-align:right;">
+0.1543
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_massive_barrel
+</td>
+<td style="text-align:right;">
+6.9277
+</td>
+<td style="text-align:right;">
+1.4176
+</td>
+<td style="text-align:right;">
+2.5762
+</td>
+<td style="text-align:right;">
+0.1297
+</td>
+<td style="text-align:right;">
+0.1297
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_erect_laminar
+</td>
+<td style="text-align:right;">
+6.4759
+</td>
+<td style="text-align:right;">
+0.4580
+</td>
+<td style="text-align:right;">
+0.4033
+</td>
+<td style="text-align:right;">
+0.1032
+</td>
+<td style="text-align:right;">
+0.1032
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_massive_cryptic
+</td>
+<td style="text-align:right;">
+0.4518
+</td>
+<td style="text-align:right;">
+0.2553
+</td>
+<td style="text-align:right;">
+0.1850
+</td>
+<td style="text-align:right;">
+0.1157
+</td>
+<td style="text-align:right;">
+0.1157
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_cup_cup_goblet
+</td>
+<td style="text-align:right;">
+0.9036
+</td>
+<td style="text-align:right;">
+0.6016
+</td>
+<td style="text-align:right;">
+0.9491
+</td>
+<td style="text-align:right;">
+0.1572
+</td>
+<td style="text-align:right;">
+0.1572
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_crust_creeping_ramose
+</td>
+<td style="text-align:right;">
+5.2711
+</td>
+<td style="text-align:right;">
+0.4758
+</td>
+<td style="text-align:right;">
+0.5144
+</td>
+<td style="text-align:right;">
+0.1032
+</td>
+<td style="text-align:right;">
+0.1032
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_erect_stalked
+</td>
+<td style="text-align:right;">
+1.3554
+</td>
+<td style="text-align:right;">
+0.2821
+</td>
+<td style="text-align:right;">
+0.1249
+</td>
+<td style="text-align:right;">
+0.1610
+</td>
+<td style="text-align:right;">
+0.1610
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_erect_branching
+</td>
+<td style="text-align:right;">
+8.1325
+</td>
+<td style="text-align:right;">
+0.8492
+</td>
+<td style="text-align:right;">
+1.1440
+</td>
+<td style="text-align:right;">
+0.1353
+</td>
+<td style="text-align:right;">
+0.1353
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+porifera
+</td>
+<td style="text-align:left;">
+sponges_cup_incomplete_curled
+</td>
+<td style="text-align:right;">
+0.0000
+</td>
+<td style="text-align:right;">
+NaN
+</td>
+<td style="text-align:right;">
+NA
+</td>
+<td style="text-align:right;">
+Inf
+</td>
+<td style="text-align:right;">
+Inf
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+scleractinia
+</td>
+<td style="text-align:left;">
+stony_corals_solitary
+</td>
+<td style="text-align:right;">
+20.6325
+</td>
+<td style="text-align:right;">
+0.1427
+</td>
+<td style="text-align:right;">
+0.3026
+</td>
+<td style="text-align:right;">
+0.0008
+</td>
+<td style="text-align:right;">
+0.0008
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+scleractinia
+</td>
+<td style="text-align:left;">
+stony_corals_colonial
+</td>
+<td style="text-align:right;">
+0.3012
+</td>
+<td style="text-align:right;">
+0.1815
+</td>
+<td style="text-align:right;">
+0.2345
+</td>
+<td style="text-align:right;">
+0.0157
+</td>
+<td style="text-align:right;">
+0.0157
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+stylasterids
+</td>
+<td style="text-align:left;">
+hydrocorals_branching
+</td>
+<td style="text-align:right;">
+14.9096
+</td>
+<td style="text-align:right;">
+2.6161
+</td>
+<td style="text-align:right;">
+5.4914
+</td>
+<td style="text-align:right;">
+0.1548
+</td>
+<td style="text-align:right;">
+0.1548
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+zoantharia
+</td>
+<td style="text-align:left;">
+anemones_colonial
+</td>
+<td style="text-align:right;">
+7.5301
+</td>
+<td style="text-align:right;">
+0.2331
+</td>
+<td style="text-align:right;">
+0.3290
+</td>
+<td style="text-align:right;">
+0.0050
+</td>
+<td style="text-align:right;">
+0.0050
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="violin-plots" class="section level2">
+<h2>Violin plots</h2>
+<pre class="r"><code>taxa_2 &lt;- na.omit(stat_mean[stat_mean$subplot == 2, ]$taxa)
+df_2 &lt;- df_taxa[, taxa_2]
+
+df_2 &lt;- tidyr::pivot_longer(df_2,
+                            cols=taxa_2,
+                            names_to=&quot;taxa&quot;,
+                            values_to=&quot;percent_cover&quot;)</code></pre>
+<pre><code>## Note: Using an external vector in selections is ambiguous.
+## i Use `all_of(taxa_2)` instead of `taxa_2` to silence this message.
+## i See &lt;https://tidyselect.r-lib.org/reference/faq-external-vector.html&gt;.
+## This message is displayed once per session.</code></pre>
+<pre class="r"><code>df_2_cop &lt;- df_2[df_2$percent_cover &gt; 0, ]
+for (t in taxa_2) {
+  percent_pres &lt;- nrow(df_2[(df_2$taxa == t) &amp; (df_2$percent_cover) &gt; 0, ]) * 100. /  nrow(df_2)
+  df_2_cop[df_2_cop$taxa == t, &quot;percent_pres&quot;] &lt;- round(percent_pres, 3)
+}
+
+df_2_cop &lt;- arrange(df_2_cop, taxa)
+#df_2_cop$taxa &lt;- as.character(df_2_cop$taxa)
+#df_2_cop$taxa &lt;- factor(df_2_cop$taxa, levels=taxa_2)
+
+p_2 &lt;- df_2_cop %&gt;% mutate(myaxis = paste0(taxa, &quot;\nPresent:\n&quot;, percent_pres, &quot;%&quot;)) %&gt;%
+  ggplot( aes(x=myaxis, y=percent_cover, fill=taxa)) +
+    geom_violin(width=1.4, trim=FALSE) +
+    #geom_boxplot(width=0.1, color=&quot;grey&quot;, alpha=0.2) +
+    #scale_fill_viridis(discrete = TRUE) +
+    
+    theme_ipsum() +
+    scale_fill_brewer(palette = &quot;RdYlBu&quot;) +
+    theme(
+      legend.position=&quot;none&quot;,
+      #plot.title = element_text(size=11)
+      #axis.text.x = element_text(angle = 45) #, vjust = 0.5, hjust=1)
+    ) +
+    xlab(&quot;&quot;) +
+  #xlab(&quot;VME indicator taxa&quot;) +
+    ylab(&quot;Percentage cover - Conditioned on presence&quot;) +
+    ylim(c(0, 10))
+
+p_2 + aes(x = fct_inorder(myaxis)) + xlab(&quot;VME indicator taxa&quot;)</code></pre>
+<pre><code>## Warning: Removed 66 rows containing non-finite values (stat_ydensity).</code></pre>
+<pre><code>## Warning: position_dodge requires non-overlapping x intervals</code></pre>
+<pre><code>## Warning: Removed 491 rows containing missing values (geom_violin).</code></pre>
+<pre><code>## Warning in grid.Call(C_stringMetric, as.graphicsAnnot(x$label)): font family not
+## found in Windows font database
+
+## Warning in grid.Call(C_stringMetric, as.graphicsAnnot(x$label)): font family not
+## found in Windows font database</code></pre>
+<pre><code>## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database</code></pre>
+<pre><code>## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database</code></pre>
+<p><img src="data:image/png;base64,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Nz/NHsk3Z93XrCd8/HaxtTq/nG0/93565ydJ2f3O/zEdhD19SuNl2fMfy3fy09bjjkHAAADgm+kwrKuFZnO3Xa+8d2kq4Pko6Nq45qlfq65vdf666IwezAVcdoNLlV4tn1t+YGXXq9VLin54fUh2WntK7WXZG579xW7P425BwAAA4J1Sm1mHd/qPg0KamZBXEXCpzPKZlRKr68r5E/rGUdUFPNte7MRB0uhrN19ciTb7X2M3EDAAABillGd5BroQYXHOORfyKqegy23FM+fCnA3CKt9hzvE/vPfT88lcwLPtxRsdNC/nzt9v/rKiez3bn/rjTkHAAADgn+L079Xp2ePs/7k/cyGvLeCpbQcE/PH5ZDYkayrg6r2LPwYEXH9Z8Wj1rObjTkHAAADgn9yiR7vVvUflEOXHikvCjnvAWd/1zMPf+9mtK+v1gBsvKwdHP9Z5O8cgYAAA8E8uuoNKhIUDb2+d+8/5JeE1BTy7Blyas30NeHqxdtE14B4BN1+Wf+JfFxeeW4+7BQEDAMApcJD8N39Zqe+gvM/2zH/Yemx9AU8HUdVGQVd3GZe94WrrVncUdPavh9J+AXde9lj5ps3HHYOAAQDgFMjHOVcSKx14PblQqnc9AWd2zO8D/v1W6z7g9MZWcUU5eSiTez5xVmnS76ed+4DbAv5+2npZ1UPvvJ1jEDAAAJwG12cDi6dzXFS3JrVvQ6rdANQj4PSr8qnn/rIzE1btz3PvlLc5lddymzNhNSe1Kp9Sf1n1OcX+Nt/OLQgYAABOg9tbU4dNbwouepVrCzg9XjgXdD5sOfuz/Izjn5Tv9lU+ofMj788/fE71lNrLqjPa5f413s4tCBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAACBgAACAA/z8gH3GBgn1FwgAAAABJRU5ErkJggg==" width="960" /></p>
+<pre class="r"><code>taxa_1 &lt;- na.omit(stat_mean[stat_mean$subplot == 1, ]$taxa)
+df_1 &lt;- df_taxa[, taxa_1]
+
+df_1 &lt;- tidyr::pivot_longer(df_1,
+                            cols=taxa_1,
+                            names_to=&quot;taxa&quot;,
+                            values_to=&quot;percent_cover&quot;)</code></pre>
+<pre><code>## Note: Using an external vector in selections is ambiguous.
+## i Use `all_of(taxa_1)` instead of `taxa_1` to silence this message.
+## i See &lt;https://tidyselect.r-lib.org/reference/faq-external-vector.html&gt;.
+## This message is displayed once per session.</code></pre>
+<pre class="r"><code>df_1_cop &lt;- df_1[df_1$percent_cover &gt; 0, ]
+for (t in taxa_1) {
+  percent_pres &lt;- nrow(df_1[(df_1$taxa == t) &amp; (df_1$percent_cover) &gt; 0, ]) * 100. /  nrow(df_1)
+  df_1_cop[df_1_cop$taxa == t, &quot;percent_pres&quot;] &lt;- round(percent_pres, 3)
+}
+
+df_1_cop &lt;- arrange(df_1_cop, taxa)
+#df_2_cop$taxa &lt;- as.character(df_2_cop$taxa)
+#df_2_cop$taxa &lt;- factor(df_2_cop$taxa, levels=taxa_2)
+
+p_1 &lt;- df_1_cop %&gt;% mutate(myaxis = paste0(taxa, &quot;\nPresent:\n&quot;, percent_pres, &quot;%&quot;)) %&gt;%
+  ggplot( aes(x=myaxis, y=percent_cover, fill=taxa)) +
+    geom_violin(width=1.4, trim=FALSE) +
+    #geom_boxplot(width=0.1, color=&quot;grey&quot;, alpha=0.2) +
+    #scale_fill_viridis(discrete = TRUE) +
+    
+    theme_ipsum() +
+    scale_fill_brewer(palette = &quot;Paired&quot;) +
+    theme(
+      legend.position=&quot;none&quot;,
+      #plot.title = element_text(size=11)
+      #axis.text.x = element_text(angle = 45) #, vjust = 0.5, hjust=1)
+    ) +
+    xlab(&quot;&quot;) +
+  #xlab(&quot;VME indicator taxa&quot;) +
+    ylab(&quot;Percentage cover - Conditioned on presence&quot;) +
+    ylim(c(0, 1))
+
+p_1 + aes(x = fct_inorder(myaxis)) + xlab(&quot;VME indicator taxa&quot;)</code></pre>
+<pre><code>## Warning: Removed 35 rows containing non-finite values (stat_ydensity).</code></pre>
+<pre><code>## Warning: position_dodge requires non-overlapping x intervals</code></pre>
+<pre><code>## Warning: Removed 685 rows containing missing values (geom_violin).</code></pre>
+<pre><code>## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database
+
+## Warning in grid.Call(C_textBounds, as.graphicsAnnot(x$label), x$x, x$y, : font
+## family not found in Windows font database</code></pre>
+<pre><code>## Warning in grid.Call.graphics(C_text, as.graphicsAnnot(x$label), x$x, x$y, :
+## font family not found in Windows font database</code></pre>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB4AAAAPACAMAAADja5SLAAABxVBMVEUAAAAAADoAAGYAOjoAOmYAOpAAZpAAZrYfeLQzMzMzoCw6AAA6ADo6OgA6Ojo6OmY6ZmY6ZpA6ZrY6kJA6kLY6kNtNTU1NTW5NTY5Nbm5Nbo5NbqtNjo5NjqtNjshmAABmOgBmOjpmOpBmZgBmZjpmZmZmZpBmkJBmkLZmkNtmtttmtv9uTU1ubk1ubm5ubo5ujo5ujqtujshuq8huq+SOTU2Obk2Obm6Ojo6Oq6uOq8iOq+SOyOSOyP+QOgCQOmaQZgCQZjqQZmaQZpCQkJCQtpCQtraQttuQ27aQ2/+mzuOrbk2rjk2rjm6rq8iryKuryOSryP+r5OSr5P+y34q2ZgC2Zjq2kDq2kGa2kJC2kLa2tpC2tra2ttu227a229u22/+2///Ijk3Ijm7Iq27Iq47Iq6vIyI7IyMjI5OTI5P/I/8jI/+TI///MzMzbkDrbkGbbtmbbtpDbtrbbttvb25Db27bb29vb2//b/7bb/9vb///jGhzkq27kq47kyI7kyKvkyMjk5Kvk5Mjk5OTk5P/k/+Tk///7mpn9v2//tmb/yI7/25D/27b/29v/5Kv/5Mj/5OT//7b//8j//9v//+T////bNxJKAAAACXBIWXMAAB2HAAAdhwGP5fFlAAAgAElEQVR4nO29/aMc1Z2nV+IlqH2DMMS0DN7himTtxUYMa5mXXWI0YycxYYknbBhhkgGbuYxnx04MRpqM2AUFNrOOxldCMFdX/fem6627Xvv1nDrn+6nn+UHq213dXZ86p+rpc+rUqWQGAAAAg5OEXgEAAIAxgoABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAACgIABAAAC4E/Ad66996m3D4+WD0OvgGfU8xHQOur5CCiFLwF/fJAk9/31yeGjI5OweuVRz0dA66jnI6AUngT8dpI8nAk4eXBcBlavPOr5CGgd9XwElMKPgI+T+94/Obzvr2dfHiaPe/mGWFGvPOr5CGgd9XwElMKLgE8vJ8/OMgHPVTyuJrB65VHPR0DrqOcjoBReBJy5Nxdw/u94UK886vkIaB31fASUAgG7Rb3yqOcjoHXU8xFQCk9d0GdeL9R7+4AuaCXU8xHQOur5CCiFn0FYV5KHcgGfXp4/GhPqlUc9HwGto56PgFL4EfDJYfLoLw/v+9XVC8m8LTwm1CuPej4CWkc9HwGl8HQd8O2DJGdk/pWvPOr5CGgd9XwElMLXTFin75yb6/f+Z0Z1AnimX3nU8xHQOur5CCgFN2Nwi3rlUc9HQOuo5yOgFAjYLeqVRz0fAa2jno+AUnjrgv77tPP55M9e8/T5saJeedTzEdA66vkIKIUnAf/+IJt/4+QweczPF8SKeuVRz0dA66jnI6AUvm7GkE8Bffr7A27GIIV6PgJaRz0fAaXwdTOGUrvcjEEL9XwEtI56PgJK4W8u6NbDUaBeedTzEdA66vkIKAUCdot65VHPR0DrqOcjoBS+u6A/ogtaCvV8BLSOej4CSuFtENaj712/fv3aT5Lk2c4ljqYvdDz7xcvT6fT5N1c8ETvqlUc9HwGto56PgFJ4ugzpo6SkexD0rWmHgO99MM25dLPnifhRrzzq+QhoHfV8BJTC10Qcd955OJ0L+rFPOl+9dbFLwEfTkqd6nogf9cqjno+A1lHPR0ApgkxF+fncv20BfzV/9kc3s2bv+bc6nzCAeuVRz0dA66jnI6AUAQT89c+zRm1LwEflczeKFm/rCQOoVx71fAS0jno+AkrhScCnV79b8r3GKOgb83btk/+h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" width="960" /></p>
 </div>
 
 
