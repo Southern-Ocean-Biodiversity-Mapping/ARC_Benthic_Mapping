@@ -159,9 +159,13 @@ df_to_rasterize <- rm_row_na(df_to_rasterize, list_taxa_biigle254)
 df_to_rasterize_ccamlr <- left_join(df_sum_taxonomic, df_not_to_sum)
 df_to_rasterize_ccamlr$survey <- as.numeric(as.factor(df_to_rasterize_ccamlr$survey))
 
-df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle839)
-df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_coralnet)
-df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle254)
+list_taxa_biigle839_ccamlr <- unique(sapply(strsplit(list_taxa_biigle839,"--"), `[`, 2))
+list_taxa_coralnet_ccamlr <- unique(sapply(strsplit(list_taxa_coralnet,"--"), `[`, 2))
+#list_taxa_biigle254_ccamlr <- unique(sapply(strsplit(list_taxa_biigle254,"--"), `[`, 2))
+
+df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle839_ccamlr)
+df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_coralnet_ccamlr)
+#df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle254_ccamlr)
 
 ################################################################################
 #                                CLEAN DATA FRAMES
