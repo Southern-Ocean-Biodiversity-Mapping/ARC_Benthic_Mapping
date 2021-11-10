@@ -12,8 +12,7 @@ library(raster)
 library(rasterVis)
 library(tidyverse)
 library(PerformanceAnalytics) #correlation chart
-#remotes::install_github("AustralianAntarcticDivision/SOmap")
-library(SOmap)
+library(RColorBrewer)
 
 
 sci.dir <-      "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
@@ -34,9 +33,9 @@ load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
 
 Haven't used fancy SOmap as it takes way too long with 500m rasters. Revisit if needed for publication figures.
 
-```{r plot env layers, cache=TRUE, echo=FALSE}
+```{r plot env layers, echo=FALSE}
 
-## get file names of all environmental rasters and bricks and load into one big stack----
+## get file names of all environmental rasters and bricks and load into one big stack
 
 #all files with "gri" extension
 env_list<-list.files(path = env.derived, pattern="gri$",  full.names=TRUE) 
@@ -50,17 +49,22 @@ env_names<-gsub(".*_|\\..*","",env_list)
 env_stack<-stack(env_list)
 #names(env_stack)
 names(env_stack)[1:5]<-env_names[1:5]
-names(env_stack)[16]<-"NPP_su_mean"
-names(env_stack)[23:24]<-env_names[9:10]
+names(env_stack)[6:14]<-paste(rep(c("CARS_NO3", "CARS_O2", "CARS_PO4"),each=3),c("mean", "seas_range", "std_dev"), sep="_")
+names(env_stack)[25]<-"NPP_su_mean"
+names(env_stack)[38:39]<-env_names[13:14]
+
 
 #add environmental data with non-conformant names
 env_stack<-stack( env_stack,
                   raster(paste0(env.derived, "Circumpolar_EnvData_geomorphology")))
-names(env_stack)[25]<-"geomorph"
+names(env_stack)[40]<-"geomorph"
+
+geomorph_cat<-levels(env_stack[[40]])[[1]]
+
 
 
 # load annotation data- need locations of cells with scored images
-load(paste0(ARC_Data.dir, "Circumpolar_Annotation_Env_Data.RData"))
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
 
 
 #plot subsets of environmental data. Using plain old raster as SOmap took way too long to plot with 500 m resolution rasters. Investigate later for publication plots.
@@ -73,59 +77,72 @@ fun <- function() {
 
 
 ### Bathymetry derivatives
-```{r bathy plot, cache=TRUE, fig.height=9, fig.width=11}
+```{r bathy plot, fig.height=9, fig.width=11}
 raster::plot(env_stack, 1:5, nc=3, addfun=fun)
 ```
 
 
 ### Ice
-```{r ice, cache=TRUE, fig.height=12, fig.width=10}
+```{r ice, fig.height=12, fig.width=10}
 raster::plot(env_stack, grep("ice", names(env_stack)), nc=3, addfun=fun)
 ```
 
 ### SST
-```{r sst, cache=TRUE, fig.height=10, fig.width=8}
+```{r sst,  fig.height=10, fig.width=8}
 raster::plot(env_stack, grep("sst", names(env_stack)), nc=2, addfun=fun) 
 ```
 
 ### NPP
-```{r NPP, cache=TRUE}
+```{r NPP}
 raster::plot(env_stack, "NPP_su_mean", addfun=fun)
 ```
 
 ### Seafloor parameters
-``` {r seafloor, cache=TRUE,fig.height=6, fig.width=10}
+``` {r seafloor,fig.height=6, fig.width=10}
 raster::plot(env_stack, c("seafloorcurrents", "seafloortemperature"),addfun=fun)
 ```
 
-### Geomorphology
-```{r geomorph, cache=TRUE}
+### CARS BGC
+```{r CARS,  fig.height=12, fig.width=10}
+raster::plot(env_stack, grep("CARS", names(env_stack)), nc=3, addfun=fun)
+```
 
-levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=rev(terrain.colors(255))), main="Circum Antarctic")
+
+### Geomorphology
+```{r geomorph}
+
+#define paleete to help categories stand out abit more - especially canyons
+st<-brewer.pal("Greys", n=3)
+can<-"lawngreen"
+fin1<-brewer.pal("Paired", n=12)
+fin2<-brewer.pal("Set3", n=11)
+
+
+levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=c(st,can,fin1,fin2)), main="Circum Antarctic")
 
 # Zoom in on geomorphology to see how many sites/cells are near canyons
 
 #Ross Sea
-levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=rev(terrain.colors(255))),
+levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
 xlim=c(-600000,600000), ylim=c(-2650000,-1250000), main="Ross Sea", axes=FALSE) +
 latticeExtra::layer (sp.lines(coast.proj, col="black")) +
 latticeExtra::layer(sp.points(im_loc, col="blue"))
 
 #Sabrina Coast
-levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=rev(terrain.colors(255))),
+levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="Sabrina Coast", axes=FALSE) +
 latticeExtra::layer (sp.lines(coast.proj, col="black")) +
 latticeExtra::layer(sp.points(im_loc, col="blue"))
 
 
 #Antarctic Peninsula
-levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=rev(terrain.colors(255))),
+levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
 xlim=c(-2750000,-2100000), ylim=c(750000,2410000), main="Antarctic Peninsula", axes=FALSE) +
 latticeExtra::layer (sp.lines(coast.proj, col="black")) +
 latticeExtra::layer(sp.points(im_loc, col="blue"))
 
 # weddell Sea
-levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=rev(terrain.colors(255))),
+levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
 xlim=c(-1400000,600000), ylim=c(800000,2300000),main="Weddell Sea", axes=FALSE) +
 latticeExtra::layer (sp.lines(coast.proj, col="black")) +
 latticeExtra::layer(sp.points(im_loc, col="blue"))
@@ -135,15 +152,16 @@ latticeExtra::layer(sp.points(im_loc, col="blue"))
 ```
 
 
-## Density/distribution plots of environmental variables
+## Density/distribution plots of environmental variables 
 
-```{r env_density, fig=12, fig.width=12, warnings=FALSE}
+```{r env_density, fig.width=12, fig.height=18, warnings=FALSE}
 cell_metadata_env %>% 
+  filter(!is.na(cover_N)) %>%
   pivot_longer(cols= depth:seafloortemperature, names_to= "Variable", values_to= "Value") %>%
   ggplot (aes(x= Value))+
  geom_density()+
     theme_bw()+
-  facet_wrap(~Variable, scales="free")
+  facet_wrap(~Variable, scales="free", nrow=7)
 ```
 
 ```{r geomorph barplot, fig.height=5, fig.width=6}
@@ -156,9 +174,11 @@ cell_metadata_env %>%
 ```
 
 
-## Biplots with correlation between environmental variables at image cells
+## Biplots with correlation between environmental variables at image cells {.tabset}
 
-```{r env_corr, cache=TRUE, fig.width= 10, fig.height=10}
+### Bathy Derivatives
+
+```{r env_corr,  fig.width= 10, fig.height=10}
 cell_metadata_env<-as_tibble(cell_metadata_env)
 
 #bathy derivatives
@@ -166,26 +186,49 @@ cell_metadata_env %>%
   dplyr::select(depth, slope, tpi, tpi5, tpi11) %>%
 chart.Correlation(., na.action=na.omit)
 title(main="Bathy vars", line=3)
+```
 
-#sst
+
+### SST
+```{r sst_corr,  fig.width= 10, fig.height=10}
 cell_metadata_env %>% 
   dplyr::select(starts_with("sst")) %>%
 chart.Correlation(., na.action=na.omit)
 title(main="SST vars", line=3)
+```
 
-#ice 
+
+### CARS
+
+```{r CARS_cor,  fig.width= 10, fig.height=10}
+
+#CARS BGC
+cell_metadata_env %>% 
+  dplyr::select(starts_with("CARS")) %>%
+chart.Correlation(., na.action=na.omit)
+title(main="Ice vars", line=3)
+```
+
+
+### Ice 
+```{r ice_cor, fig.width= 10, fig.height=10}
 cell_metadata_env %>% 
   dplyr::select(starts_with("ice")) %>%
 chart.Correlation(., na.action=na.omit)
 title(main="Ice vars", line=3)
+```
 
-#others
+### Others
+```{r,  fig.width= 10, fig.height=10}
 cell_metadata_env %>% 
   dplyr::select(NPP_su_mean, seafloorcurrents, seafloortemperature) %>%
 chart.Correlation(., na.action=na.omit)
 title(main="Other vars", line=3)
+```
 
-#Across var types
+### Across var types
+``` {r across types, fig.width= 10, fig.height=10}
+
 cell_metadata_env %>% 
   dplyr::select(depth, slope, tpi, ice_sp_mean, ice_sp_sd, ice_su_mean, ice_su_max, ice_su_sd, NPP_su_mean, sst_su_mean, sst_su_sd, seafloorcurrents, seafloortemperature) %>%
 chart.Correlation(., na.action=na.omit)
@@ -193,100 +236,6 @@ title(main="Across var types", line=3)
 
 ```
 
-
-
-* TO DO: environmental coverage of subset of likely variables using Jan's shiny app code* 
-
-
-## Image data
-
-1) Distribution of area and image quality by: survey, institute, platform  - need this info added to image metadata
-2) Distribution of number of images per cell  -DONE
-3) Temporal (and spatial) distribution of images- need date for temporal distribution
-4) Histogram of Distance between images (need to think about how to avoid going over land)-TO DO
-
-```{r image data}
-
-load(paste0(ARC_Data.dir, "Circumpolar_Annotation_Data.RData"))
-
-## At cell level
-
-#COVER
-cell_metadata_env %>%
-  ggplot(aes(x=cover_N)) +
-  geom_histogram(bins=14, col="black")+
-  ggtitle("COVER_ No. image per environmental cell")
-
-
-#COUNT
-
-cell_metadata_env %>%
-    filter(! is.na (counts_N)) %>%
-  ggplot(aes(x=counts_N)) +
-  geom_histogram(bins=8, col="black")+
-  ggtitle("COUNT_ No. image per environmental cell")
-```
-
-### Spatial distribution of number of images per cell. {.tabset}
-
-to add same plot of counts_N
-
-#### Ross Sea
-```{r Ross_Sea_N, cache=TRUE, message=FALSE, warning=FALSE}
-#plot number of images per cell
-#try bubbleplot
-source(paste0(tools.dir,"bubbleplot.R"))
-sp_im<-SpatialPointsDataFrame(cell_metadata_env[,c("proj_coord_x", "proj_coord_y")], cell_metadata_env,proj4string = crs(env_stack))
-
-raster::plot( env_stack, "depth", xlim=c(-600000,600000), ylim=c(-2650000,-1250000))
-plot(coast.proj, add=TRUE)
-bubble.plot(sp_im, var = "cover_N", pch=1)
-
-```
-
-#### East Antarctica
-```{r East_Ant_N, cache=TRUE, warning=FALSE}
-raster::plot( env_stack, "depth",  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
-plot(coast.proj, add=TRUE)
-bubble.plot(sp_im, var = "cover_N", pch=1)
-
-#raster::plot( env_stack, "depth",  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
-#plot(coast.proj, add=TRUE)
-#  bubble.plot(na.omit(sp_im), var = "counts_N", pch=1, col="red", max.symbol.size=6)
-```
-
-#### Antarctic Peninsula
-```{r ANt_Pen_N, cache=TRUE}
-raster::plot( env_stack, "depth", xlim=c(-2750000,-2100000), ylim=c(750000,2410000), main="")
-plot(coast.proj, add=TRUE)
-bubble.plot(sp_im, var = "cover_N", pch=1)
-```
-
-#### Weddell Sea
-  
-```{r Weddell_N, cache=TRUE}
-raster::plot( env_stack, "depth", xlim=c(-1400000,600000), ylim=c(800000,2300000), main="")
-plot(coast.proj, add=TRUE)
-bubble.plot(sp_im, var = "cover_N", pch=1)
-```
-
-## Biological Data
-
-requires matching cell level annotations with environmental data (same as 1 above -Nic)  
-Jan to add number of images/number of points to each cover/count at cell level file - done
-
-1) prevalence of each biological taxa (will help inform any aggregation)  
-2) key taxa spatial bubbleplots  
-3) Any platform -related effects??  
-4) GAMS with env data
-
-```{r bio prevalence}
-#cell_anot_env<-cell_metadata_env %>%
-#  dplyr::left_join(., rownames_to_column(cover_cells), by=c("cellID"="rowname"))
-
-
-
-```
 
 
 
