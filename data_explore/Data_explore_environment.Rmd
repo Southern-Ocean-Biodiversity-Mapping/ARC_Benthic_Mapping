@@ -47,19 +47,20 @@ env_names<-gsub(".*_|\\..*","",env_list)
 
 #stack all environmental layers and make sure they have appropriate names (currently manual and a bit messy!)
 env_stack<-stack(env_list)
-#names(env_stack)
+names(env_stack)
 names(env_stack)[1:5]<-env_names[1:5]
-names(env_stack)[6:14]<-paste(rep(c("CARS_NO3", "CARS_O2", "CARS_PO4"),each=3),c("mean", "seas_range", "std_dev"), sep="_")
-names(env_stack)[25]<-"NPP_su_mean"
-names(env_stack)[38:39]<-env_names[13:14]
+names(env_stack)[14:22]<-paste(rep(c("CARS_NO3", "CARS_O2", "CARS_PO4"),each=3),c("mean", "seas_range", "std_dev"), sep="_")
+names(env_stack)[33]<-"NPP_su_mean"
+names(env_stack)[46:47]<-env_names[17:18]
 
 
-#add environmental data with non-conformant names
+#add environmental data with non-conformant names- 
+#### remember to update column index if changes!!!
 env_stack<-stack( env_stack,
                   raster(paste0(env.derived, "Circumpolar_EnvData_geomorphology")))
-names(env_stack)[40]<-"geomorph"
+names(env_stack)[48]<-"geomorph"
 
-geomorph_cat<-levels(env_stack[[40]])[[1]]
+geomorph_cat<-levels(env_stack[[48]])[[1]]
 
 
 
@@ -69,7 +70,7 @@ load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
 
 #plot subsets of environmental data. Using plain old raster as SOmap took way too long to plot with 500 m resolution rasters. Investigate later for publication plots.
 # create function for adding locations of image cells
-im_loc<-SpatialPoints(coords = cell_metadata_env[,c("proj_coord_x","proj_coord_y")], proj4string = crs(env_stack))
+im_loc<-SpatialPoints(coords = cell_metadata_env[,c("proj_coord_x","proj_coord_y")], proj4string = raster::crs(env_stack))
 fun <- function() {
     points(im_loc, col="black", pch=21, cex=0.7)
 }
@@ -102,9 +103,12 @@ raster::plot(env_stack, "NPP_su_mean", addfun=fun)
 raster::plot(env_stack, c("seafloorcurrents", "seafloortemperature"),addfun=fun)
 ```
 
-### CARS BGC
-```{r CARS,  fig.height=12, fig.width=10}
+### BGC
+```{r BGC,  fig.height=12, fig.width=10}
 raster::plot(env_stack, grep("CARS", names(env_stack)), nc=3, addfun=fun)
+
+raster::plot(env_stack, c("arag_mean" ,"arag_sd", "no3_mean", "o3_sd", "o2_mean", "o2_sd", "po4_mean", "po4_sd"), nc=3, addfun=fun)
+
 ```
 
 
@@ -118,7 +122,8 @@ fin1<-brewer.pal("Paired", n=12)
 fin2<-brewer.pal("Set3", n=11)
 
 
-levelplot(subset(env_stack, "geomorph"),par.settings=rasterTheme(region=c(st,can,fin1,fin2)), main="Circum Antarctic")
+levelplot(raster::subset(env_stack, "geomorph"),
+          par.settings=rasterTheme(region=c(st,can,fin1,fin2)), main="Circum Antarctic")
 
 # Zoom in on geomorphology to see how many sites/cells are near canyons
 
@@ -161,7 +166,7 @@ cell_metadata_env %>%
   ggplot (aes(x= Value))+
  geom_density()+
     theme_bw()+
-  facet_wrap(~Variable, scales="free", nrow=7)
+  facet_wrap(~Variable, scales="free", nrow=8)
 ```
 
 ```{r geomorph barplot, fig.height=5, fig.width=6}
@@ -198,15 +203,16 @@ title(main="SST vars", line=3)
 ```
 
 
-### CARS
+### BGC
 
-```{r CARS_cor,  fig.width= 10, fig.height=10}
+```{r BGC_cor,  fig.width= 12, fig.height=12}
 
-#CARS BGC
+#CARS & BSOSE BGC
 cell_metadata_env %>% 
-  dplyr::select(starts_with("CARS")) %>%
+  dplyr::select(arag_mean:CARS_PO4_std_dev) %>%
 chart.Correlation(., na.action=na.omit)
-title(main="Ice vars", line=3)
+title(main="BCG vars", line=3)
+
 ```
 
 
@@ -230,7 +236,7 @@ title(main="Other vars", line=3)
 ``` {r across types, fig.width= 10, fig.height=10}
 
 cell_metadata_env %>% 
-  dplyr::select(depth, slope, tpi, ice_sp_mean, ice_sp_sd, ice_su_mean, ice_su_max, ice_su_sd, NPP_su_mean, sst_su_mean, sst_su_sd, seafloorcurrents, seafloortemperature) %>%
+  dplyr::select(depth, slope, tpi, ice_sp_mean, ice_sp_sd, ice_su_mean, ice_su_max, ice_su_sd, NPP_su_mean, sst_su_mean, sst_su_sd, arag_mean, CARS_O2_mean, CARS_NO3_mean, seafloorcurrents, seafloortemperature) %>%
 chart.Correlation(., na.action=na.omit)
 title(main="Across var types", line=3)
 
