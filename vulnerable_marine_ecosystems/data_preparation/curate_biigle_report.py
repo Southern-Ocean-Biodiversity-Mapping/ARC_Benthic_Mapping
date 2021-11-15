@@ -70,39 +70,29 @@ def curate_biigle_reports(fname_i, fname_o):
 
     # Gather annotations of each taxa within each image
     # Init dict
-    dct_ = {"filename": [], "area": [], "area_pix": []}
+    dct_cover = {"filename": [], "area": [], "area_pix": []}
     for k in df["label"].unique():
-        if k not in dct_:
-            dct_[k] = []
-    # Fill dicts
-    dct_count, dct_cover = copy.deepcopy(dct_), copy.deepcopy(dct_)
+        if k not in dct_cover:
+            dct_cover[k] = []
+    # Fill dict
     for f in df["filename"].unique():
         df_cur = df[df["filename"] == f]
-        for k in dct_.keys():
+        for k in dct_cover.keys():
             if k not in df["label"].unique():
-                dct_count[k].append(df_cur[k].tolist()[0])
                 dct_cover[k].append(df_cur[k].tolist()[0])
             else:
                 df_cur_k = df_cur[df_cur["label"] == k]
                 if len(df_cur_k):
-                    dct_count[k].append(len(df_cur_k))
                     dct_cover[k].append(df_cur_k["area_annotation_pix"].sum())
                 else:
-                    dct_count[k].append(0)
                     dct_cover[k].append(0)
-    # Convert to data frames
-    df_count = pd.DataFrame.from_dict(dct_count)
+    # Convert to data frame
     df_cover = pd.DataFrame.from_dict(dct_cover)
-    print(df_count.head())
     print(df_cover.head())
 
     # Save results
-    fname_o_count = fname_o.split(".csv")[0] + "_count.csv"
-    print("Saving COUNT result in: {}...".format(fname_o_count))
-    df_count.to_csv(fname_o_count, index=False)
-    fname_o_cover = fname_o.split(".csv")[0] + "_cover.csv"
-    print("Saving COVER result in: {}...".format(fname_o_cover))
-    df_cover.to_csv(fname_o_cover, index=False)
+    print("Saving COVER result in: {}...".format(fname_o))
+    df_cover.to_csv(fname_o, index=False)
 
 
 def main():
