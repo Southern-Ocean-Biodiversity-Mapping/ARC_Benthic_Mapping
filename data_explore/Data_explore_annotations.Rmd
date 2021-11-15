@@ -1,0 +1,281 @@
+---
+title: "Data_explore_Annotations"
+author: "Nicole Hill"
+date: "04/11/2021"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE,echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(raster)
+library(rasterVis)
+library(tidyverse)
+library(classInt)
+library(scales)
+library(kableExtra)
+
+sci.dir <-      "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
+env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+tools.dir <-    paste0(sci.dir,"Analysis/Useful_Functions_Tools/")
+ARC_Data.dir <- paste0(sci.dir,"Analysis/ARC_Data/")
+
+load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
+bathy<-raster(paste0(env.derived, "Circumpolar_EnvData_500m_shelf_bathy_gebco_depth"))
+
+```
+
+
+## Image data
+
+1) Distribution of area and image quality by: survey, institute, platform  - need this info added to image metadata- Jan
+3) Temporal (and spatial) distribution of images- need date for temporal distribution- Jan
+4) Histogram of Distance between images (need to think about how to avoid going over land)-TO DO
+
+
+### Images per cell
+
+```{r images_per_cell}
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data.RData"))
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
+
+## At cell level
+
+#COVER
+cell_metadata_env %>%
+  ggplot(aes(x=cover_N)) +
+  geom_histogram(bins=14, col="black")+
+  ggtitle("COVER_ No. image per environmental cell")
+
+
+#COUNT
+
+cell_metadata_env %>%
+    filter(! is.na (counts_N)) %>%
+  ggplot(aes(x=counts_N)) +
+  geom_histogram(bins=8, col="black")+
+  ggtitle("COUNT_ No. image per environmental cell")
+
+```
+
+
+### Spatial distribution of number of images per cell for COVER data. {.tabset}
+
+#### Ross Sea
+```{r Ross_Sea_N, message=FALSE, warning=FALSE }
+#plot number of images per cell
+#try bubbleplot
+source(paste0(tools.dir,"bubbleplot.R"))
+sp_im<-SpatialPointsDataFrame(cell_metadata_env[,c("proj_coord_x", "proj_coord_y")], cell_metadata_env,proj4string = crs(bathy))
+
+raster::plot(bathy, xlim=c(-600000,600000), ylim=c(-2650000,-1250000))
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im, var = "cover_N", pch=1)
+
+```
+
+#### East Antarctica
+```{r East_Ant_N, warning=FALSE}
+raster::plot( bathy,  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im, var = "cover_N", pch=1)
+
+#raster::plot( env_stack, "depth",  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
+#plot(coast.proj, add=TRUE)
+#  bubble.plot(na.omit(sp_im), var = "counts_N", pch=1, col="red", max.symbol.size=6)
+```
+
+#### Antarctic Peninsula
+```{r ANt_Pen_N}
+raster::plot( bathy, xlim=c(-2750000,-2100000), ylim=c(750000,2410000), main="")
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im, var = "cover_N", pch=1)
+```
+
+#### Weddell Sea
+  
+```{r Weddell_N }
+raster::plot( bathy, xlim=c(-1400000,600000), ylim=c(800000,2300000), main="")
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im, var = "cover_N", pch=1)
+```
+
+### Spatial distribution of number of images per cell for COUNT data. {.tabset}
+
+#### Ross Sea
+```{r Ross_Sea_count,  message=FALSE, warning=FALSE }
+#plot number of images per cell
+source(paste0(tools.dir,"bubbleplot.R"))
+sp_im_count<-sp_im [!is.na(sp_im$counts_N),]
+
+
+raster::plot(bathy, xlim=c(-600000,600000), ylim=c(-2650000,-1250000))
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
+
+```
+
+#### East Antarctica
+```{r East_Ant_count,  warning=FALSE}
+raster::plot( bathy,  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
+
+#raster::plot( env_stack, "depth",  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
+#plot(coast.proj, add=TRUE)
+#  bubble.plot(na.omit(sp_im), var = "counts_N", pch=1, col="red", max.symbol.size=6)
+```
+
+#### Antarctic Peninsula
+```{r ANt_Pen_count}
+raster::plot( bathy, xlim=c(-2750000,-2100000), ylim=c(750000,2410000), main="")
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
+```
+
+#### Weddell Sea
+  
+```{r Weddell_count }
+raster::plot( bathy, xlim=c(-1400000,600000), ylim=c(800000,2300000), main="")
+plot(coast.proj, add=TRUE)
+bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
+```
+
+
+## Biological Data
+
+1) prevalence of each biological taxa (will help inform any aggregation). DONE  
+2) key taxa spatial bubbleplots  
+3) Any platform -related effects??  Need platform and image level data
+4) GAMS with env data- TO Do once narrowed down species to look at.
+
+
+### Prevalence 
+```{r bio prevalence}
+
+cover_prev<-data.frame(count=colSums(cover_cells>0)) %>%
+  mutate(., prev= count/950 ) %>%
+  rownames_to_column(., var="Label") 
+
+
+cover_prev %>%
+  ggplot(aes(x=reorder(Label, -prev), y=prev))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=5))+
+   labs(title="All Taxa", x="Label")
+
+```
+
+
+#### Common
+```{r common}
+# cut prevalence at less than 5%  
+  
+cover_common<-cover_prev %>%
+  filter(prev >= 0.05)
+
+cover_common %>%
+  ggplot(aes(x=reorder(Label, -prev), y=prev))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=8))+ 
+  labs(title="Cover: Common (> 5%) Taxa", x="Label")  
+
+cover_common %>%
+  arrange(., desc(prev)) %>%
+  kbl(caption="Cover: Common (> 5%) Taxa") %>%
+      kable_styling(full_width = F)
+  
+```
+
+
+#### Rare 
+```{r prev rare}
+  cover_rare<-cover_prev %>%
+      filter(prev < 0.05) %>%
+      mutate(prev= round(prev, 2)) 
+
+cover_rare %>%
+  arrange(., desc(prev))%>%
+      kbl(caption="Cover: Rare (> 5%) Taxa") %>%
+      kable_styling(full_width = F)
+
+
+```
+
+
+### Abundance
+
+Removing 'Unscorable' and calculating overall percentages (across all cells)
+```{r abund}
+
+perc<-cover_cells_env %>%
+  select(., -Unscorable) 
+
+  perc_cell<-cbind(cover_cells_env[,1:50],
+        prop.table(as.matrix(perc[,51:173]), margin=1)*100)
+  
+  perc_overall<-colSums(prop.table(as.matrix(perc[,51:173]))*100)
+
+perc_overall<- as.data.frame(perc_overall)
+
+perc_overall%>%
+  mutate(Label=rownames(perc_overall)) %>%
+
+  arrange(., desc(perc_overall))%>%
+      kbl(caption="Overall abundance") %>%
+      kable_styling(full_width = F)
+
+```
+
+#### abundance of key groups and taxa (at individual cell level)
+
+Would be good to colour-code by survey- TO DO
+
+```{r taxa bubbles}
+
+taxa_im<-SpatialPointsDataFrame(perc_cell[,c("proj_coord_x", "proj_coord_y")], perc_cell,proj4string = crs(bathy))
+
+raster::plot(bathy)
+        bubble.plot(taxa_im, var = "Sub_Fine", pch=1)
+
+raster::plot(bathy)
+        bubble.plot(taxa_im, var = "Sub_PbGrv", pch=1)
+
+raster::plot(bathy)
+        bubble.plot(taxa_im, var = "Sub_BioRu", pch=1)
+
+raster::plot(bathy)
+      bubble.plot(taxa_im, var = "BH_BrAnt", pch=1)
+
+
+raster::plot(bathy)
+      bubble.plot(taxa_im, var = "E_O_BritO", pch=1)
+      
+raster::plot(bathy)
+      bubble.plot(taxa_im, var = "HydrC_Br", pch=1)
+      
+
+```
+##Raw pearsons correlations between substrate vars and taxa
+
+```{r subs taxa cor}
+ 
+subs<-c("Sub_Fine", "Sub_PbGrv", "Sub_Bould", "Sub_Cbble", "Sub_BioRu")
+
+sub_cors<-as.data.frame(matrix(ncol = length(subs), nrow = 123))
+for(i in 1:length(subs)){
+  temp<-round(cor(perc_cell[,subs[i]], perc_cell[,51:173]),2)
+  sub_cors[,i]<-temp[1:123]
+}
+rownames(sub_cors)<-names(perc_cell[,51:173])
+names(sub_cors)<-subs
+
+sub_cors %>% 
+ kbl(caption="Correlation with substrate") %>%
+      kable_styling(full_width = F)
+
+
+```
+
+
+
