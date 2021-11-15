@@ -1,4 +1,3 @@
-import os
 import math
 import copy
 import argparse
@@ -7,7 +6,7 @@ import pandas as pd
 
 
 # Example:
-#   python data_preparation\curate_biigle_report.py -i ..\..\..\biigle_scripts\20210908_biigle_vme.csv -a C:\Users\cgros\data\image_area -o 20210917_biigle_vme.csv
+#   python data_preparation\curate_biigle_report.py -i biodata_step1.csv -o biodata_step2.csv
 
 
 def get_parser():
@@ -17,8 +16,6 @@ def get_parser():
     mandatory_args = parser.add_argument_group('MANDATORY ARGUMENTS')
     mandatory_args.add_argument('-i', '--ifname', required=True, type=str,
                                 help='CSV filename to curate.')
-    mandatory_args.add_argument('-a', '--afolder', required=True, type=str,
-                                help='Folder with area info.')
     mandatory_args.add_argument('-o', '--ofname', required=True, type=str,
                                 help='CSV filename output.')
 
@@ -30,23 +27,20 @@ def get_parser():
     return parser
 
 
-def curate_biigle_reports(fname_i, folder_area, fname_o):
+def curate_biigle_reports(fname_i, fname_o):
     # Read dataframe
     df = pd.read_csv(fname_i)
 
     # Clean df
     df = df.drop(["annotation_label_id", "label_id", "label_name", "firstname", "lastname", "user_id",
                                   "image_id", "shape_id", "annotation_id"], axis=1)
-    #df["survey"] = df["filename"].str.split('_').str[0]
     df["label_hierarchy"] = df["label_hierarchy"].str.replace(" > ", "_")
     df["width"] = df["attributes"].str.split('"width":').str[1].str.split(',').str[0]
     df["height"] = df["attributes"].str.split('"height":').str[1].str.split(',').str[0].str.split('}').str[0]
     df["area"] = df["attributes"].str.split('"area":').str[1].str.split(',').str[0]
 
-    print("\nComputing annotation area in m2...")
-    print(df.head())
+    print("\nComputing annotation area in pixel x pixel...")
     for i_row, row in df.iterrows():
-        #area_image_m2 = float(row["area"])
         area_image_pix = float(row["width"]) * float(row["height"])
         lst_points = row["points"].split("[")[1].split("]")[0]
         lst_points = lst_points.split(',')
@@ -63,11 +57,10 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
             print("ERROR: Unknown shape_name {} ..." .format(row["shape"]))
             exit()
 
-        #area_annotation_m2 = area_annotation_pix * area_image_m2 / area_image_pix
         df.loc[i_row, "area_annotation_pix"] = area_annotation_pix
         df.loc[i_row, "area_pix"] = area_image_pix
-        #df.loc[i_row, "area_annotation"] = area_annotation_m2
 
+    # Get image area in m2
     df['area'] = df['area'].astype(float)
 
     # Clean
@@ -75,38 +68,36 @@ def curate_biigle_reports(fname_i, folder_area, fname_o):
     df.drop(["attributes", "shape_name", "points", "width", "height", "image_latitude", "image_longitude"], axis=1, inplace=True)
     print(df.head())
 
+    # Gather annotations of each taxa within each image
+    # Init dict
     dct_ = {"filename": [], "area": [], "area_pix": []}
     for k in df["label"].unique():
         if k not in dct_:
             dct_[k] = []
-
+    # Fill dicts
     dct_count, dct_cover = copy.deepcopy(dct_), copy.deepcopy(dct_)
     for f in df["filename"].unique():
         df_cur = df[df["filename"] == f]
         for k in dct_.keys():
             if k not in df["label"].unique():
+                print(k)
                 dct_count[k].append(df_cur[k].tolist()[0])
                 dct_cover[k].append(df_cur[k].tolist()[0])
             else:
                 df_cur_k = df_cur[df_cur["label"] == k]
                 if len(df_cur_k):
                     dct_count[k].append(len(df_cur_k))
-                    #sum_area_annotation = df_cur_k["area_annotation"].sum()
-                    #percent_cover = sum_area_annotation * 100. / df_cur_k["area"].values.tolist()[0]
                     dct_cover[k].append(df_cur_k["area_annotation_pix"].sum())
-                    #dct_cover[k].append(percent_cover)
                 else:
                     dct_count[k].append(0)
                     dct_cover[k].append(0)
-
+    # Convert to data frames
     df_count = pd.DataFrame.from_dict(dct_count)
     df_cover = pd.DataFrame.from_dict(dct_cover)
     print(df_count.head())
     print(df_cover.head())
 
-    print("\n\tTODO: GET EMPTY IMAGES...")
-    print("\nTODO: Pull Jan's and Victor's data.")
-
+    # Save results
     fname_o_count = fname_o.split(".csv")[0] + "_count.csv"
     print("Saving COUNT result in: {}...".format(fname_o_count))
     df_count.to_csv(fname_o_count, index=False)
@@ -120,7 +111,8 @@ def main():
     args = parser.parse_args()
 
     # Run function
-    curate_biigle_reports(fname_i=args.ifname, folder_area=args.afolder, fname_o=args.ofname)
+    curate_biigle_reports(fname_i=args.ifname,
+                          fname_o=args.ofname)
 
 
 if __name__ == "__main__":

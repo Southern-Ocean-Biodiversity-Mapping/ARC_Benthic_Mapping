@@ -5,7 +5,7 @@ import pandas as pd
 
 
 # Example:
-#   python merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_csv_image_annotation_report(2) -t 839-vme-morpho-taxa.csv,254-catami-mobile-indicator-species.csv -o 20211115_biigle.csv
+#   python merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_csv_image_annotation_report(2) -t 839-vme-morpho-taxa.csv,254-catami-mobile-indicator-species.csv -o biodata_step1.csv
 
 
 def get_parser():
