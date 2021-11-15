@@ -8,7 +8,11 @@ import pyreadr
 
 
 # Example:
-#   python data_preparation\combine_coralnet_biigle.py -b 20210917_biigle_vme_cover.csv -c 20210917_coralnet_cover.csv -m ../../ARC_data/Circumpolar_Annotation_Data.Rdata -o 20210920
+#   python data_preparation\combine_coralnet_biigle.py -b biodata_step2.csv -c biodata_step3.csv -m C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -a coverage_biigle839 -o 20211116
+
+
+LST_BIIGLE839_FULL = ["PS81_shallow", "PS61", "PS14", "PS06", "JR17001", "JR262", "AA2011", "JR15005", "PS96"]
+LST_PS81SHALLOW_TRANSECT = ["185", "186", "189"]
 
 
 def get_parser():
@@ -22,6 +26,8 @@ def get_parser():
                                 help='CoralNet CSV filename.')
     mandatory_args.add_argument('-m', '--mfname', required=True, type=str,
                                 help='Metadata Rdata filename.')
+    mandatory_args.add_argument('-a', '--afolder', required=True, type=str,
+                                help='Folder containing the area covered by BIIGLE 839 annotations.')
     mandatory_args.add_argument('-o', '--ofolder', required=True, type=str,
                                 help='Output folder.')
 
@@ -48,8 +54,29 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
                          "counts": "biigle254"}, inplace=True)
     df_m.loc[:, "coralnet"] = [1 if i == "yes" else 0 for i in df_m.coralnet.tolist()]
     df_m.loc[:, "biigle254"] = [1 if i == "yes" else 0 for i in df_m.biigle254.tolist()]
-    df_m.loc[:, "biigle839"] = [0 for i in df_m.biigle254.tolist()]
+    df_m.loc[:, "biigle839"] = [0 for i in df_m.coralnet.tolist()]
     df_m.drop(index=df_m[df_m.coralnet == 0].index, inplace=True)
+
+    # Fill BIIGLE839
+    # Get infos
+    #exit()
+    df_m["survey"] = df_m["filename"].str.split('_').str[0]
+    df_m["transect"] = df_m["filename"].str.split('_').str[1]
+    df_m["imageID"] = df_m["filename"].str.split('_').str[2]
+    # Fill 1s the survey that have been fully annotated.
+    for survey_full in LST_BIIGLE839_FULL:
+        if survey_full != "PS81_shallow":
+            idx_survey_full = df_m[df_m["survey"] == "PS96"].index
+            df_m.loc[idx_survey_full, "biigle839"] = 1
+        else:
+            for transect_ps81shallow in LST_PS81SHALLOW_TRANSECT:
+                idx_transect_full = df_m[(df_m["survey"] == "PS81") & (df_m["transect"] == transect_ps81shallow)].index
+                df_m.loc[idx_transect_full, "biigle839"] = 1
+
+    df_m.drop(columns=["survey", "transect", "imageID"], inplace=True)
+
+
+
     print("\nTODO: Pull biigle839 annotated images.")
 
     list_area_m = list(set([row["filename"] for i_r, row in df_m.iterrows() if row["area"] != "nan"]))
