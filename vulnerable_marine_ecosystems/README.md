@@ -10,8 +10,6 @@
 
 #### TODO
 
-2. `curate_coralnet_report.py`:
-- [ ] Read directly from RData instead of csv
 4. `combine_coralnet_biigle.py`:
 - [ ] Add infos: Image quality, acquisition method, date
 - [ ] Add 839 coverage
