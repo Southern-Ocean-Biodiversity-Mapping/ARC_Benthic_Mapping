@@ -80,7 +80,6 @@ def curate_biigle_reports(fname_i, fname_o):
         df_cur = df[df["filename"] == f]
         for k in dct_.keys():
             if k not in df["label"].unique():
-                print(k)
                 dct_count[k].append(df_cur[k].tolist()[0])
                 dct_cover[k].append(df_cur[k].tolist()[0])
             else:
