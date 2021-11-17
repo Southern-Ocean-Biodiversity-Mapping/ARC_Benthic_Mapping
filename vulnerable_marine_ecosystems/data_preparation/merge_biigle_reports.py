@@ -5,7 +5,13 @@ import pandas as pd
 
 
 # Example:
-#   python merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_csv_image_annotation_report(2) -t 839-vme-morpho-taxa.csv,254-catami-mobile-indicator-species.csv -o biodata_step1.csv
+#   python data_preparation\merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_csv_image_annotation_report(2) -t 839-vme-morpho-taxa.csv,254-catami-mobile-indicator-species.csv -o biodata_step1.csv
+
+
+DCT_BIIGLE254 = {"Basket stars": "basket_snake_stars-euryalida",
+                 "Basketstar-like": "basket_snake_stars-euryalida",
+                 "Crinoid - stalked": "crinoid_stalked-crinoid_stalked",
+                 "Urchin - regular pencil": "urchin_regular_pencil-cidaroida"}
 
 
 def get_parser():
@@ -38,6 +44,15 @@ def merge_biigle_reports(folder_i, lst_fname_i, fname_o):
             for fname_i in lst_fname_i:
                 try:
                     df = pd.read_csv(archive.open(fname_i))
+
+                    # For BIIGLE254
+                    if "254-catami" in fname_i:
+                        # Drop non VME taxa
+                        idx_not_vme = df[~df["label_name"].isin(DCT_BIIGLE254.keys())].index
+                        df.drop(idx_not_vme, inplace=True)
+                        # Rename taxa
+                        df["label_name"].replace(DCT_BIIGLE254, inplace=True)
+
                     print("Found {} annotations in {}...".format(len(df), survey_zip))
                     lst_df.append(df)
                 except:
