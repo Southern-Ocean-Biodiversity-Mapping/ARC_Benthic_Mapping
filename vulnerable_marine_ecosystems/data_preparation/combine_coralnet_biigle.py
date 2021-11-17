@@ -119,6 +119,7 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
         print([f for f in list_area_b if f not in list_area_m][:10])
 
     print("\nTODO: Check missing Area missing data.")
+    print("\nTODO: Check missing Area PIX missing data.")
     df_b.drop(columns=["area"], inplace=True)
 
     # Get source for each taxon
