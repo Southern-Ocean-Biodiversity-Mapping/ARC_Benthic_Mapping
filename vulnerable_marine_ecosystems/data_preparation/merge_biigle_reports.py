@@ -7,7 +7,7 @@ import pandas as pd
 # Example:
 #   python data_preparation\merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_csv_image_annotation_report(2) -t 839-vme-morpho-taxa.csv,254-catami-mobile-indicator-species.csv -o biodata_step1.csv
 
-
+global DCT_BIIGLE254
 DCT_BIIGLE254 = {"Echinoderms > Basketstars": "basket_snake_stars-euryalida",
                  "Echinoderms > Basketstar-like": "basket_snake_stars-euryalida",
                  "Echinoderms > Crinoid - stalked": "crinoid_stalked-crinoid_stalked",
