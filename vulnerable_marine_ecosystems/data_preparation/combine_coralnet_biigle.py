@@ -1,14 +1,13 @@
 import os
-import math
-import copy
 import argparse
-import numpy as np
 import pandas as pd
 import pyreadr
 
+import merge_biigle_reports
+
 
 # Example:
-#   python data_preparation\combine_coralnet_biigle.py -b biodata_step2.csv -c biodata_step3.csv -m C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -a coverage_biigle839 -o 20211116
+#   python data_preparation\combine_coralnet_biigle.py -b biodata_step2.csv -c biodata_step3.csv -m C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -a coverage_biigle839 -o biodata_step4.csv
 
 
 LST_BIIGLE839_FULL = ["PS81_shallow", "PS61", "PS14", "PS06", "JR17001", "JR262", "AA2011", "JR15005", "PS96", "JR17003"]
@@ -28,8 +27,8 @@ def get_parser():
                                 help='Metadata Rdata filename.')
     mandatory_args.add_argument('-a', '--afolder', required=True, type=str,
                                 help='Folder containing the area covered by BIIGLE 839 annotations.')
-    mandatory_args.add_argument('-o', '--ofolder', required=True, type=str,
-                                help='Output folder.')
+    mandatory_args.add_argument('-o', '--ofname', required=True, type=str,
+                                help='Output csv filename.')
 
     # OPTIONAL ARGUMENTS
     optional_args = parser.add_argument_group('OPTIONAL ARGUMENTS')
@@ -39,7 +38,7 @@ def get_parser():
     return parser
 
 
-def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder_area_notfull, folder_o):
+def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder_area_notfull, fname_o):
     # Read data
     df_b = pd.read_csv(fname_biigle)
     df_c = pd.read_csv(fname_coralnet)
@@ -122,19 +121,20 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     print("\nTODO: Check missing Area missing data.")
     df_b.drop(columns=["area"], inplace=True)
 
+    # Get source for each taxon
     dct_taxon_source = {"morpho_taxon": [], "source": []}
     for taxon_coralnet in [c for c in df_c.keys() if c not in ["filename", "n_annotation"]]:
         dct_taxon_source["morpho_taxon"].append(taxon_coralnet)
         dct_taxon_source["source"].append("coralnet")
-    for taxon_biigle839 in [c for c in df_b.keys() if c not in ['filename', 'area', 'area_pix']]:
-        dct_taxon_source["morpho_taxon"].append(taxon_biigle839)
-        dct_taxon_source["source"].append("biigle839")
-    #for taxon_biigle254 in [c for c in df_b.keys() if c not in ['filename', 'area', 'area_pix']]:
-    #    dct_taxon_source["morpho_taxon"].append(taxon_biigle254)
-    #         dct_taxon_source["source"].append("biigle254")
+    for taxon_biigle in [c for c in df_b.keys() if c not in ['filename', 'area', 'area_pix']]:
+        dct_taxon_source["morpho_taxon"].append(taxon_biigle)
+        if taxon_biigle in merge_biigle_reports.DCT_BIIGLE254.values():
+            dct_taxon_source["source"].append("biigle254")
+        else:
+            dct_taxon_source["source"].append("biigle839")
     df_taxon_source = pd.DataFrame.from_dict(dct_taxon_source)
-    df_m.drop(columns=["coralnet", "biigle839", "biigle254"], inplace=True)
 
+    # Get survey info
     df_m["survey"] = df_m["filename"].str.split('_').str[0]
 
     if len(df_m[df_m["longitude"].isnull()]):
@@ -152,14 +152,9 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     df_merged = pd.merge(df_m, df_b, on="filename", how="left")
     df_merged = pd.merge(df_merged, df_c, on="filename", how="left")
 
-    if not os.path.isdir(folder_o):
-        print("\nCreating output folder: {} ...".format(folder_o))
-        os.makedirs(folder_o)
-
-    fname_o = os.path.join(folder_o, "bio_data.csv")
     print("\nSaving data: {} ...".format(fname_o))
     df_merged.to_csv(fname_o, index=False)
-    fname_o_src = os.path.join(folder_o, "bio_data_source.csv")
+    fname_o_src = fname_o.split(".csv")[0] + "_source.csv"
     print("\nSaving data: {} ...".format(fname_o_src))
     df_taxon_source.to_csv(fname_o_src, index=False)
 
@@ -173,7 +168,7 @@ def main():
                             fname_coralnet=args.cfname,
                             fname_metadata=args.mfname,
                             folder_area_notfull=args.afolder,
-                            folder_o=args.ofolder)
+                            fname_o=args.ofname)
 
 
 if __name__ == "__main__":
