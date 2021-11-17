@@ -13,7 +13,7 @@
 4. `combine_coralnet_biigle.py`:
 - [ ] Add infos: acquisition method, date --> waiting for Jan to propage info
 - [ ] Add estimated area info --> waiting for Jan to propage info
-- [ ] Have area_pix254 and area_pix839
+- [ ] Check area_pix
 5. `csv_2_raster.R`:
 - [ ] Account for different spatial coverage between BIIGLE839 vs BIIGLE254
 - [ ] Add missing covariates
