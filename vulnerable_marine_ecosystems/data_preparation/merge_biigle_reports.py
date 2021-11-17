@@ -1,0 +1,79 @@
+import os
+import zipfile
+import argparse
+import pandas as pd
+
+
+# Example:
+#   python data_preparation\merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_csv_image_annotation_report(2) -t 839-vme-morpho-taxa.csv,254-catami-mobile-indicator-species.csv -o biodata_step1.csv
+
+global DCT_BIIGLE254
+DCT_BIIGLE254 = {"Echinoderms > Basketstars": "basket_snake_stars-euryalida",
+                 "Echinoderms > Basketstar-like": "basket_snake_stars-euryalida",
+                 "Echinoderms > Crinoid - stalked": "crinoid_stalked-crinoid_stalked",
+                 "Echinoderms > Urchin - regular pencil": "urchin_regular_pencil-cidaroida"}
+
+
+def get_parser():
+    parser = argparse.ArgumentParser(add_help=False)
+
+    # MANDATORY ARGUMENTS
+    mandatory_args = parser.add_argument_group('MANDATORY ARGUMENTS')
+    mandatory_args.add_argument('-i', '--ifolder', required=True, type=str,
+                                help='Input folder containing zip archives for each survey.')
+    mandatory_args.add_argument('-t', '--ifname', required=True, type=str,
+                                help='Input filename in each zip archives. If multiple, separate by ",".')
+    mandatory_args.add_argument('-o', '--ofname', required=True, type=str,
+                                help='CSV filename output.')
+
+    # OPTIONAL ARGUMENTS
+    optional_args = parser.add_argument_group('OPTIONAL ARGUMENTS')
+    optional_args.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
+                               help='Shows function documentation.')
+
+    return parser
+
+
+def merge_biigle_reports(folder_i, lst_fname_i, fname_o):
+    # Loop across archived folders
+    lst_df = []
+    for survey_zip in os.listdir(folder_i):
+        if survey_zip.endswith(".zip"):
+            path_zip = os.path.join(folder_i, survey_zip)
+            archive = zipfile.ZipFile(path_zip, 'r')
+            for fname_i in lst_fname_i:
+                try:
+                    df = pd.read_csv(archive.open(fname_i))
+
+                    # For BIIGLE254
+                    if "254-catami" in fname_i:
+                        # Drop non VME taxa
+                        idx_not_vme = df[~df["label_hierarchy"].isin(DCT_BIIGLE254.keys())].index
+                        df.drop(idx_not_vme, inplace=True)
+                        # Rename taxa
+                        df["label_hierarchy"] = df["label_hierarchy"].replace(DCT_BIIGLE254)
+
+                    print("Found {} annotations in {}...".format(len(df), survey_zip))
+                    lst_df.append(df)
+                except:
+                    print("No annotation found in {}...".format(survey_zip))
+
+    df_stacked = pd.concat(lst_df, axis=0)
+
+    print("\nTotal number of annotations: {}...".format(len(df_stacked)))
+    print("Saving result in: {}...".format(fname_o))
+    df_stacked.to_csv(fname_o, index=False)
+
+
+def main():
+    parser = get_parser()
+    args = parser.parse_args()
+
+    # Run function
+    merge_biigle_reports(folder_i=args.ifolder,
+                         lst_fname_i=args.ifname.split(","),
+                         fname_o=args.ofname)
+
+
+if __name__ == "__main__":
+    main()

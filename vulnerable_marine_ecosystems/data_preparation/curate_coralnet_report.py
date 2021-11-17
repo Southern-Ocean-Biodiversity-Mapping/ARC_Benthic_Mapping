@@ -1,13 +1,9 @@
-import os
-import math
-import copy
+import pyreadr
 import argparse
-import numpy as np
-import pandas as pd
 
 
 # Example:
-#   python data_preparation\curate_coralnet_report.py -i 20210915_coralnet.csv -o 20210917_coralnet_cover.csv
+#   python data_preparation\curate_coralnet_report.py -i C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -o biodata_step3.csv
 
 DCT_CORALNET = {"BH_BrAnt": "bryozoans_hard_branching_antler-bryozoans",
                 "BH_BrHead": "bryozoans_hard_branching_coralhead-bryozoans",
@@ -46,7 +42,7 @@ def get_parser():
     # MANDATORY ARGUMENTS
     mandatory_args = parser.add_argument_group('MANDATORY ARGUMENTS')
     mandatory_args.add_argument('-i', '--ifname', required=True, type=str,
-                                help='CSV filename input.')
+                                help='RData input filename.')
     mandatory_args.add_argument('-o', '--ofname', required=True, type=str,
                                 help='CSV filename output.')
 
@@ -60,15 +56,13 @@ def get_parser():
 
 def curate_coralnet_report(fname_i, fname_o):
     # Read data
-    df = pd.read_csv(fname_i)
-
-    print("\nTODO: Use RData instead")
+    df = pyreadr.read_r(fname_i)["cover_images"].reset_index()
 
     # Get n annotation per images
     df["n_annotation"] = df.sum(axis=1) - df["Unscorable"]
 
     # Rename column
-    df.rename(columns={"Unnamed: 0": "filename"}, inplace=True)
+    df.rename(columns={"rownames": "filename"}, inplace=True)
 
     # Select columns of interest
     df.drop(columns=[c for c in df.keys() if c not in ["filename", "n_annotation"] + list(DCT_CORALNET.keys())], inplace=True)
