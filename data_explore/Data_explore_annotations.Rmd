@@ -211,10 +211,10 @@ Removing 'Unscorable' and calculating overall percentages (across all cells)
 perc<-cover_cells_env %>%
   select(., -Unscorable) 
 
-  perc_cell<-cbind(cover_cells_env[,1:50],
-        prop.table(as.matrix(perc[,51:173]), margin=1)*100)
+  perc_cell<-cbind(cover_cells_env[,1:58],
+        prop.table(as.matrix(perc[,59:182]), margin=1)*100)
   
-  perc_overall<-colSums(prop.table(as.matrix(perc[,51:173]))*100)
+  perc_overall<-colSums(prop.table(as.matrix(perc[,59:182]))*100)
 
 perc_overall<- as.data.frame(perc_overall)
 
