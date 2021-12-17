@@ -26,11 +26,98 @@ bathy<-raster(paste0(env.derived, "Circumpolar_EnvData_500m_shelf_bathy_gebco_de
 ```
 
 
-## Image data
+## Image data- NOT RUN -CHECK MAP LABELS.
 
-1) Distribution of area and image quality by: survey, institute, platform  - need this info added to image metadata- Jan
-3) Temporal (and spatial) distribution of images- need date for temporal distribution- Jan
-4) Histogram of Distance between images (need to think about how to avoid going over land)-TO DO
+### Temporal (and spatial) distribution of images and gear type
+
+```{r im year}
+
+cover_im<-image_metadata %>%
+    filter(cover== "yes")
+
+
+
+cover_im %>%
+  count(., year) %>%
+  kbl(caption="No. images by year") %>%
+      kable_styling(full_width = F)
+
+plot(bathy)
+points(cover_im$proj_coord_x, cover_im$proj_coord_y, col=as.factor(cover_im$year))
+legend("topright", legend=unique(cover_im$year), col=1:length(unique(cover_im$year)), pch=21, title="year")
+  
+```
+
+
+
+```{r im gear}
+
+cover_im %>%
+  count(., gear) %>%
+  kbl(caption="No. images by gear") %>%
+      kable_styling(full_width = F)
+
+plot(bathy)
+points(cover_im$proj_coord_x, cover_im$proj_coord_y, col=as.factor(cover_im$gear))
+legend("topright", legend=unique(cover_im$gear), col=1:length(unique(cover_im$gear)), pch=21, title="year")
+
+
+```
+
+### Distribution of area and image quality by: survey,  platform  , year
+```{r im qual}
+
+cover_im %>%
+  ggplot (aes(x= gear, y=image_quality_score))+
+  geom_boxplot()+
+  theme_bw()+ 
+  theme(axis.text.x =element_text(angle=90, hjust=1))
+
+
+cover_im %>%
+  ggplot (aes(x= survey, y=image_quality_score))+
+  geom_boxplot()+
+  theme_bw()+
+   theme(axis.text.x =element_text(angle=90, hjust=1))
+
+
+cover_im %>%
+  ggplot (aes(x= as.factor(year), y=image_quality_score))+
+  geom_boxplot()+
+  theme_bw()+
+  theme(axis.text.x =element_text(angle=90, hjust=1))
+
+
+
+```
+
+
+
+####Check if there are cells with mulitple gear types
+
+```{r cellcheck gear, echo=TRUE}
+length(unique(cover_im$cellID))
+
+cover_im %>%
+  count(cellID, gear) %>%
+  dim(.)
+
+```
+
+number of rows the same so no cells where there are 2 different gear types
+
+
+####Check if there are cells sampled in different years
+
+```{r cellcheck year, echo=TRUE}
+length(unique(cover_im$cellID))
+
+cover_im %>%
+  count(cellID, year) %>%
+  dim(.)
+
+```
+number of rows the same so no cells where there are 2 different sampling years
 
 
 ### Images per cell
