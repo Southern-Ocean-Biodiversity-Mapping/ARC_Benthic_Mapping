@@ -32,7 +32,14 @@ DCT_CORALNET = {"BH_BrAnt": "bryozoans_hard_branching_antler-bryozoans",
                 "S_Er_Palm": "sponges_erect_palmate-porifera",
                 "S_Er_Simp": "sponges_erect_simple-porifera",
                 "S_Er_St": "sponges_erect_stalked-porifera",
-                "S_Tube": "sponges_hollow_tube_chimney-porifera"
+                "S_Tube": "sponges_hollow_tube_chimney-porifera",
+                "BS_Dendri": "bryozoans_soft_dendroid-bryozoans",
+                "BH_lettuce_maybe_dead": "bryozoans_hard_lettuce-bryozoans",
+                "S_Disk": "sponges_cup_table_disc-porifera",
+                "BH_BrAnt_maybe_dead": "bryozoans_hard_branching_antler-bryozoans",
+                "BH_BrLeaf_maybe_dead": "bryozoans_hard_branching_leaf-bryozoans",
+                "S_Urchin": "TBA",
+                "S_LSS": "TBA"
                 }
 
 
@@ -59,11 +66,13 @@ def curate_coralnet_report(fname_i, fname_o):
     df = pyreadr.read_r(fname_i)["cover_images"].reset_index()
 
     # Get n annotation per images
-    df["n_annotation"] = df.sum(axis=1) - df["Unscorable"]
+    df["n_annotation"] = df.sum(axis=1) - df["Unscorable"] - df["NoID"] - df["NoID_ExpOp"] - df["NoID_TBD"]
 
     # Rename column
     df.rename(columns={"rownames": "filename"}, inplace=True)
 
+    print("\n".join([c for c in df.keys() if c not in ["filename", "n_annotation"] + list(DCT_CORALNET.keys())]))
+    exit()
     # Select columns of interest
     df.drop(columns=[c for c in df.keys() if c not in ["filename", "n_annotation"] + list(DCT_CORALNET.keys())], inplace=True)
 
