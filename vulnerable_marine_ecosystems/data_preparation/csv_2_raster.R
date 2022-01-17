@@ -98,7 +98,7 @@ list_cells <- unique(df$cellID)
 
 # Compute sampling effort per platform
 df$area_coralnet <- df$area * df$coralnet
-df$area_pix_coralnet <- df$area_pix * df$coralnet
+#df$area_pix_coralnet <- df$area_pix * df$coralnet
 df$area_biigle254 <- df$area * df$biigle254
 df$area_pix_biigle254 <- df$area_pix * df$biigle254
 df$area_biigle839 <- df$area * df$biigle839
@@ -106,8 +106,10 @@ df$area_pix_biigle839 <- df$area_pix * df$biigle839
 
 # Compute percentage cover per cell
 cat("\nComputing percentage cover per raster cell ...\n")
-list_colnames_not_sum <- c("survey", "longitude", "latitude", "filename", "proj_coord_x", "proj_coord_y")
+list_colnames_not_sum <- c("survey", "longitude", "latitude", "filename", "proj_coord_x", "proj_coord_y", "image_quality_score")
+list_colnames_to_avg <- c("image_quality_score")
 df_to_sum <- df[colnames(df)[!names(df) %in% list_colnames_not_sum]]
+list_colnames_not_sum <- list_colnames_not_sum[!list_colnames_not_sum %in% list_colnames_to_avg]
 df_not_to_sum <- df[, c("cellID", list_colnames_not_sum)]
 # Remove duplicates
 df_not_to_sum <- df_not_to_sum[!duplicated(df_not_to_sum$cellID),]
@@ -116,10 +118,19 @@ df_sum <- as.data.frame(df_to_sum
                         %>% group_by(cellID)
                         %>% summarise(across(everything(),
                                              function(x,...){if (!all(is.na(x))){sum(na.omit(x))} else{NA}})))
+# Average image quality score across images within same cell
+df_avg <- as.data.frame(df[, c("cellID", list_colnames_to_avg)]
+                        %>% group_by(cellID)
+                        %>% summarise(across(everything(),
+                                             function(x,...){if (!all(is.na(x))){mean(na.omit(x))} else{NA}})))
 
 # Get ride of cells where no annotation from one platform
 df_sum <- df_sum[!(df_sum$biigle254 == 0),]
 df_sum <- df_sum[!(df_sum$biigle839 == 0),]
+df_sum <- df_sum[!(df_sum$coralnet == 0),]
+# TODO: complete area pix. SHould not be an issue
+df_sum <- df_sum[!(df_sum$area_pix_biigle254 == 0) & !is.na(df_sum$area_pix_biigle254),]
+df_sum <- df_sum[!(df_sum$area_pix_biigle839 == 0) & !is.na(df_sum$area_pix_biigle839),]
 
 # Aggregate for CCAMLR taxa
 #list_taxonomic <- colnames(df_sum)[!(colnames(df_sum) %in% c("n_annotation", "area_pix", "area", "cellID"))]
