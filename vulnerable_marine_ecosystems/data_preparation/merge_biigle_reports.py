@@ -6,6 +6,7 @@ import pandas as pd
 
 # Example:
 #   python data_preparation\merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_csv_image_annotation_report(2) -t 839-vme-morpho-taxa.csv,254-catami-mobile-indicator-species.csv -o biodata_step1.csv
+# python data_preparation\merge_biigle_reports.py -i C:\Users\cgros\Downloads\292_image_annotation_area_report -o biodata_step1.csv
 
 global DCT_BIIGLE254
 DCT_BIIGLE254 = {"Echinoderms > Basketstars": "basket_snake_stars-euryalida",
@@ -20,9 +21,7 @@ def get_parser():
     # MANDATORY ARGUMENTS
     mandatory_args = parser.add_argument_group('MANDATORY ARGUMENTS')
     mandatory_args.add_argument('-i', '--ifolder', required=True, type=str,
-                                help='Input folder containing zip archives for each survey.')
-    mandatory_args.add_argument('-t', '--ifname', required=True, type=str,
-                                help='Input filename in each zip archives. If multiple, separate by ",".')
+                                help='Input folder containing area BIIGLE reports.')
     mandatory_args.add_argument('-o', '--ofname', required=True, type=str,
                                 help='CSV filename output.')
 
@@ -34,29 +33,14 @@ def get_parser():
     return parser
 
 
-def merge_biigle_reports(folder_i, lst_fname_i, fname_o):
-    # Loop across archived folders
+def merge_biigle_reports(folder_i, fname_o):
     lst_df = []
-    for survey_zip in os.listdir(folder_i):
-        if survey_zip.endswith(".zip"):
-            path_zip = os.path.join(folder_i, survey_zip)
-            archive = zipfile.ZipFile(path_zip, 'r')
-            for fname_i in lst_fname_i:
-                try:
-                    df = pd.read_csv(archive.open(fname_i))
-
-                    # For BIIGLE254
-                    if "254-catami" in fname_i:
-                        # Drop non VME taxa
-                        idx_not_vme = df[~df["label_hierarchy"].isin(DCT_BIIGLE254.keys())].index
-                        df.drop(idx_not_vme, inplace=True)
-                        # Rename taxa
-                        df["label_hierarchy"] = df["label_hierarchy"].replace(DCT_BIIGLE254)
-
-                    print("Found {} annotations in {}...".format(len(df), survey_zip))
-                    lst_df.append(df)
-                except:
-                    print("No annotation found in {}...".format(survey_zip))
+    for fname_i in os.listdir(folder_i):
+        fname_i = os.path.join(folder_i, fname_i)
+        if fname_i.endswith(".xlsx"):
+            df = pd.read_excel(fname_i, skiprows=1)
+            print("Found {} annotations in {}...".format(len(df), fname_i))
+            lst_df.append(df)
 
     df_stacked = pd.concat(lst_df, axis=0)
 
@@ -71,7 +55,6 @@ def main():
 
     # Run function
     merge_biigle_reports(folder_i=args.ifolder,
-                         lst_fname_i=args.ifname.split(","),
                          fname_o=args.ofname)
 
 
