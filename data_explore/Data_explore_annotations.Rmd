@@ -14,6 +14,8 @@ library(tidyverse)
 library(classInt)
 library(scales)
 library(kableExtra)
+library(htmlTable)
+library(RColorBrewer)
 
 sci.dir <-      "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
 env.derived <-  paste0(sci.dir,"data_environmental/derived/")
@@ -23,77 +25,107 @@ ARC_Data.dir <- paste0(sci.dir,"Analysis/ARC_Data/")
 load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
 bathy<-raster(paste0(env.derived, "Circumpolar_EnvData_500m_shelf_bathy_gebco_depth"))
 
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data.RData"))
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
+
+source(paste0(tools.dir,"bubbleplot.R"))
+
 ```
 
 
-## Image data- NOT RUN -CHECK MAP LABELS.
+## Image Level Plots
 
-### Temporal (and spatial) distribution of images and gear type
+### Temporal (and spatial) distribution of images by years
 
-```{r im year}
+```{r im year, fig.width=9, fig.height=8}
 
 cover_im<-image_metadata %>%
     filter(cover== "yes")
 
 
-
-cover_im %>%
+#knitr::kables( list(
+  
+  cover_im %>%
   count(., year) %>%
   kbl(caption="No. images by year") %>%
-      kable_styling(full_width = F)
+      kable_styling(full_width = F, position ="float_left")
+  
+cover_im %>%
+  count(., year, survey) %>%
+  kbl(caption="No. images by year") %>%
+      kable_styling(full_width = F, position ="float_right")
+#))
 
-plot(bathy)
-points(cover_im$proj_coord_x, cover_im$proj_coord_y, col=as.factor(cover_im$year))
-legend("topright", legend=unique(cover_im$year), col=1:length(unique(cover_im$year)), pch=21, title="year")
+#change colour palette, keep and plot NAs
+depth_pal<-brewer.pal(n=9, name="Blues")
+col_yr<-palette(c(brewer.pal(n = 11, name = "RdYlGn"), "darkgray"))
+cover_im$yr_fac<-cover_im$year
+cover_im$yr_fac[is.na(cover_im$yr_fac)]<-"missing"
+
+
+plot(bathy, col=depth_pal, main="Image by Year")
+points(cover_im$proj_coord_x, cover_im$proj_coord_y, col=as.factor(cover_im$yr_fac))
+legend("topright", legend=levels(as.factor(cover_im$yr_fac)),  col=1:length(levels(as.factor(cover_im$yr_fac))),pch=20, text.col="white", title="Year", bg="#08519C")
   
 ```
 
+### Spatial distribution of images by Gear
 
+```{r im gear, fig.width=9, fig.height=8}
 
-```{r im gear}
+#knitr:: kables( list(
+  
+  cover_im %>%
+  count(., gear) %>%
+  kbl(caption="Images by gear") %>%
+      kable_styling(full_width = F, position="float_left")
 
 cover_im %>%
-  count(., gear) %>%
-  kbl(caption="No. images by gear") %>%
-      kable_styling(full_width = F)
+  count(., gear, survey) %>%
+  kbl(caption="Images by gear & survey") %>%
+      kable_styling(full_width = F, position="float_right")
+#))
 
-plot(bathy)
+col_gear<-palette(c("#A50026","#D73027","#F46D43" , "#FDAE61" , "#FEE08B" , "#FFFFBF" , "#D9EF8B" , "#A6D96A" , "#66BD63" , "#1A9850",  "#006837" , "darkgray"))
+
+plot(bathy, col=depth_pal, main="Images by Gear")
 points(cover_im$proj_coord_x, cover_im$proj_coord_y, col=as.factor(cover_im$gear))
-legend("topright", legend=unique(cover_im$gear), col=1:length(unique(cover_im$gear)), pch=21, title="year")
+legend("topright", legend=levels(as.factor(cover_im$gear)), col=1:length(levels(as.factor(cover_im$gear))), pch=20, text.col="white", bg="#08519C", title="Gear")
 
 
 ```
 
 ### Distribution of area and image quality by: survey,  platform  , year
-```{r im qual}
+```{r im qual, fig.width=7}
 
 cover_im %>%
   ggplot (aes(x= gear, y=image_quality_score))+
   geom_boxplot()+
   theme_bw()+ 
-  theme(axis.text.x =element_text(angle=90, hjust=1))
+  theme(axis.text.x =element_text(angle=90, hjust=1))+ 
+  labs(title="Image Quality vs Gear", x="Gear", y="Quality Score")
 
 
 cover_im %>%
   ggplot (aes(x= survey, y=image_quality_score))+
   geom_boxplot()+
   theme_bw()+
-   theme(axis.text.x =element_text(angle=90, hjust=1))
-
+  theme(axis.text.x =element_text(angle=90, hjust=1))+ 
+  labs(title="Image Quality vs Survey", x="Survey", y="Quality Score")
 
 cover_im %>%
   ggplot (aes(x= as.factor(year), y=image_quality_score))+
   geom_boxplot()+
   theme_bw()+
-  theme(axis.text.x =element_text(angle=90, hjust=1))
+  theme(axis.text.x =element_text(angle=90, hjust=1))+
+   labs(title="Image Quality vs Year", x="Year", y="Quality Score")
 
 
 
 ```
 
 
-
-####Check if there are cells with mulitple gear types
+### Check if there are cells with mulitple gear types
 
 ```{r cellcheck gear, echo=TRUE}
 length(unique(cover_im$cellID))
@@ -107,7 +139,7 @@ cover_im %>%
 number of rows the same so no cells where there are 2 different gear types
 
 
-####Check if there are cells sampled in different years
+### Check if there are cells sampled in different years
 
 ```{r cellcheck year, echo=TRUE}
 length(unique(cover_im$cellID))
@@ -120,11 +152,12 @@ cover_im %>%
 number of rows the same so no cells where there are 2 different sampling years
 
 
+## Cell level plots
+
 ### Images per cell
 
-```{r images_per_cell}
-load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data.RData"))
-load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
+```{r images_per_cell, fig.width=8}
+
 
 ## At cell level
 
@@ -132,7 +165,8 @@ load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
 cell_metadata_env %>%
   ggplot(aes(x=cover_N)) +
   geom_histogram(bins=14, col="black")+
-  ggtitle("COVER_ No. image per environmental cell")
+  ggtitle("COVER: Images per environmental cell")+
+   labs(x="No. images", y="No. cells")
 
 
 #COUNT
@@ -141,7 +175,8 @@ cell_metadata_env %>%
     filter(! is.na (counts_N)) %>%
   ggplot(aes(x=counts_N)) +
   geom_histogram(bins=8, col="black")+
-  ggtitle("COUNT_ No. image per environmental cell")
+  ggtitle("COUNT: Images per environmental cell")+
+  labs(x="No. images", y="No. cells")
 
 ```
 
@@ -149,10 +184,9 @@ cell_metadata_env %>%
 ### Spatial distribution of number of images per cell for COVER data. {.tabset}
 
 #### Ross Sea
-```{r Ross_Sea_N, message=FALSE, warning=FALSE }
+```{r Ross_Sea_N, message=FALSE, warning=FALSE, fig.width=9, fig.height=8 }
 #plot number of images per cell
 #try bubbleplot
-source(paste0(tools.dir,"bubbleplot.R"))
 sp_im<-SpatialPointsDataFrame(cell_metadata_env[,c("proj_coord_x", "proj_coord_y")], cell_metadata_env,proj4string = crs(bathy))
 
 raster::plot(bathy, xlim=c(-600000,600000), ylim=c(-2650000,-1250000))
@@ -162,7 +196,7 @@ bubble.plot(sp_im, var = "cover_N", pch=1)
 ```
 
 #### East Antarctica
-```{r East_Ant_N, warning=FALSE}
+```{r East_Ant_N, warning=FALSE, fig.width=8 }
 raster::plot( bathy,  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
 plot(coast.proj, add=TRUE)
 bubble.plot(sp_im, var = "cover_N", pch=1)
@@ -173,7 +207,7 @@ bubble.plot(sp_im, var = "cover_N", pch=1)
 ```
 
 #### Antarctic Peninsula
-```{r ANt_Pen_N}
+```{r ANt_Pen_N, fig.height=10, fig.width=8 }
 raster::plot( bathy, xlim=c(-2750000,-2100000), ylim=c(750000,2410000), main="")
 plot(coast.proj, add=TRUE)
 bubble.plot(sp_im, var = "cover_N", pch=1)
@@ -181,7 +215,7 @@ bubble.plot(sp_im, var = "cover_N", pch=1)
 
 #### Weddell Sea
   
-```{r Weddell_N }
+```{r Weddell_N , fig.width=8, fig.height=6 }
 raster::plot( bathy, xlim=c(-1400000,600000), ylim=c(800000,2300000), main="")
 plot(coast.proj, add=TRUE)
 bubble.plot(sp_im, var = "cover_N", pch=1)
@@ -190,7 +224,7 @@ bubble.plot(sp_im, var = "cover_N", pch=1)
 ### Spatial distribution of number of images per cell for COUNT data. {.tabset}
 
 #### Ross Sea
-```{r Ross_Sea_count,  message=FALSE, warning=FALSE }
+```{r Ross_Sea_count,  message=FALSE, warning=FALSE, fig.width=9, fig.height=8  }
 #plot number of images per cell
 source(paste0(tools.dir,"bubbleplot.R"))
 sp_im_count<-sp_im [!is.na(sp_im$counts_N),]
@@ -203,7 +237,7 @@ bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
 ```
 
 #### East Antarctica
-```{r East_Ant_count,  warning=FALSE}
+```{r East_Ant_count,  warning=FALSE, fig.width=8 }
 raster::plot( bathy,  xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="")
 plot(coast.proj, add=TRUE)
 bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
@@ -214,7 +248,7 @@ bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
 ```
 
 #### Antarctic Peninsula
-```{r ANt_Pen_count}
+```{r ANt_Pen_count, fig.width=10, fig.height=8 }
 raster::plot( bathy, xlim=c(-2750000,-2100000), ylim=c(750000,2410000), main="")
 plot(coast.proj, add=TRUE)
 bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
@@ -222,7 +256,7 @@ bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
 
 #### Weddell Sea
   
-```{r Weddell_count }
+```{r Weddell_count , fig.width=8, fig.height=6 }
 raster::plot( bathy, xlim=c(-1400000,600000), ylim=c(800000,2300000), main="")
 plot(coast.proj, add=TRUE)
 bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
@@ -230,15 +264,12 @@ bubble.plot(sp_im_count, var = "counts_N", pch=1, max.symbol.size=6)
 
 
 ## Biological Data
-
-1) prevalence of each biological taxa (will help inform any aggregation). DONE  
-2) key taxa spatial bubbleplots  
-3) Any platform -related effects??  Need platform and image level data
+3) Any platform -related effects??  Platform is confounded with survey and, in many cases, region. Not sure how to look at this!
 4) GAMS with env data- TO Do once narrowed down species to look at.
 
 
-### Prevalence 
-```{r bio prevalence}
+### Prevalence of each taxa/ OTU
+```{r bio prevalence, fig.width=13}
 
 cover_prev<-data.frame(count=colSums(cover_cells>0)) %>%
   mutate(., prev= count/950 ) %>%
@@ -254,12 +285,15 @@ cover_prev %>%
 ```
 
 
-#### Common
-```{r common}
-# cut prevalence at less than 5%  
+
+
+
+### Prevalence of Common Taxa (Occurring in >= 2% or 19/950 cells)
+```{r common, fig.width=13}
+# cut prevalence of common species at 5%  of cells 
   
 cover_common<-cover_prev %>%
-  filter(prev >= 0.05)
+  filter(prev >= 0.02)
 
 cover_common %>%
   ggplot(aes(x=reorder(Label, -prev), y=prev))+
@@ -267,94 +301,117 @@ cover_common %>%
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=8))+ 
   labs(title="Cover: Common (> 5%) Taxa", x="Label")  
 
-cover_common %>%
-  arrange(., desc(prev)) %>%
-  kbl(caption="Cover: Common (> 5%) Taxa") %>%
-      kable_styling(full_width = F)
+temp<-cover_common %>%
+  arrange(., desc(count)) %>%
+  
+  #kbl(caption="Cover: Prevalence (proportion of sites) of Common Taxa") %>%
+  #    kable_styling(full_width = F)
+  mutate(prev= round(prev, 3)) 
+
+      #kbl(caption="Overall abundance") %>%
+      #kable_styling(full_width = F)
+htmlTable( cbind(temp[1:32,], temp[33:64,]),
+          cgroup= c("",""), n.cgroup=c(3,3),
+          rnames=FALSE, caption="No. occupied cells and prevalence of Common Taxa")
   
 ```
 
 
-#### Rare 
+
+
+#### Prevalence of Rarer species (Occuring at <2% cells) 
 ```{r prev rare}
   cover_rare<-cover_prev %>%
-      filter(prev < 0.05) %>%
-      mutate(prev= round(prev, 2)) 
+      filter(prev < 0.02) %>%
+      mutate(prev= round(prev, 3)) 
 
-cover_rare %>%
-  arrange(., desc(prev))%>%
-      kbl(caption="Cover: Rare (> 5%) Taxa") %>%
-      kable_styling(full_width = F)
-
+temp<-cover_rare %>%
+  arrange(., desc(count))
+ #kbl(caption="Cover: Prevalence (proportion of sites) of Rare Taxa") %>%
+      #kable_styling(full_width = F)
+      
+htmlTable( cbind(temp[1:27,], temp[28:54,]),
+          cgroup= c("",""), n.cgroup=c(3,3),
+rnames=FALSE, caption="No. occupied cells and prevalence of Rarer Taxa")
+  
 
 ```
 
 
 ### Abundance
 
-Removing 'Unscorable' and calculating overall percentages (across all cells)
+Removing 'Unscorable' and calculating overall percentages (across all cells) for all taxa
 ```{r abund}
 
 perc<-cover_cells_env %>%
   select(., -Unscorable) 
 
-  perc_cell<-cbind(cover_cells_env[,1:58],
-        prop.table(as.matrix(perc[,59:182]), margin=1)*100)
+  perc_cell<- cbind(cover_cells_env %>% select (cellID:geomorph_cat),
+        prop.table(as.matrix(perc %>% select (Sub_Fine:S_CupIncmp)), margin=1)*100)
   
-  perc_overall<-colSums(prop.table(as.matrix(perc[,59:182]))*100)
+  perc_overall<-colSums(prop.table(as.matrix(perc %>% select (Sub_Fine:S_CupIncmp)))*100)
 
 perc_overall<- as.data.frame(perc_overall)
 
-perc_overall%>%
+temp<-perc_overall%>%
   mutate(Label=rownames(perc_overall)) %>%
 
   arrange(., desc(perc_overall))%>%
-      kbl(caption="Overall abundance") %>%
-      kable_styling(full_width = F)
+  rownames_to_column(., var="Taxa") %>%
+  mutate(perc_overall= round(perc_overall, 3)) 
 
+      #kbl(caption="Overall abundance") %>%
+      #kable_styling(full_width = F)
+htmlTable( cbind(temp[1:62,], temp[63:124,]),
+          cgroup= c("",""), n.cgroup=c(2,2),
+rnames=FALSE)
+
+  
 ```
 
-#### abundance of key groups and taxa (at individual cell level)
+
+
+#### Abundance of key groups and taxa (at individual cell level)
 
 Would be good to colour-code by survey- TO DO
 
-```{r taxa bubbles}
+```{r taxa bubbles, fig.width=9, fig.height=8}
 
 taxa_im<-SpatialPointsDataFrame(perc_cell[,c("proj_coord_x", "proj_coord_y")], perc_cell,proj4string = crs(bathy))
 
-raster::plot(bathy)
+raster::plot(bathy, col=depth_pal)
         bubble.plot(taxa_im, var = "Sub_Fine", pch=1)
 
-raster::plot(bathy)
+raster::plot(bathy, col=depth_pal)
         bubble.plot(taxa_im, var = "Sub_PbGrv", pch=1)
 
-raster::plot(bathy)
+raster::plot(bathy, col=depth_pal)
         bubble.plot(taxa_im, var = "Sub_BioRu", pch=1)
 
-raster::plot(bathy)
+raster::plot(bathy, col=depth_pal)
       bubble.plot(taxa_im, var = "BH_BrAnt", pch=1)
 
 
-raster::plot(bathy)
+raster::plot(bathy, col=depth_pal)
       bubble.plot(taxa_im, var = "E_O_BritO", pch=1)
       
-raster::plot(bathy)
+raster::plot(bathy, col=depth_pal)
       bubble.plot(taxa_im, var = "HydrC_Br", pch=1)
       
 
 ```
-##Raw pearsons correlations between substrate vars and taxa
+## Raw pearsons correlations between substrate vars and taxa
 
-```{r subs taxa cor}
+```{r subs taxa cor, warning=FALSE}
  
 subs<-c("Sub_Fine", "Sub_PbGrv", "Sub_Bould", "Sub_Cbble", "Sub_BioRu")
 
-sub_cors<-as.data.frame(matrix(ncol = length(subs), nrow = 123))
+sub_cors<-as.data.frame(matrix(ncol = length(subs), nrow = 124))
 for(i in 1:length(subs)){
-  temp<-round(cor(perc_cell[,subs[i]], perc_cell[,51:173]),2)
-  sub_cors[,i]<-temp[1:123]
+  temp<-round(cor(perc_cell[,subs[i]], perc_cell%>% select(Sub_Fine:S_CupIncmp)),2)
+  sub_cors[,i]<-temp[1:124]
 }
-rownames(sub_cors)<-names(perc_cell[,51:173])
+rownames(sub_cors)<-names(perc_cell%>% select(Sub_Fine:S_CupIncmp))
 names(sub_cors)<-subs
 
 sub_cors %>% 
