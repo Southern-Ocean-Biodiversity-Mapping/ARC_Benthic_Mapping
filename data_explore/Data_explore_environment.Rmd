@@ -41,26 +41,27 @@ Haven't used fancy SOmap as it takes way too long with 500m rasters. Revisit if 
 env_list<-list.files(path = env.derived, pattern="gri$",  full.names=TRUE) 
 #subset to  "shelf" files
 env_list<-env_list[grep(".500m_shelf", env_list)]
+
 #for the single raters layer names are missing. Extract from file name.
 env_names<-gsub(".*_|\\..*","",env_list)
 
 
 #stack all environmental layers and make sure they have appropriate names (currently manual and a bit messy!)
 env_stack<-stack(env_list)
-names(env_stack)
 names(env_stack)[1:5]<-env_names[1:5]
 names(env_stack)[14:22]<-paste(rep(c("CARS_NO3", "CARS_O2", "CARS_PO4"),each=3),c("mean", "seas_range", "std_dev"), sep="_")
-names(env_stack)[33]<-"NPP_su_mean"
-names(env_stack)[46:47]<-env_names[17:18]
+names(env_stack)[23] <-"distance2canyons"
+names(env_stack)[34]<-"NPP_su_mean"
+names(env_stack)[47:48]<-env_names[18:19]
 
 
 #add environmental data with non-conformant names- 
 #### remember to update column index if changes!!!
 env_stack<-stack( env_stack,
                   raster(paste0(env.derived, "Circumpolar_EnvData_geomorphology")))
-names(env_stack)[48]<-"geomorph"
+names(env_stack)[49]<-"geomorph"
 
-geomorph_cat<-levels(env_stack[[48]])[[1]]
+geomorph_cat<-levels(env_stack[[49]])[[1]]
 
 
 
@@ -94,7 +95,7 @@ raster::plot(env_stack, grep("sst", names(env_stack)), nc=2, addfun=fun)
 ```
 
 ### NPP
-```{r NPP}
+```{r NPP,fig.height=5, fig.width=6}
 raster::plot(env_stack, "NPP_su_mean", addfun=fun)
 ```
 
@@ -111,6 +112,11 @@ raster::plot(env_stack, c("arag_mean" ,"arag_sd", "no3_mean", "o3_sd", "o2_mean"
 
 ```
 
+### Distance to canyons
+``` {r dist to canyons, fig.height=5, fig.width=6}
+raster::plot(env_stack, "distance2canyons",  addfun=fun)
+
+```
 
 ### Geomorphology
 ```{r geomorph}
@@ -188,7 +194,7 @@ cell_metadata_env<-as_tibble(cell_metadata_env)
 
 #bathy derivatives
 cell_metadata_env %>% 
-  dplyr::select(depth, slope, tpi, tpi5, tpi11) %>%
+  dplyr::select(depth, slope, tpi, tpi5, tpi11, distance2canyons) %>%
 chart.Correlation(., na.action=na.omit)
 title(main="Bathy vars", line=3)
 ```
@@ -227,7 +233,7 @@ title(main="Ice vars", line=3)
 ### Others
 ```{r,  fig.width= 10, fig.height=10}
 cell_metadata_env %>% 
-  dplyr::select(NPP_su_mean, seafloorcurrents, seafloortemperature) %>%
+  dplyr::select(NPP_su_mean, seafloorcurrents, seafloortemperature, distance2canyons) %>%
 chart.Correlation(., na.action=na.omit)
 title(main="Other vars", line=3)
 ```
