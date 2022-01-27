@@ -1,9 +1,10 @@
 import os
+import numpy as np
 import argparse
 import pandas as pd
 import pyreadr
 
-import merge_biigle_reports
+import curate_biigle_report
 
 
 # Example:
@@ -58,7 +59,6 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
 
     # Fill BIIGLE839
     # Get infos
-    #exit()
     df_m["survey"] = df_m["filename"].str.split('_').str[0]
     df_m["transect"] = df_m["filename"].str.split('_').str[1]
     df_m["imageID"] = df_m["filename"].str.split('_').str[2]
@@ -71,6 +71,7 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
             for transect_ps81shallow in LST_PS81SHALLOW_TRANSECT:
                 idx_transect_full = df_m[(df_m["survey"] == "PS81") & (df_m["transect"] == transect_ps81shallow)].index
                 df_m.loc[idx_transect_full, "biigle839"] = 1
+
     # Fill 1s the surveys that have been partially annotated
     lst_biigle839_notfull = [s for s in list(set(df_m["survey"].tolist())) if s not in LST_BIIGLE839_FULL]
     for survey_notfull in lst_biigle839_notfull:
@@ -106,48 +107,48 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
             print("ERROR: file not found: {} ...".format(fname_survey_notfull))
             exit()
 
-    df_m.drop(columns=["survey", "transect", "imageID"], inplace=True)
+    df_m.drop(columns=["transect", "imageID"], inplace=True)
+
+    print("\nRemoving {} images because area is unknown ...".format(len(df_m[df_m.area.isnull()])))
+    filename_to_exclude = df_m[df_m.area.isnull()]["filename"].tolist()
+    df_m = df_m[~df_m.filename.isin(filename_to_exclude)]
+    df_b = df_b[~df_b.filename.isin(filename_to_exclude)]
+    df_c = df_c[~df_c.filename.isin(filename_to_exclude)]
+
+    print("\nRemoving {} images because no annotation on CoralNet ...".format(len(df_c[df_c.n_annotation == 0])))
+    filename_to_exclude = df_c[df_c.n_annotation == 0]["filename"].tolist()
+    df_m = df_m[~df_m.filename.isin(filename_to_exclude)]
+    df_b = df_b[~df_b.filename.isin(filename_to_exclude)]
+    df_c = df_c[~df_c.filename.isin(filename_to_exclude)]
+
     print("\nNumber of images annotated with:")
     print("\tCoralNet: {} ...".format(len(df_m[df_m["coralnet"] == 1].index)))
     print("\tBIIGLE254: {} ...".format(len(df_m[df_m["biigle254"] == 1].index)))
     print("\tBIIGLE839: {} ...".format(len(df_m[df_m["biigle839"] == 1].index)))
 
-    list_area_m = list(set([row["filename"] for i_r, row in df_m.iterrows() if row["area"] != "nan"]))
-    list_area_b = list(set([row["filename"] for i_r, row in df_b.iterrows() if row["area"] != "nan"]))
-    if len([f for f in list_area_b if f not in list_area_m]):
-        print("ERROR: BIIGLE has more area data than METADATA.")
-        print([f for f in list_area_b if f not in list_area_m][:10])
+    list_im_biigle = list(set(df_m[df_m.biigle254 == 1]["filename"].tolist() + df_m[df_m.biigle839 == 1]["filename"].tolist()))
+    list_ann_biigle = list(set(df_b["filename"].tolist()))
+    list_no_ann_biigle = [f for f in list_im_biigle if f not in list_ann_biigle]
+    print("\nAdding zeros to biigle report where no annotation was made, {} images ...".format(len(list_no_ann_biigle)))
+    dct_no_ann = {"filename": list_no_ann_biigle}
+    for taxon_biigle in [c for c in df_b.keys() if c not in ['filename']]:
+        dct_no_ann[taxon_biigle] = [0 for _ in list_no_ann_biigle]
+    df_b = pd.concat([df_b, pd.DataFrame.from_dict(dct_no_ann)])
 
-    print("\nTODO: Check missing Area missing data.")
     print("\nTODO: Check missing Area PIX missing data.")
-    df_b.drop(columns=["area"], inplace=True)
 
     # Get source for each taxon
     dct_taxon_source = {"morpho_taxon": [], "source": []}
     for taxon_coralnet in [c for c in df_c.keys() if c not in ["filename", "n_annotation"]]:
         dct_taxon_source["morpho_taxon"].append(taxon_coralnet)
         dct_taxon_source["source"].append("coralnet")
-    for taxon_biigle in [c for c in df_b.keys() if c not in ['filename', 'area', 'area_pix']]:
+    for taxon_biigle in [c for c in df_b.keys() if c not in ['filename']]:
         dct_taxon_source["morpho_taxon"].append(taxon_biigle)
-        if taxon_biigle in merge_biigle_reports.DCT_BIIGLE254.values():
+        if taxon_biigle in curate_biigle_report.DCT_BIIGLE254.values():
             dct_taxon_source["source"].append("biigle254")
         else:
             dct_taxon_source["source"].append("biigle839")
     df_taxon_source = pd.DataFrame.from_dict(dct_taxon_source)
-
-    # Get survey info
-    df_m["survey"] = df_m["filename"].str.split('_').str[0]
-
-    if len(df_m[df_m["longitude"].isnull()]):
-        print("ERROR: MISSING LONGITUDE")
-        # df_nan_longitude_rows = df[df["image_longitude"].isnull()]
-        # print("Dropping {} rows with missing longitude info...".format(len(df_nan_longitude_rows)))
-        # print("\tTODO: FETCH THIS INFO...")
-        # df.drop(df_nan_longitude_rows.index, axis="index", inplace=True)
-        exit()
-    if len(df_m[df_m["latitude"].isnull()]):
-        print("ERROR: MISSING LATITUDE")
-        exit()
 
     print("\nMerging datasets ...")
     df_merged = pd.merge(df_m, df_b, on="filename", how="left")
