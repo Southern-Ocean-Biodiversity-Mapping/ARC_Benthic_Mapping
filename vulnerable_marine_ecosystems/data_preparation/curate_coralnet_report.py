@@ -5,41 +5,41 @@ import argparse
 # Example:
 #   python data_preparation\curate_coralnet_report.py -i C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -o biodata_step3.csv
 
-DCT_CORALNET = {"BH_BrAnt": "bryozoans_hard_branching_antler-bryozoans",
-                "BH_BrHead": "bryozoans_hard_branching_coralhead-bryozoans",
-                "BH_BrLeaf": "bryozoans_hard_branching_leaf-bryozoans",
-                "BH_Encr": "bryozoans_hard_encrusting-bryozoans",
-                "BH_Fenestr": "bryozoans_hard_fenestrate-bryozoans",
-                "BH_Lettuce": "bryozoans_hard_lettuce-bryozoans",
-                "BH_Mass": "bryozoans_hard_massive-bryozoans",
-                "B_Purple": "bryozoans_purple-bryozoans",
-                "BS_Dendr": "bryozoans_soft_dendroid-bryozoans",
-                "BS_FAN": "bryozoans_soft_fan-bryozoans",
-                "BS_Foliac": "bryozoans_soft_foliaceous-bryozoans",
-                "HydrC_Br": "hydrocorals_branching-stylasterids",
-                "S_Amorph": "sponges_massive_simple-porifera",
-                "S_Ball": "sponges_massive_round-porifera",
-                "S_Barrel": "sponges_massive_barrel-porifera",
-                "S_bead": "sponges_bead-porifera",
-                "S_Buried": "sponges_massive_cryptic-porifera",
-                "S_Creep": "sponges_crust_creeping_ramose-porifera",
-                "S_CupCmplt": "sponges_cup_cup_goblet-porifera",
-                "S_CupIncmp": "sponges_cup_incomplete_curled-porifera",
-                "S_Disc": "sponges_cup_table_disc-porifera",
-                "S_Encr": "sponges_crust_encrusting-porifera",
-                "S_Er_Br": "sponges_erect_branching-porifera",
-                "S_Er_Lam": "sponges_erect_laminar-porifera",
-                "S_Er_Palm": "sponges_erect_palmate-porifera",
-                "S_Er_Simp": "sponges_erect_simple-porifera",
-                "S_Er_St": "sponges_erect_stalked-porifera",
-                "S_Tube": "sponges_hollow_tube_chimney-porifera",
-                "BS_Dendri": "bryozoans_soft_dendroid-bryozoans",
-                "BH_lettuce_maybe_dead": "bryozoans_hard_lettuce-bryozoans",
-                "S_Disk": "sponges_cup_table_disc-porifera",
-                "BH_BrAnt_maybe_dead": "bryozoans_hard_branching_antler-bryozoans",
-                "BH_BrLeaf_maybe_dead": "bryozoans_hard_branching_leaf-bryozoans",
-                "S_Urchin": "TBA",
-                "S_LSS": "TBA"
+# Sponge_TBD_Sediment, Sponge_TBD_Grey, Bryozoan_unspecified
+
+DCT_CORALNET = {"Bryozoan_Hard_BrAnt": "bryozoans_hard_branching-bryozoans",
+                "Bryozoan_Hard_Branching_Head": "bryozoans_hard_branching-bryozoans",
+                "Bryozoan_Hard_Branching_Leaf": "bryozoans_hard_branching-bryozoans",
+                "Bryozoan_Hard_Branching_Short": "bryozoans_hard_branching-bryozoans",
+                "Bryozoan_Hard_Encr": "bryozoans_hard_encrusting-bryozoans",
+                "Bryozoan_Hard_Fenestr": "bryozoans_hard_fenestrate-bryozoans",
+                "Bryozoan_Hard_Lettuce": "bryozoans_hard_massive-bryozoans",
+                "Bryozoan_Purple": "bryozoans_soft_dendroid-bryozoans",
+                "Bryozoan_Soft_Dendroid": "bryozoans_soft_dendroid-bryozoans",
+                "Bryozoan_Soft_FAN": "bryozoans_soft_dendroid-bryozoans",
+                "Bryozoan_Soft_Foliaceous": "bryozoans_soft_foliaceous-bryozoans",
+                "Hydrozoa_Hydrocorals_Branching": "hydrocorals_branching-stylasterids",
+                "Sponge_Amorph_Orange": "sponges_massive_simple-porifera",
+                "Sponge_Amorph_Large": "sponges_massive_simple-porifera",
+                "Sponge_Ball": "sponges_massive_globular-porifera",
+                "Sponge_Ball_LongSpicules": "sponges_massive_globular-porifera",
+                "Sponge_Barrel_Small": "sponges_cup_barrel-porifera",
+                "Sponge_Barrel": "sponges_cup_barrel-porifera",
+                "Sponge_Buried": "sponges_massive_cryptic-porifera",
+                "Sponge_Creep": "sponges_crust_creeping-porifera",
+                "Sponge_CupCmplt": "sponges_cup_cup_complete-porifera",
+                "Sponge_Disc": "sponges_cup_cup_disc-porifera",
+                "Sponge_Encrusting": "sponges_crust_encrusting-porifera",
+                "Sponge_Erect_Branching": "sponges_erect_3d-porifera",
+                "Sponge_Erect_Laminar": "sponges_erect_2d-porifera",
+                "Sponge_Erect_Palmate": "sponges_erect_2d-porifera",
+                "Sponge_Erect_Simple": "sponges_erect_1d-porifera",
+                "Sponge_Erect_Bottlebrush": "sponges_erect_1d-porifera",
+                "Sponge_Erect_Stalked": "sponges_erect_stalked-porifera",
+                "Sponge_Tube": "sponges_cup_tube_chimney-porifera",
+                "Bryozoan_Hard_Lettuce_maybe_dead": "bryozoans_hard_massive-bryozoans",
+                "Bryozoan_Hard_Branching_Antler_maybe_dead": "bryozoans_hard_branching-bryozoans",
+                "Bryozoan_Hard_Branching_Leaf_maybe_dead": "bryozoans_hard_branching-bryozoans"
                 }
 
 
@@ -66,19 +66,22 @@ def curate_coralnet_report(fname_i, fname_o):
     df = pyreadr.read_r(fname_i)["cover_images"].reset_index()
 
     # Get n annotation per images
-    df["n_annotation"] = df.sum(axis=1) - df["Unscorable"] - df["NoID"] - df["NoID_ExpOp"] - df["NoID_TBD"]
+    df["n_annotation"] = df.sum(axis=1) - df["Unscorable"] - df["NoID"] - df["NoID_ExpOp"] \
+                         - df["NoID_ExpOp_maybe_sponge"] - df["NoID_ExpOp_translucent"] \
+                         - df["NoID_ExpOp_Sheetlike"] - df["NoId_ExpOp_GreyBuriedBranchingThings"] \
+                         - df["NoID_ExpOp_maybe_colonial_anemone"]
 
     # Rename column
     df.rename(columns={"rownames": "filename"}, inplace=True)
 
-    print("\n".join([c for c in df.keys() if c not in ["filename", "n_annotation"] + list(DCT_CORALNET.keys())]))
-    exit()
     # Select columns of interest
     df.drop(columns=[c for c in df.keys() if c not in ["filename", "n_annotation"] + list(DCT_CORALNET.keys())], inplace=True)
 
     # Rename columns
     df.rename(columns=DCT_CORALNET, inplace=True)
-    print(df.head())
+
+    # Sum columns with same column name
+    df = df.groupby(lambda x:x, axis=1).sum()
 
     # Saving results
     print("Saving results in: {}...".format(fname_o))
