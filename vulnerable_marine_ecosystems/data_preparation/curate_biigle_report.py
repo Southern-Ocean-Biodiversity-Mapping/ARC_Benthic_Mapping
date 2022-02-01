@@ -1,9 +1,5 @@
-import math
-import copy
 import argparse
-import numpy as np
 import pandas as pd
-import os
 
 import sys
 sys.path.insert(1, '..\..\..\..\..\biigle')
@@ -13,7 +9,6 @@ from biigle.biigle import Api
 # Example:
 #   python data_preparation\curate_biigle_report.py -i biodata_step1.csv -o biodata_step2.csv
 
-global DCT_BIIGLE254
 DCT_BIIGLE254 = {"Basketstars": "basket_snake_stars-euryalida",
                  "Basketstar-like": "basket_snake_stars-euryalida",
                  "Crinoid - stalked": "crinoid_stalked-crinoid_stalked",
@@ -80,13 +75,18 @@ def curate_biigle_reports(fname_i, fname_o):
     print("Combining Jan, Victor and charley annotations ...")
     df.loc[df.label_names.isin(DCT_BIIGLE254.keys()), "final_label"] = df.loc[df.label_names.isin(DCT_BIIGLE254.keys())]["label_names"].apply(lambda x: DCT_BIIGLE254.get(x))
     df["jan_label"] = df.loc[df.label_names.isin(DCT_BIIGLE254_DUPLICATE.keys())]["label_names"].apply(lambda x: DCT_BIIGLE254_DUPLICATE[x] if x in DCT_BIIGLE254_DUPLICATE else None)
-    lst_im_jan = df[~df.jan_label.isna()]["image_id"].to_list()
+    # List of images where Jan annotated a species that I also annotated
+    lst_im_jan = df[~df.jan_label.isna()]["image_id"].unique()
     df.reset_index(drop=True, inplace=True)
     v_jan = list(DCT_BIIGLE254_DUPLICATE.values())
     for im_jan in lst_im_jan:
+        # Annotations of the current image
         df_im_jan = df[df.image_id == im_jan]
+        # Annotations of the current image of the species of interest
         df_im_jan_ = df_im_jan[df_im_jan.final_label.isin(v_jan)]
+        # If I have not annotated these species on this image
         if len(df_im_jan_) == 0:
+            # Then take into account Jan's annotations
             idx_ = df_im_jan[df_im_jan.jan_label.isin(v_jan)].index
             df.loc[idx_, "final_label"] = df.loc[idx_]["jan_label"]
     df.drop("jan_label", axis=1, inplace=True)
