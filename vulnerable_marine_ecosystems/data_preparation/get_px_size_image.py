@@ -43,7 +43,6 @@ def get_px_size_image(folder_i, fname_o):
                         img = Image.open(image_path)
                         img.load()
                         data = np.asarray(img)
-                        print(data.shape)
                         width, heigth, _ = data.shape
                         del img, data
                         dct_["filename"].append(image_fname)
