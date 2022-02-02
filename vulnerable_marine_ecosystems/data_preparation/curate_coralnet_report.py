@@ -5,7 +5,6 @@ import argparse
 # Example:
 #   python data_preparation\curate_coralnet_report.py -i C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -o biodata_step3.csv
 
-# Sponge_TBD_Sediment, Sponge_TBD_Grey, Bryozoan_unspecified
 
 DCT_CORALNET = {"Bryozoan_Hard_BrAnt": "bryozoans_hard_branching-bryozoans",
                 "Bryozoan_Hard_Branching_Head": "bryozoans_hard_branching-bryozoans",
@@ -66,11 +65,14 @@ def curate_coralnet_report(fname_i, fname_o):
     df = pyreadr.read_r(fname_i)["cover_images"].reset_index()
 
     # Get n annotation per images
-    df["n_annotation"] = df.sum(axis=1) - df["Unscorable"] - df["NoID"] - df["NoID_ExpOp"] \
+    df["n_annotation"] = df.sum(axis=1)
+    """
+                         - df["Unscorable"] - df["NoID"] - df["NoID_ExpOp"] \
                          - df["NoID_ExpOp_maybe_sponge"] - df["NoID_ExpOp_translucent"] \
                          - df["NoID_ExpOp_Sheetlike"] - df["NoId_ExpOp_GreyBuriedBranchingThings"] \
-                         - df["NoID_ExpOp_maybe_colonial_anemone"]
-
+                         - df["NoID_ExpOp_maybe_colonial_anemone"] - df["NoID_ExpOp_branching"]
+                         # Sponge_TBD_Sediment, Sponge_TBD_Grey, Bryozoan_unspecified
+    """
     # Rename column
     df.rename(columns={"rownames": "filename"}, inplace=True)
 
@@ -81,7 +83,7 @@ def curate_coralnet_report(fname_i, fname_o):
     df.rename(columns=DCT_CORALNET, inplace=True)
 
     # Sum columns with same column name
-    df = df.groupby(lambda x:x, axis=1).sum()
+    df = df.groupby(lambda x: x, axis=1).sum()
 
     # Saving results
     print("Saving results in: {}...".format(fname_o))
