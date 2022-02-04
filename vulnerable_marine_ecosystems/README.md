@@ -3,20 +3,16 @@
 ### Data preparation
 
 1. `merge_biigle_reports.py`: Merge BIIGLE reports by creating a single BIIGLE report for all survey and all labelling trees of interest.
-2. `curate_biigle_report.py`: Cleans the BIIGLE report, removes rows with missing info (e.g., width, area, longitude). Saves a csv file where each row is an image, columns are: XX ... (sum of annotations present in the current image for this label).
+2. `curate_biigle_report.py`: Cleans the BIIGLE report. Saves a csv file where each row is an image, columns are: XX ... (sum of annotations present in the current image for this label).
 3. `curate_coralnet_report.py`: Uses [ReadIn_Circumpolar_Annotation_Data_Prep](https://github.com/Southern-Ocean-Biodiversity-Mapping/ARC_Data/blob/main/ReadIn_Circumpolar_Annotation_Data_Prep.Rmd) csv file, selects VME morpho taxa.
 4. `combine_coralnet_biigle.py`: Uses the output of `curate_biigle_report.py` and `curate_coralnet_report.py` and combines them. Accounts for different spatial coverage between BIIGLE and CoralNet (annotated images).
-5. `csv_2_raster.R`: Converts the csv data, where abundance is aggregated, to raster, where abundance is aggregated per raster cell. Raster resolution can be changed. Saves a tif file where each layer contains the abundance data of each VME morpho-taxa, as well as metadata such as survey ID, imaged area.
+5. `csv_2_raster.R`: WORK IN PROGRESS Converts the csv data, where abundance is aggregated, to raster, where abundance is aggregated per raster cell. Raster resolution can be changed. Saves a tif file where each layer contains the abundance data of each VME morpho-taxa, as well as metadata such as survey ID, imaged area.
 
 #### TODO
 
 4. `combine_coralnet_biigle.py`:
-- [ ] Add infos: acquisition method, date --> waiting for Jan to propage info
 - [ ] Add estimated area info --> waiting for Jan to propage info
-- [ ] Check area_pix
-5. `csv_2_raster.R`:
-- [ ] Account for different spatial coverage between BIIGLE839 vs BIIGLE254
-- [ ] Add missing covariates
+2. `csv_2_raster.R`
 
 ### VME index
 
