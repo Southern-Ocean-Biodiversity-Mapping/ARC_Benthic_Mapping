@@ -7,7 +7,7 @@ import curate_biigle_report
 
 
 # Example:
-#   python data_preparation\combine_coralnet_biigle.py -b biodata_step2.csv -c biodata_step3.csv -m C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -a coverage_biigle839 -p px_size.csv -o biodata_step4.csv
+#   python data_preparation\combine_coralnet_biigle.py -b biodata_step2.csv -c biodata_step3.csv -m C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -a coverage_biigle839 -p px_size.csv -o biodata_step4.csv -g groupings.csv
 
 
 LST_BIIGLE839_FULL = ["PS81_shallow", "PS61", "PS14", "PS06", "JR17001", "JR262", "AA2011", "JR15005", "PS96", "JR17003"]
@@ -36,16 +36,23 @@ def get_parser():
     optional_args = parser.add_argument_group('OPTIONAL ARGUMENTS')
     optional_args.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                                help='Shows function documentation.')
+    optional_args.add_argument('-g', '--gfname', required=False, type=str,
+                                help='File containing bio groupings.')
 
     return parser
 
 
-def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder_area_notfull, fname_sqpx, fname_o):
+def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder_area_notfull, fname_sqpx, fname_o, fname_g=None):
     # Read data
     df_b = pd.read_csv(fname_biigle)
     df_c = pd.read_csv(fname_coralnet)
     df_m = pyreadr.read_r(fname_metadata)["image_metadata"].reset_index()
     df_p = pd.read_csv(fname_sqpx)[["filename", "image_size_sqpx"]]
+    if fname_g is not None:
+        df_g = pd.read_csv(fname_g)
+        df_g = df_g[~df_g.grouping.isnull()]
+    else:
+        df_g = None
 
     print("\nWARNING: If add AREA: carefull of summing differently between CoralNet BIIGLE839 BIIGLE254.\n")
 
@@ -183,9 +190,21 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     df_out = pd.merge(df_out, df_b_839_pc, on="cellID", how="left")
     df_out["cellID"] = df_out["cellID"].astype(int)
 
+    if df_g is not None:
+        print("\nFollowing groupings will be applied ...")
+        print(df_g)
+        # Labels to be removed because too rare
+        lst_too_rare = df_g[df_g.grouping == "REMOVE"].taxa.to_list()
+        df_out.drop(columns=lst_too_rare, inplace=True)
+        for g in df_g.grouping.unique():
+            if g != "REMOVE":
+                lst_to_be_summed = df_g[df_g.grouping == g].taxa.to_list()
+                df_out[g] = df_out[lst_to_be_summed].sum(axis=1)
+                df_out.drop(columns=lst_to_be_summed, inplace=True)
+
     # Compute prevalence
     print("\nComputing prevalence ...")
-    df_prev = df_out[lst_taxa_coralnet + lst_taxa_254 + lst_taxa_839].astype(bool).sum(axis=0).div(len(df_out)) * 100.
+    df_prev = df_out[[t for t in df_out.keys() if t != "cellID"]].astype(bool).sum(axis=0).div(len(df_out)) * 100.
     print(df_prev)
 
     print("\nSaving data: {} ...".format(fname_o))
@@ -206,7 +225,8 @@ def main():
                             fname_metadata=args.mfname,
                             folder_area_notfull=args.afolder,
                             fname_sqpx=args.pfname,
-                            fname_o=args.ofname)
+                            fname_o=args.ofname,
+                            fname_g=args.gfname)
 
 
 if __name__ == "__main__":
