@@ -164,6 +164,12 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     df_b_254_pc = df_b_254.groupby(['cellID'], as_index = False).sum()
     df_b_839_pc = df_b_839.groupby(['cellID'], as_index = False).sum()
 
+    print("\nRemoving the cells where not all CoralNet, BIIGLE254 and BIIGLE839 are present ...")
+    lst_cellID_intersection = [c for c in df_c_pc.cellID if c in df_b_254_pc.cellID.to_list() and c in df_b_839_pc.cellID.to_list()]
+    df_c_pc.drop(index=df_c_pc[~df_c_pc.cellID.isin(lst_cellID_intersection)].index, inplace=True)
+    df_b_254_pc.drop(index=df_b_254_pc[~df_b_254_pc.cellID.isin(lst_cellID_intersection)].index, inplace=True)
+    df_b_839_pc.drop(index=df_b_839_pc[~df_b_839_pc.cellID.isin(lst_cellID_intersection)].index, inplace=True)
+
     df_c_pc[lst_taxa_coralnet] = df_c_pc[lst_taxa_coralnet].div(df_c_pc['n_annotation'].values, axis=0) * 100
     df_b_254_pc[lst_taxa_254] = df_b_254_pc[lst_taxa_254].div(df_b_254_pc['image_size_sqpx'].values, axis=0) * 100
     df_b_839_pc[lst_taxa_839] = df_b_839_pc[lst_taxa_839].div(df_b_839_pc['image_size_sqpx'].values, axis=0) * 100
@@ -172,19 +178,22 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     df_b_254_pc.drop(columns=['image_size_sqpx'], inplace=True)
     df_b_839_pc.drop(columns=['image_size_sqpx'], inplace=True)
 
-    print("\nRemoving the cells where all CoralNet, BIIGLE254 and BIIGLE839 are present ...")
-    lst_cellID_intersection = [c for c in df_c_pc.cellID if c in df_b_254_pc.cellID.to_list() and c in df_b_839_pc.cellID.to_list()]
-    df_c_pc.drop(index=df_c_pc[~df_c_pc.cellID.isin(lst_cellID_intersection)].index, inplace=True)
-    df_b_254_pc.drop(index=df_b_254_pc[~df_b_254_pc.cellID.isin(lst_cellID_intersection)].index, inplace=True)
-    df_b_839_pc.drop(index=df_b_839_pc[~df_b_839_pc.cellID.isin(lst_cellID_intersection)].index, inplace=True)
-
     print("\nMerging datasets ...")
     df_out = pd.merge(df_c_pc, df_b_254_pc, on="cellID", how="left")
     df_out = pd.merge(df_out, df_b_839_pc, on="cellID", how="left")
     df_out["cellID"] = df_out["cellID"].astype(int)
 
+    # Compute prevalence
+    print("\nComputing prevalence ...")
+    df_prev = df_out[lst_taxa_coralnet + lst_taxa_254 + lst_taxa_839].astype(bool).sum(axis=0).div(len(df_out)) * 100.
+    print(df_prev)
+
     print("\nSaving data: {} ...".format(fname_o))
     df_out.to_csv(fname_o, index=False)
+
+    fname_o_prev = fname_o.split(".csv")[0] + "_prevalence.csv"
+    print("\nSaving data prevalence: {} ...".format(fname_o_prev))
+    df_prev.to_csv(fname_o_prev)
 
 
 def main():
