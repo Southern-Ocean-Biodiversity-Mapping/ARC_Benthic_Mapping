@@ -16,239 +16,73 @@ library(proj4)
 library(dplyr)
 
 # Set working directory
-setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/data_preparation")
+setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems")
 
-# Path towards data
+# Path to BIO data
 path_bio_data <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/biodata_step4.csv"
-path_src <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/biodata_step4_source.csv"
 
-# Raster resolution
-resolution_raster <- 500
+# Path to REF Raster
+path_ref_raster <- "C:/Users/cgros/data/SO_env_layers/derived/Circumpolar_EnvData_500m_shelf_bathy_gebco_depth"
 
-# Output filename
-path_out <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20211117_raster_cover/raster_"
-
-# Save raster as file
-save_raster = FALSE
-# Save df as file
-save_df = TRUE
+# Path to Coastline
+path_coastline <- "C:/Users/cgros/code/IMAS/ARC_Data/prep_environment/Circumpolar_Coastline.Rdata"
+load(path_coastline)
 
 ################################################################################
 #                                 READ INPUT DATA
 ################################################################################
-# Create output folder
-dir.create(dirname(path_out), showWarnings = FALSE)
 
 # Read Bio data
 cat("\nReading data:", path_bio_data, "...\n")
-df <- read.csv(path_bio_data)
-names(df) <- gsub(x = names(df), pattern = "\\.", replacement = "--")
+df_abd <- read.csv(path_bio_data)
 
-# Read source data
-cat("\nReading data:", path_src, "...\n")
-df_src <- read.csv(path_src)
-df_src$morpho_taxon <- gsub(x = df_src$morpho_taxon, pattern = "-", replacement = "--")
-
-# Get taxa names for each source
-list_taxa_coralnet = df_src[df_src$source == "coralnet", "morpho_taxon"]
-list_taxa_biigle839 = df_src[df_src$source == "biigle839", "morpho_taxon"]
-list_taxa_biigle254 = df_src[df_src$source == "biigle254", "morpho_taxon"]
-
-################################################################################
-#                                 PREPARE RASTER
-################################################################################
-
-# Get reference
-raster_ref <- SmallBathy
-
-# Projection
-cat("\nProjection:", proj4string(raster_ref), "...\n")
-df$proj_coord_x <- project(df[,c("longitude", "latitude")],
-                           proj=crs(raster_ref))$x
-df$proj_coord_y <- project(df[,c("longitude", "latitude")],
-                            proj=crs(raster_ref))$y
-# Create new variable
-pts <- df
-coordinates(pts) <- c("proj_coord_x", "proj_coord_y")
-
-# Crop reference raster according to pts extent
-raster_ref <- crop(raster_ref, pts)
-cat("\nCropping and resampling (",
-    resolution_raster, "x", resolution_raster, "m ) the reference raster...\n")
-# Set raster resolution
-if (resolution_raster < res(raster_ref)[1]) {
-  resample_fact <- res(raster_ref)[1] / resolution_raster
-  raster_ref <- disaggregate(raster_ref,
-                                  fact=resample_fact,
-                                  method='bilinear')
-} else if (resolution_raster > res(raster_ref)[1]) {
-  resample_fact <- resolution_raster / res(raster_ref)[1]
-  raster_ref <- aggregate(raster_ref,
-                               fact=resample_fact,
-                               method='bilinear')
-} else {
-  raster_ref <- raster_ref
+# Create PA data
+lst_taxa <- colnames(df_abd)
+lst_taxa <- lst_taxa[!lst_taxa == "cellID"]
+df_pa <- data.frame(df_abd)
+for (t in lst_taxa) {
+  df_pa[ , t] <- as.integer(as.logical(df_pa[ , t]))
 }
 
-# Get cell IDs
-df$cellID <- raster::extract(raster_ref,
-                     df[,c("proj_coord_x", "proj_coord_y")],
-                     cellnumbers=TRUE)[,1]
-list_cells <- unique(df$cellID)
-
-# Compute sampling effort per platform
-df$area_coralnet <- df$area * df$coralnet
-#df$area_pix_coralnet <- df$area_pix * df$coralnet
-df$area_biigle254 <- df$area * df$biigle254
-df$area_pix_biigle254 <- df$area_pix * df$biigle254
-df$area_biigle839 <- df$area * df$biigle839
-df$area_pix_biigle839 <- df$area_pix * df$biigle839
-
-# Compute percentage cover per cell
-cat("\nComputing percentage cover per raster cell ...\n")
-list_colnames_not_sum <- c("survey", "longitude", "latitude", "filename", "proj_coord_x", "proj_coord_y", "image_quality_score")
-list_colnames_to_avg <- c("image_quality_score")
-df_to_sum <- df[colnames(df)[!names(df) %in% list_colnames_not_sum]]
-list_colnames_not_sum <- list_colnames_not_sum[!list_colnames_not_sum %in% list_colnames_to_avg]
-df_not_to_sum <- df[, c("cellID", list_colnames_not_sum)]
-# Remove duplicates
-df_not_to_sum <- df_not_to_sum[!duplicated(df_not_to_sum$cellID),]
-# Sum Bio data within each raster cell
-df_sum <- as.data.frame(df_to_sum
-                        %>% group_by(cellID)
-                        %>% summarise(across(everything(),
-                                             function(x,...){if (!all(is.na(x))){sum(na.omit(x))} else{NA}})))
-# Average image quality score across images within same cell
-df_avg <- as.data.frame(df[, c("cellID", list_colnames_to_avg)]
-                        %>% group_by(cellID)
-                        %>% summarise(across(everything(),
-                                             function(x,...){if (!all(is.na(x))){mean(na.omit(x))} else{NA}})))
-
-# Get ride of cells where no annotation from one platform
-df_sum <- df_sum[!(df_sum$biigle254 == 0),]
-df_sum <- df_sum[!(df_sum$biigle839 == 0),]
-df_sum <- df_sum[!(df_sum$coralnet == 0),]
-# TODO: complete area pix. SHould not be an issue
-df_sum <- df_sum[!(df_sum$area_pix_biigle254 == 0) & !is.na(df_sum$area_pix_biigle254),]
-df_sum <- df_sum[!(df_sum$area_pix_biigle839 == 0) & !is.na(df_sum$area_pix_biigle839),]
-
-# Aggregate for CCAMLR taxa
-#list_taxonomic <- colnames(df_sum)[!(colnames(df_sum) %in% c("n_annotation", "area_pix", "area", "cellID"))]
-#list_taxonomic <- unique(list_taxonomic %>% strsplit( "--" ) %>% sapply(tail, 1))
-#df_sum_taxonomic <- df_sum[, c("n_annotation", "area_pix", "area", "cellID")]
-#for (taxa in list_taxonomic) {
-#  list_morpho_taxa_cur <- colnames(df_sum)[endsWith(colnames(df_sum), taxa)]
-#  if (length(list_morpho_taxa_cur) > 1) {
-#    df_sum_taxonomic[, taxa] <- rowSums(df_sum[, list_morpho_taxa_cur], na.rm=TRUE)
-#  } else {
-#    df_sum_taxonomic[, taxa] <- df_sum[, list_morpho_taxa_cur]
-#  }
-#}
-
-################################################################################
-#                                 COMPUTE PERCENT COVER
-################################################################################
-
-# Normalise to compute percentage cover
-df_sum[, list_taxa_coralnet] <- df_sum[, list_taxa_coralnet] * 100. / df_sum[, "n_annotation"]
-df_sum[, list_taxa_biigle839] <- df_sum[, list_taxa_biigle839] * 100. / df_sum[, "area_pix_biigle839"]
-df_sum[, list_taxa_biigle254] <- df_sum[, list_taxa_biigle254] * 100. / df_sum[, "area_pix_biigle254"]
-#df_sum_taxonomic[, c("bryozoans", "porifera", "stylasterids")] <- df_sum_taxonomic[, c("bryozoans", "porifera", "stylasterids")] * 100. / df_sum_taxonomic[, "n_annotation"]
-#list_taxonomic_biigle <- list_taxonomic[!(list_taxonomic %in% c("bryozoans", "porifera", "stylasterids"))]
-#df_sum_taxonomic[, list_taxonomic_biigle] <- df_sum_taxonomic[, list_taxonomic_biigle] * 100. / df_sum_taxonomic[, "area_pix"]
-#df_sum_taxonomic[, list_taxa_biigle254] <- df_sum_taxonomic[, list_taxa_biigle254] * 100. / df_sum_taxonomic[, "area_pix"]
-
-
-################################################################################
-#                                PRESENCE ABSENCE DATA
-################################################################################
-
-df_pa <- df_sum
-df_pa[, list_taxa_coralnet] <- (df_pa[, list_taxa_coralnet] > 0) + 0
-df_pa[, list_taxa_biigle839] <- (df_pa[, list_taxa_biigle839] > 0) + 0
-df_pa[, list_taxa_biigle254] <- (df_pa[, list_taxa_biigle254] > 0) + 0
-
-df_prev <- as.data.frame(colSums(df_pa, na.rm = TRUE) * 100. / nrow(df_pa))
-write.csv(df_prev, "vme_indicator_morpho_taxa_prevalence.csv")
-
-
-
-################################################################################
-#                                CLEAN DATA FRAMES
-################################################################################
-
-# Join dataframes
-df_to_rasterize <- left_join(df_sum, df_not_to_sum)
-df_to_rasterize$survey <- as.numeric(as.factor(df_to_rasterize$survey))
-
-rm_row_na <- function(data, desiredCols) {
-  completeVec <- complete.cases(data[, desiredCols])
-  return(data[completeVec, ])
-}
-
-# Remove rows where BIIGLE and Coralnet are not both present
-df_to_rasterize <- rm_row_na(df_to_rasterize, list_taxa_biigle839)
-df_to_rasterize <- rm_row_na(df_to_rasterize, list_taxa_coralnet)
-df_to_rasterize <- rm_row_na(df_to_rasterize, list_taxa_biigle254)
-
-df_to_rasterize_ccamlr <- left_join(df_sum_taxonomic, df_not_to_sum)
-df_to_rasterize_ccamlr$survey <- as.numeric(as.factor(df_to_rasterize_ccamlr$survey))
-
-list_taxa_biigle839_ccamlr <- unique(sapply(strsplit(list_taxa_biigle839,"--"), `[`, 2))
-list_taxa_coralnet_ccamlr <- unique(sapply(strsplit(list_taxa_coralnet,"--"), `[`, 2))
-#list_taxa_biigle254_ccamlr <- unique(sapply(strsplit(list_taxa_biigle254,"--"), `[`, 2))
-
-df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle839_ccamlr)
-df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_coralnet_ccamlr)
-#df_to_rasterize_ccamlr <- rm_row_na(df_to_rasterize_ccamlr, list_taxa_biigle254_ccamlr)
-
-################################################################################
-#                                CLEAN DATA FRAMES
-################################################################################
-
-if (save_df) {
-  cat("\nSaving dataframe:", path_out, "...\n")
-  write.csv(df_to_rasterize,
-            paste0(path_out, "data.csv"),
-            row.names = FALSE)
-}
-
-if (save_df) {
-  cat("\nSaving CCAMLR dataframe:", path_out, "...\n")
-  write.csv(df_to_rasterize_ccamlr,
-            paste0(path_out, "data_ccamlr.csv"),
-            row.names = FALSE)
-}
+# Load REF raster
+r_ref <- raster(path_ref_raster)
 
 ################################################################################
 #                                RASTERIZE
 ################################################################################
 
-pts_to_rasterize <- df_to_rasterize
-coordinates(pts_to_rasterize) <- c("proj_coord_x", "proj_coord_y")
+r_bio = setValues(r_ref, NA)
 
-# Rasterise data
-cat("\nRasterizing data ...\n")
-list_colnames_to_rasterise <- c("survey",
-                                "area",
-                                list_taxa_biigle254,
-                                list_taxa_biigle839,
-                                list_taxa_coralnet)
-raster_biodata <- rasterize(pts_to_rasterize,
-                            raster_ref,
-                            colnames(df_to_rasterize)[names(df_to_rasterize) %in% list_colnames_to_rasterise],
-                            fun='first')
+r_bio[df_abd$cellID] = df_abd[[lst_taxa[1]]]
+names(r_bio) <- lst_taxa[1]
 
-#cellnb.pos <- Which(raster_biodata$octocorals_fleshy_mushroom..alcyonacea > 0, cells = TRUE)
-cat("\nNumber of layers:", nlayers(raster_biodata), "...\n")
-
-# Save raster
-if (save_raster) {
-  cat("\nSaving raster:", path_out, "...\n")
-  writeRaster(raster_biodata,
-              filename=path_out,
-              suffix=names(raster_biodata),
-              bylayer=TRUE,
-              format="GTiff",
-              overwrite=TRUE)
+for (idx_taxa in 2:4) {
+  print(lst_taxa[idx_taxa])
+  r_tmp = setValues(r_ref, NA)
+  r_tmp[df_abd$cellID] = df_abd[[lst_taxa[idx_taxa]]]
+  names(r_tmp) <- lst_taxa[idx_taxa]
+  r_bio <- stack(r_bio, r_tmp)
+  remove(r_tmp)
 }
+
+buffer_size <- 10000
+rnd_cell <- sample(1:nrow(df_abd), 1)
+coords_zoom_center <- xyFromCell(r_ref, df_abd$cellID[[rnd_cell]])
+df_zoom <- data.frame(x = coords_zoom_center[[1]], y = coords_zoom_center[[2]])
+coordinates(df_zoom) <- c("x", "y")
+sf_zoom <- st_as_sf(df_zoom, crs = crs(r_ref))
+buffer <- st_buffer(sf_zoom, buffer_size)
+r_crop <- crop(r_bio, extent(buffer))
+plot(r_crop)
+
+
+r[is.na(r[])] <- 0 
+
+library(mapview)
+library(leaflet)
+library(leafem)
+
+leaflet() %>% 
+  addRasterImage(r_ref, layerId = "values") %>% 
+  addMouseCoordinates() %>%
+  addImageQuery(r_ref, type="mousemove", layerId = "values")
