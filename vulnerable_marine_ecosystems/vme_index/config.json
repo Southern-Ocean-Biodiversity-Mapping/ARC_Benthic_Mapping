@@ -1,0 +1,10 @@
+{
+  "vulnerability_score": {
+    "group_avg": ["Longevity", "Slow growth", "Larval dispersion", "Sessility"],
+    "agg_fct": "quadratic_mean"
+  },
+  "abundance_score": {
+    "method": "pa",
+    "n_breaks": 3
+  }
+}
