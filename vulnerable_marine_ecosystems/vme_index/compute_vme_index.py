@@ -5,6 +5,7 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import minmax_scale
 
 # python vme_index/compute_vme_index.py -a biodata_step4.csv -v vme_index/morpho_taxa_scores_FINAL.xlsx -c vme_index/config.json -o vme_index.csv
 
@@ -71,21 +72,48 @@ def plot_vuln_scores(data, params):
     fig.savefig('vuln_scores.png')
 
 
-def compute_abundance_score(data, lst_columns, n_breaks):
+def compute_abundance_score(data, lst_columns, n_breaks=0):
     df_out = data.copy()
 
     for col_name in lst_columns:
-        breaks = jenkspy.jenks_breaks(data[data[col_name] > 0][col_name],
-                                      nb_class=n_breaks)
-        df_out[col_name] = pd.cut(data[col_name],
-                                 bins=breaks,
-                                 labels=[ll for ll in range(1, n_breaks + 1)],
-                                  include_lowest=True)
-        df_out[col_name].replace(to_replace=[ll for ll in range(1, n_breaks + 1)],
-                                 value=[ll for ll in range(1, n_breaks + 1)], inplace=True)
-        df_out.loc[data[data[col_name] == 0].index, col_name] = 0
+        if n_breaks > 0:
+            breaks = jenkspy.jenks_breaks(data[data[col_name] > 0][col_name],
+                                          nb_class=n_breaks)
+            df_out[col_name] = pd.cut(data[col_name],
+                                     bins=breaks,
+                                     labels=[ll for ll in range(1, n_breaks + 1)],
+                                      include_lowest=True)
+            df_out[col_name].replace(to_replace=[ll for ll in range(1, n_breaks + 1)],
+                                     value=[ll for ll in range(1, n_breaks + 1)], inplace=True)
+            df_out.loc[data[data[col_name] == 0].index, col_name] = 0
+        else:
+            df_out[col_name] = minmax_scale(data[col_name], feature_range=(0, 1))
 
     return df_out
+
+
+def plot_validation(data_abd, data_vme_idx):
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.scatterplot(x=data_abd.sum(axis=1),
+                    y=data_vme_idx["VME index"],
+                    hue=data_vme_idx["VME index category"],
+                    ax=ax,
+                    palette=sns.color_palette("Spectral_r", max(data_vme_idx["VME index category"].unique())))
+    ax.set_xlabel("VME morpho taxa percentage cover")
+    ax.set_ylabel("VME index")
+    fig.savefig('abd_v_idx.png')
+    del fig, ax
+
+    fig, ax = plt.subplots(figsize=(10, 10))
+    sns.scatterplot(x=data_abd.astype(bool).astype(int).sum(axis=1),
+                    y=data_vme_idx["VME index"],
+                    hue=data_vme_idx["VME index category"],
+                    ax=ax,
+                    palette=sns.color_palette("Spectral_r", max(data_vme_idx["VME index category"].unique())))
+    ax.set_xlabel("VME morpho taxa richness")
+    ax.set_ylabel("VME index")
+    fig.savefig('div_v_idx.png')
+    del fig, ax
 
 
 def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
@@ -121,14 +149,19 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
                                               agg_fct=dct_config["vulnerability_score"]["agg_fct"],
                                               group_avg=dct_config["vulnerability_score"]["group_avg"])
     print(df_vuln_agg.head())
-    #plot_vuln_scores(df_vuln_agg, dct_config["vulnerability_score"])
+    plot_vuln_scores(df_vuln_agg, dct_config["vulnerability_score"])
 
     # Abundance scores
     if dct_config["abundance_score"]["method"] == "jenks":
-        print("\nCategorisation of the abundance data using Jenks natural breaks (n={}) ...".format(dct_config["abundance_score"]["n_breaks"]))
+        print("\nCategorisation of the abundance data using Jenks natural breaks (n={}) ...".format(dct_config["abundance_score"]["param"]))
         df_abd_scr = compute_abundance_score(data=df_abd,
                                              lst_columns=lst_morpho_taxa,
-                                             n_breaks=dct_config["abundance_score"]["n_breaks"])
+                                             n_breaks=dct_config["abundance_score"]["param"])
+    elif dct_config["abundance_score"]["method"] == "minmaxscale":
+        print("\nScaling of the abundance data ...")
+        df_abd_scr = compute_abundance_score(data=df_abd,
+                                             lst_columns=lst_morpho_taxa,
+                                             n_breaks=0)
     elif dct_config["abundance_score"]["method"] == "pa":
         print("\nCategorisation of the abundance data based on Presence / Absence ...")
         df_abd_scr = df_abd.copy()
@@ -137,8 +170,39 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
         print("\nNo categorisation of the abundance data ...")
         df_abd_scr = df_abd.copy()
 
+    # Vulnerability index
+    df_vuln_idx = df_abd_scr.copy()
+    for mt in lst_morpho_taxa:
+        vuln_score = df_vuln_agg[df_vuln_agg["morpho_taxon"] == mt]["vulnerability_score"].values[0]
+        df_vuln_idx[mt] = df_abd_scr[mt] * vuln_score
 
+    # VME index
+    df_vme_idx = df_vuln_idx.copy()
+    if dct_config["vme_index"]["agg_fct"] == "mean":
+        df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].mean(axis=1)
+    elif dct_config["vme_index"]["agg_fct"] == "median":
+        df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].median(axis=1)
+    elif dct_config["vme_index"]["agg_fct"] == "max":
+          df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].max(axis=1)
+    else:
+        print("\nERROR: Unknown function to aggregate vulnerability indexes: {} ...")
+        print("\tPlease choose between mean, median, and max")
+        exit()
 
+    # Categorisation
+    if dct_config["vme_index"]["category_method"] == "jenks":
+        breaks = jenkspy.jenks_breaks(df_vme_idx["VME index"], nb_class=dct_config["vme_index"]["n_breaks"])
+        df_vme_idx["VME index category"] = pd.cut(df_vme_idx["VME index"],
+                                                   bins=breaks,
+                                                   labels=[ll for ll in range(1, dct_config["vme_index"]["n_breaks"]+1)],
+                                                   include_lowest=True)
+        df_vme_idx["VME index category"].replace(to_replace=[ll for ll in range(1, dct_config["vme_index"]["n_breaks"] + 1)],
+                                                  value=[ll for ll in range(1, dct_config["vme_index"]["n_breaks"] + 1)],
+                                                  inplace=True)
+    else:
+        print("WARNING: No categorisation done on the VME index ...")
+
+    plot_validation(df_abd[lst_morpho_taxa], df_vme_idx)
 
 
 def main():

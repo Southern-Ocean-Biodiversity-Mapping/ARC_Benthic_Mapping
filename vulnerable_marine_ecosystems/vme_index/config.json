@@ -4,7 +4,12 @@
     "agg_fct": "quadratic_mean"
   },
   "abundance_score": {
-    "method": "pa",
-    "n_breaks": 3
+    "method": "none",
+    "param": 0
+  },
+  "vme_index": {
+    "agg_fct": "mean",
+    "category_method": "jenks",
+    "n_breaks": 5
   }
 }
