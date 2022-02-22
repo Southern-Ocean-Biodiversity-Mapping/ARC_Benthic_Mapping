@@ -1,13 +1,16 @@
+import os
 import json
+import shutil
 import jenkspy
 import argparse
 import seaborn as sns
 import numpy as np
 import pandas as pd
+from datetime import datetime
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import minmax_scale
 
-# python vme_index/compute_vme_index.py -a biodata_step4.csv -v vme_index/morpho_taxa_scores_FINAL.xlsx -c vme_index/config.json -o vme_index.csv
+# python vme_index/compute_vme_index.py -a biodata_step4.csv -v vme_index/morpho_taxa_scores_FINAL.xlsx -c vme_index/config.json -o 001
 
 
 sns.set_style("whitegrid", {
@@ -27,8 +30,8 @@ def get_parser():
                                 help='Vulnerability score data, xlsx file, for each morpho-taxa.')
     mandatory_args.add_argument('-c', '--cfname', required=True, type=str,
                                 help='Method parameters, JSON file.')
-    mandatory_args.add_argument('-o', '--ofname', required=True, type=str,
-                                help='Output data, csv file, for each cell.')
+    mandatory_args.add_argument('-o', '--ofolder', required=True, type=str,
+                                help='Output folder containing graph, config file and csv file.')
 
     # OPTIONAL ARGUMENTS
     optional_args = parser.add_argument_group('OPTIONAL ARGUMENTS')
@@ -52,24 +55,31 @@ def compute_vulnerability_score(data, agg_fct, group_avg):
     else:
         lst_criteria_agg = [c for c in data.keys() if not c in ["morpho_taxon"]]
 
-    df_out["vulnerability_score"] = data[lst_criteria_agg].apply(quadratic_mean, axis=1)
+    if agg_fct == "quadratic_mean":
+        df_out["vulnerability_score"] = data[lst_criteria_agg].apply(quadratic_mean, axis=1)
+    elif agg_fct == "sum":
+        df_out["vulnerability_score"] = data[lst_criteria_agg].sum(axis=1)
+    else:
+        print("\nERROR: Unknown function to aggregate vulnerability scores: {} ...")
+        print("\tPlease choose between quadratic_mean, and sum")
+        exit()
+
 
     return df_out.sort_values(by="vulnerability_score", ignore_index=True, ascending=False)
 
 
-def plot_vuln_scores(data, params):
+def plot_vuln_scores(data, params, ofolder, palette):
     data["taxon"] = data["morpho_taxon"].str.split('-').str[1]
 
     fig, ax = plt.subplots(figsize=(30, 20))
     sns.barplot(y="morpho_taxon", x="vulnerability_score", data=data,
-                     orient="h", hue="taxon", ax=ax, dodge=False,
-                palette=sns.color_palette("Spectral", len(data["taxon"].unique())))
+                     orient="h", hue="taxon", ax=ax, dodge=False, palette=palette)
     title_ = ""
     for k in params.keys():
         title_ += "{} --> {}    ".format(k, params[k])
     plt.title(title_)
 
-    fig.savefig('vuln_scores.png')
+    fig.savefig(os.path.join(ofolder, 'vuln_scores.png'), dpi=300)
 
 
 def compute_abundance_score(data, lst_columns, n_breaks=0):
@@ -92,31 +102,36 @@ def compute_abundance_score(data, lst_columns, n_breaks=0):
     return df_out
 
 
-def plot_validation(data_abd, data_vme_idx):
+def plot_validation(data_abd, data_vme_idx, ofolder):
+    if "VME index category" in data_vme_idx.keys():
+        hue_ = data_vme_idx["VME index category"]
+        palette_ = sns.color_palette("Spectral_r", max(data_vme_idx["VME index category"].unique()))
+    else:
+        hue_, palette_ = None, None
     fig, ax = plt.subplots(figsize=(10, 10))
     sns.scatterplot(x=data_abd.sum(axis=1),
                     y=data_vme_idx["VME index"],
-                    hue=data_vme_idx["VME index category"],
+                    hue=hue_,
                     ax=ax,
-                    palette=sns.color_palette("Spectral_r", max(data_vme_idx["VME index category"].unique())))
+                    palette=palette_)
     ax.set_xlabel("VME morpho taxa percentage cover")
     ax.set_ylabel("VME index")
-    fig.savefig('abd_v_idx.png')
+    fig.savefig(os.path.join(ofolder, 'abd_v_idx.png'))
     del fig, ax
 
     fig, ax = plt.subplots(figsize=(10, 10))
     sns.scatterplot(x=data_abd.astype(bool).astype(int).sum(axis=1),
                     y=data_vme_idx["VME index"],
-                    hue=data_vme_idx["VME index category"],
+                    hue=hue_,
                     ax=ax,
-                    palette=sns.color_palette("Spectral_r", max(data_vme_idx["VME index category"].unique())))
+                    palette=palette_)
     ax.set_xlabel("VME morpho taxa richness")
     ax.set_ylabel("VME index")
-    fig.savefig('div_v_idx.png')
+    fig.savefig(os.path.join(ofolder, 'div_v_idx.png'))
     del fig, ax
 
 
-def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
+def compute_vme_index(fname_abd, fname_vuln, fname_config, folder_out):
     print("\nLoading data ...")
     print("\tMethod parameters ...")
     with open(fname_config, 'r') as f:
@@ -128,6 +143,11 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
     df_vuln = pd.read_excel(fname_vuln)
     print(df_vuln.head())
 
+    folder_out = datetime.now().strftime("%Y%m%d%H%M%S") + "_" + folder_out
+    print("\nCreating output folder ...")
+    os.makedirs(folder_out)
+    shutil.copyfile(fname_config, os.path.join(folder_out, os.path.split(fname_config)[-1]))
+
     lst_criteria = [c for c in df_vuln.keys() if c != "morpho_taxon"]
     df_vuln[lst_criteria] = df_vuln[lst_criteria].replace({"H": 3, "M": 2, "L": 1})
     idx_missing_scores = df_vuln[df_vuln[lst_criteria].sum(axis=1) == 0].index
@@ -136,8 +156,11 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
     print("\nChecking if missing vulnerability scores for some morpho_taxa ...")
     lst_morpho_taxa = [mt for mt in df_abd.keys() if mt != "cellID"]
     lst_missing_scores = [mt for mt in lst_morpho_taxa if mt not in df_vuln.morpho_taxon.unique()]
+    lst_missing_abd = [mt for mt in df_vuln.morpho_taxon.unique() if mt not in lst_morpho_taxa]
+    df_vuln.drop(index=df_vuln[df_vuln.morpho_taxon.isin(lst_missing_abd)].index, inplace=True)
     if len(lst_missing_scores):
-        print(lst_missing_scores)
+        print("\nMissing vulnerability scores for: {} ...".format(lst_missing_scores))
+        print("\nMissing abundance data for: {} ...".format(lst_missing_abd))
         lst_morpho_taxa = [mt for mt in lst_morpho_taxa if mt not in lst_missing_scores]
     else:
         print("\tAll good ...")
@@ -149,7 +172,9 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
                                               agg_fct=dct_config["vulnerability_score"]["agg_fct"],
                                               group_avg=dct_config["vulnerability_score"]["group_avg"])
     print(df_vuln_agg.head())
-    plot_vuln_scores(df_vuln_agg, dct_config["vulnerability_score"])
+    lst_taxa = sorted(list(set([t.split("-")[-1] for t in lst_morpho_taxa])))
+    palette_taxa = dict(zip(lst_taxa, sns.color_palette("Spectral", n_colors=len(lst_taxa))))
+    plot_vuln_scores(df_vuln_agg, dct_config["vulnerability_score"], ofolder=folder_out, palette=palette_taxa)
 
     # Abundance scores
     if dct_config["abundance_score"]["method"] == "jenks":
@@ -184,6 +209,8 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
         df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].median(axis=1)
     elif dct_config["vme_index"]["agg_fct"] == "max":
           df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].max(axis=1)
+    elif dct_config["vme_index"]["agg_fct"] == "sum":
+        df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].sum(axis=1)
     else:
         print("\nERROR: Unknown function to aggregate vulnerability indexes: {} ...")
         print("\tPlease choose between mean, median, and max")
@@ -202,7 +229,10 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, fname_out):
     else:
         print("WARNING: No categorisation done on the VME index ...")
 
-    plot_validation(df_abd[lst_morpho_taxa], df_vme_idx)
+    plot_validation(df_abd[lst_morpho_taxa], df_vme_idx, folder_out)
+
+    fname_df_vme_idx = os.path.join(folder_out, "df_vme_idx.csv")
+    df_vme_idx.to_csv(fname_df_vme_idx, index=False)
 
 
 def main():
@@ -213,7 +243,7 @@ def main():
     compute_vme_index(fname_abd=args.afname,
                       fname_vuln=args.vfname,
                       fname_config=args.cfname,
-                      fname_out=args.ofname)
+                      folder_out=args.ofolder)
 
 
 if __name__ == "__main__":

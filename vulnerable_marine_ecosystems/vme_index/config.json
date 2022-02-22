@@ -1,15 +1,15 @@
 {
   "vulnerability_score": {
-    "group_avg": ["Longevity", "Slow growth", "Larval dispersion", "Sessility"],
-    "agg_fct": "quadratic_mean"
+    "group_avg": null,
+    "agg_fct": "sum"
   },
   "abundance_score": {
-    "method": "none",
+    "method": null,
     "param": 0
   },
   "vme_index": {
-    "agg_fct": "mean",
+    "agg_fct": "sum",
     "category_method": "jenks",
-    "n_breaks": 5
+    "n_breaks": 3
   }
 }
