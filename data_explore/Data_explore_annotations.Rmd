@@ -17,10 +17,34 @@ library(kableExtra)
 library(htmlTable)
 library(RColorBrewer)
 
-sci.dir <-      "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
-env.derived <-  paste0(sci.dir,"data_environmental/derived/")
-tools.dir <-    paste0(sci.dir,"Analysis/Useful_Functions_Tools/")
-ARC_Data.dir <- paste0(sci.dir,"Analysis/ARC_Data/")
+user = "Jan"
+#user = "charley"
+#user="nicole"
+
+if (user == "Jan") {
+  
+  sci.dir <-      "C:/Users/jjansen/Desktop/science/"
+  env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+  tools.dir <-    paste0(sci.dir,"SouthernOceanBiodiversityMapping/Useful_Functions_Tools/")
+  ARC_Data.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Data/")
+  
+} 
+if (user == "charley") {
+  
+  sci.dir <- "C:/Users/cgros/code/IMAS/"
+  ARC_Data.dir <- paste0(sci.dir,"ARC_Data/")
+  env.derived <-  "C:/Users/cgros/data/SO_env_layers/derived/"
+  tools.dir <-    paste0(sci.dir,"Useful_Functions_Tools/")
+  
+}
+if (user == "nicole") {
+  
+  sci.dir <-    "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
+  ARC_Data.dir <- paste0(sci.dir,"Analysis/ARC_Data/")
+  env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+  tools.dir <-    paste0(sci.dir,"Analysis/Useful_Functions_Tools/")
+  
+}
 
 load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
 bathy<-raster(paste0(env.derived, "Circumpolar_EnvData_500m_shelf_bathy_gebco_depth"))
@@ -29,7 +53,6 @@ load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data.RData"))
 load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
 
 source(paste0(tools.dir,"bubbleplot.R"))
-
 ```
 
 
@@ -59,13 +82,13 @@ cover_im %>%
 #change colour palette, keep and plot NAs
 depth_pal<-brewer.pal(n=9, name="Blues")
 col_yr<-palette(c(brewer.pal(n = 11, name = "RdYlGn"), "darkgray"))
-cover_im$yr_fac<-cover_im$year
+cover_im$yr_fac<-as.character(cover_im$year)
 cover_im$yr_fac[is.na(cover_im$yr_fac)]<-"missing"
-
+cover_im$yr_fac<-as.factor(cover_im$yr_fac)
 
 plot(bathy, col=depth_pal, main="Image by Year")
-points(cover_im$proj_coord_x, cover_im$proj_coord_y, col=as.factor(cover_im$yr_fac))
-legend("topright", legend=levels(as.factor(cover_im$yr_fac)),  col=1:length(levels(as.factor(cover_im$yr_fac))),pch=20, text.col="white", title="Year", bg="#08519C")
+points(cover_im$proj_coord_x, cover_im$proj_coord_y, col=cover_im$yr_fac)
+legend("topright", legend=levels(cover_im$yr_fac),  col=1:length(levels(cover_im$yr_fac)),pch=20, text.col="white", title="Year", bg="#08519C")
   
 ```
 
