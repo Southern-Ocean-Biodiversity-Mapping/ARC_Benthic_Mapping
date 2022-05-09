@@ -1,0 +1,15 @@
+{
+  "vulnerability_score": {
+    "group_avg": null,
+    "agg_fct": "sum"
+  },
+  "abundance_score": {
+    "method": null,
+    "param": 0
+  },
+  "vme_index": {
+    "agg_fct": "sum",
+    "category_method": "jenks",
+    "n_breaks": 3
+  }
+}

@@ -1,4 +1,6 @@
-library(readxl)    
+library(readxl)
+library(BAMMtools)
+
 read_excel_allsheets <- function(filename) {
   sheets <- readxl::excel_sheets(filename)
   x <- lapply(sheets, function(X) readxl::read_excel(filename, sheet = X))
@@ -63,4 +65,20 @@ apply_jenks_breaks <- function(vals, list_jenks_breaks, n_category) {
     categories <- c(categories, category)
   }
   return(categories)
+}
+
+get_points_in_asd <- function(df_, asd_object, asd_name) {
+  asd_interest <- asd_object[asd_object$GAR_Short_Label==asd_name, ]
+  asd_interest_spPoly = as(asd_interest, "SpatialPolygons")
+  
+  pts <- df_
+  coordinates(pts) <- c("proj_coord_x", "proj_coord_y")
+  projection(pts) <- crs(asd_interest)
+  
+  pts_in = pts[!is.na(over(pts, asd_interest_spPoly)), ]
+  df_interest = as.data.frame(pts_in)
+  
+  cat("\nSelecting points in ASD #", asd_name, " ...\n")
+  cat("Number of points: ", nrow(df_interest), "\n")
+  return(df_interest)
 }

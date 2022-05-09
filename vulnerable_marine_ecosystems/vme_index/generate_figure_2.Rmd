@@ -1,0 +1,176 @@
+---
+title: "generate_figure_2.R"
+author: "charley"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Init
+
+```{r init, include=FALSE, echo=FALSE}
+# Packages
+library(CCAMLRGIS)
+library(raster)
+library(SOmap)
+library(qwraps2)
+options(qwraps2_markup = "markdown")
+library(ggplot2)
+library(dplyr)
+library(hrbrthemes)
+library(kableExtra)
+library(forcats)
+
+# Set working directory
+setwd("C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index")
+
+# Source functions
+source("utils.R")
+
+# Path towards data
+path_raster_morpho <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210930_raster_cover/raster_data.csv"
+path_scores_morpho <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/vme_index/morpho_taxa_scores.csv"
+path_raster_taxa <- "C:/Users/cgros/code/IMAS/ARC_Benthic_Mapping/vulnerable_marine_ecosystems/20210930_raster_cover/raster_data_ccamlr.csv"
+```
+
+```{r read_data, inclde=FALSE, echo=FALSE}
+# Read Data
+df_morpho <- read.csv(path_raster_morpho)
+df_taxa <- read.csv(path_raster_taxa)
+df_morpho_list <- read.csv(path_scores_morpho)
+list_morpho <- gsub("-", "..", df_morpho_list$morpho_taxon)
+list_taxa <- colnames(df_taxa)[!colnames(df_taxa) %in% c("n_annotation", "area_pix", "area", "cellID", "survey", "longitude", "latitude", "filename", "proj_coord_x", "proj_coord_y")]
+```
+
+## Compute statistics
+
+```{r summary_table, results = "asis"}
+list_morpho_detected <- intersect(list_morpho, colnames(df_morpho))
+my_summary_morpho <-
+  qsummary(df_morpho[, list_morpho_detected],
+           numeric_summaries = list("min" = "~ min(%s)",
+                                    "mean (sd)" = "~ qwraps2::mean_sd(%s)",
+                                    "max" = "~ max(%s)"),
+           n_perc_args = list(digits = 4, show_symbol = TRUE, show_denom = "always"))
+
+summary_table(df_morpho[, list_morpho_detected], my_summary_morpho)
+
+stat_mean <- df_morpho %>% summarise(across(list_morpho_detected, function(x, ...) {mean(x[!is.na(x) & x != 0])}))
+stat_sd <- df_morpho %>% summarise(across(list_morpho_detected, function(x, ...) {sd(x[!is.na(x) & x != 0])}))
+stat_max <- df_morpho %>% summarise(across(list_morpho_detected, function(x, ...) {max(x[!is.na(x) & x != 0])}))
+stat_min <- df_morpho %>% summarise(across(list_morpho_detected, function(x, ...) {min(x[!is.na(x) & x != 0])}))
+stat_count <- df_morpho %>% summarise(across(list_morpho_detected, function(x, ...) {length(x[!is.na(x) & x != 0]) * 100. / length(x)}))
+
+df_stat_morpho <- data.frame("morpho_taxa"=colnames(stat_mean),
+                              "perc_cell_present" = as.numeric(stat_count[1,]),
+                             "mean_COP" = as.numeric(stat_mean[1,]),
+                             "sd_COP" = as.numeric(stat_sd[1,]),
+                             "min_COP" = as.numeric(stat_min[1,]),
+                             "max_COP" = as.numeric(stat_min[1,])
+                             )
+df_stat_morpho <- tidyr::separate(df_stat_morpho, col=morpho_taxa, sep="\\..", into=c("morpho", "taxa"))
+df_stat_morpho <- dplyr::arrange(df_stat_morpho, taxa)
+df_stat_morpho <- df_stat_morpho %>% select(taxa, morpho, perc_cell_present, mean_COP, sd_COP, min_COP, max_COP)
+
+kable(df_stat_morpho, digits = 4)
+```
+
+## Violin plots
+
+```{r jenks, echo=FALSE, include=FALSE}
+stat_mean <- df_taxa %>% summarise(across(list_taxa, function(x, ...) {mean(x[!is.na(x) & x != 0])}))
+stat_mean <- stat_mean %>% tidyr::pivot_longer(stat_mean,
+                                           cols=list_taxa,
+                                           names_to="taxa",
+                                           values_to="avg")
+
+stat_mean <- arrange(stat_mean, avg)
+step_ <- round(nrow(stat_mean) / 2)
+for (i_subplot in 0:1) {
+  stat_mean[(i_subplot * step_+1) : ((i_subplot+1) * step_), "subplot"] = i_subplot+1
+}
+#jenks_breaks <- get_jenks_breaks(df_mean$avg, n_subplots)
+#df_mean$subplot <- apply_jenks_breaks(df_mean$avg, jenks_breaks, n_subplots)
+```
+
+```{r group_2, fig.width=10}
+taxa_2 <- na.omit(stat_mean[stat_mean$subplot == 2, ]$taxa)
+df_2 <- df_taxa[, taxa_2]
+
+df_2 <- tidyr::pivot_longer(df_2,
+                            cols=taxa_2,
+                            names_to="taxa",
+                            values_to="percent_cover")
+
+df_2_cop <- df_2[df_2$percent_cover > 0, ]
+for (t in taxa_2) {
+  percent_pres <- nrow(df_2[(df_2$taxa == t) & (df_2$percent_cover) > 0, ]) * 100. /  nrow(df_2)
+  df_2_cop[df_2_cop$taxa == t, "percent_pres"] <- round(percent_pres, 3)
+}
+
+df_2_cop <- arrange(df_2_cop, taxa)
+#df_2_cop$taxa <- as.character(df_2_cop$taxa)
+#df_2_cop$taxa <- factor(df_2_cop$taxa, levels=taxa_2)
+
+p_2 <- df_2_cop %>% mutate(myaxis = paste0(taxa, "\nPresent:\n", percent_pres, "%")) %>%
+  ggplot( aes(x=myaxis, y=percent_cover, fill=taxa)) +
+    geom_violin(width=1.4, trim=FALSE) +
+    #geom_boxplot(width=0.1, color="grey", alpha=0.2) +
+    #scale_fill_viridis(discrete = TRUE) +
+    
+    theme_ipsum() +
+    scale_fill_brewer(palette = "RdYlBu") +
+    theme(
+      legend.position="none",
+      #plot.title = element_text(size=11)
+      #axis.text.x = element_text(angle = 45) #, vjust = 0.5, hjust=1)
+    ) +
+    xlab("") +
+  #xlab("VME indicator taxa") +
+    ylab("Percentage cover - Conditioned on presence") +
+    ylim(c(0, 10))
+
+p_2 + aes(x = fct_inorder(myaxis)) + xlab("VME indicator taxa")
+```
+
+```{r group_1, fig.width=10}
+taxa_1 <- na.omit(stat_mean[stat_mean$subplot == 1, ]$taxa)
+df_1 <- df_taxa[, taxa_1]
+
+df_1 <- tidyr::pivot_longer(df_1,
+                            cols=taxa_1,
+                            names_to="taxa",
+                            values_to="percent_cover")
+
+df_1_cop <- df_1[df_1$percent_cover > 0, ]
+for (t in taxa_1) {
+  percent_pres <- nrow(df_1[(df_1$taxa == t) & (df_1$percent_cover) > 0, ]) * 100. /  nrow(df_1)
+  df_1_cop[df_1_cop$taxa == t, "percent_pres"] <- round(percent_pres, 3)
+}
+
+df_1_cop <- arrange(df_1_cop, taxa)
+#df_2_cop$taxa <- as.character(df_2_cop$taxa)
+#df_2_cop$taxa <- factor(df_2_cop$taxa, levels=taxa_2)
+
+p_1 <- df_1_cop %>% mutate(myaxis = paste0(taxa, "\nPresent:\n", percent_pres, "%")) %>%
+  ggplot( aes(x=myaxis, y=percent_cover, fill=taxa)) +
+    geom_violin(width=1.4, trim=FALSE) +
+    #geom_boxplot(width=0.1, color="grey", alpha=0.2) +
+    #scale_fill_viridis(discrete = TRUE) +
+    
+    theme_ipsum() +
+    scale_fill_brewer(palette = "Paired") +
+    theme(
+      legend.position="none",
+      #plot.title = element_text(size=11)
+      #axis.text.x = element_text(angle = 45) #, vjust = 0.5, hjust=1)
+    ) +
+    xlab("") +
+  #xlab("VME indicator taxa") +
+    ylab("Percentage cover - Conditioned on presence") +
+    ylim(c(0, 1))
+
+p_1 + aes(x = fct_inorder(myaxis)) + xlab("VME indicator taxa")
+```

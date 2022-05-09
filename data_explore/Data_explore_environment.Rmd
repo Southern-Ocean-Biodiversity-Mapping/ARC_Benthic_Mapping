@@ -1,0 +1,261 @@
+---
+title: "Prelim_data_exploration"
+author: "Nicole Hill"
+date: "15/09/2021"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE,echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(raster)
+library(rasterVis)
+library(tidyverse)
+library(PerformanceAnalytics) #correlation chart
+library(RColorBrewer)
+
+
+sci.dir <-      "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
+env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+tools.dir <-    paste0(sci.dir,"Analysis/Useful_Functions_Tools/")
+ARC_Data.dir <- paste0(sci.dir,"Analysis/ARC_Data/")
+
+load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
+
+#source(paste0(tools.dir,"SOmap_functions_JJ.R")) 
+
+```
+
+## Environmental Data
+
+
+## Plots of environmental layers for the shelf (defined as <3000m here) with location of samples. {.tabset}
+
+Haven't used fancy SOmap as it takes way too long with 500m rasters. Revisit if needed for publication figures.
+
+```{r plot env layers, echo=FALSE}
+
+## get file names of all environmental rasters and bricks and load into one big stack
+sci.dir <-      "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
+env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+tools.dir <-    paste0(sci.dir,"Analysis/Useful_Functions_Tools/")
+ARC_Data.dir <- paste0(sci.dir,"Analysis/ARC_Data/")
+
+
+## 2) get file names of all environmental rasters and bricks and load into one big stack----
+#all files with "gri" extension
+env_list<-list.files(path = env.derived, pattern="gri$",  full.names=TRUE) 
+#subset to  "shelf" files
+env_list<-env_list[grep(".500m_shelf", env_list)]
+
+#for the single rasters layer names are missing. Extract from file name.
+env_names<-gsub(".*_|\\..*","",env_list)
+
+
+#stack all environmental layers and make sure they have appropriate names (currently manual and a bit messy!)
+env_stack<-stack(env_list)
+#names(env_stack)
+names(env_stack)[1:5]<-env_names[1:5]
+names(env_stack)[14:22]<-paste(rep(c("CARS_NO3", "CARS_O2", "CARS_PO4"),each=3),c("mean", "seas_range", "std_dev"), sep="_")
+names(env_stack)[23] <-"distance2canyons"
+names(env_stack)[34]<-"NPP_su_mean"
+names(env_stack)[47:54]<-c("waom2k_seafloorcurrents", "waom2k_seafloortemperature", "waom4k_seafloorcurrents_absolute", "waom4k_seafloorcurrents_mean", 
+                           "waom4k_seafloorcurrents_residual", "waom4k_seafloorsalinity", "waom4k_seafloortemperature", "waom4k_settle6test")
+
+
+#add environmental data with non-conformant names- 
+#### remember to update column index if changes!!!
+env_stack<-stack( env_stack,
+                  raster(paste0(env.derived, "Circumpolar_EnvData_geomorphology")))
+names(env_stack)[55]<-"geomorph"
+
+geomorph_cat<-levels(env_stack[[55]])[[1]]
+
+# load annotation data- need locations of cells with scored images
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
+
+
+#plot subsets of environmental data. Using plain old raster as SOmap took way too long to plot with 500 m resolution rasters. Investigate later for publication plots.
+# create function for adding locations of image cells
+im_loc<-SpatialPoints(coords = cell_metadata_env[,c("proj_coord_x","proj_coord_y")], proj4string = raster::crs(env_stack))
+fun <- function() {
+    points(im_loc, col="black", pch=21, cex=0.7)
+}
+```
+
+
+### Bathymetry derivatives
+```{r bathy plot, fig.height=9, fig.width=11}
+raster::plot(env_stack, 1:5, nc=3, addfun=fun)
+```
+
+
+### Ice
+```{r ice, fig.height=12, fig.width=10}
+raster::plot(env_stack, grep("ice", names(env_stack)), nc=3, addfun=fun)
+```
+
+### SST
+```{r sst,  fig.height=10, fig.width=8}
+raster::plot(env_stack, grep("sst", names(env_stack)), nc=2, addfun=fun) 
+```
+
+### NPP
+```{r NPP,fig.height=5, fig.width=6}
+raster::plot(env_stack, "NPP_su_mean", addfun=fun)
+```
+
+### Seafloor parameters
+``` {r seafloor,fig.height=10, fig.width=10}
+raster::plot(env_stack, grep("waom", names(env_stack)),nc=3, addfun=fun)
+```
+
+### BGC
+```{r BGC,  fig.height=12, fig.width=10}
+raster::plot(env_stack, grep("CARS", names(env_stack)), nc=3, addfun=fun)
+
+raster::plot(env_stack, c("arag_mean" ,"arag_sd", "no3_mean", "o3_sd", "o2_mean", "o2_sd", "po4_mean", "po4_sd"), nc=3, addfun=fun)
+
+```
+
+### Distance to canyons
+``` {r dist to canyons, fig.height=5, fig.width=6}
+raster::plot(env_stack, "distance2canyons",  addfun=fun)
+
+```
+
+### Geomorphology
+```{r geomorph}
+
+#define paleete to help categories stand out abit more - especially canyons
+st<-brewer.pal("Greys", n=3)
+can<-"lawngreen"
+fin1<-brewer.pal("Paired", n=12)
+fin2<-brewer.pal("Set3", n=11)
+
+
+levelplot(raster::subset(env_stack, "geomorph"), mapixels= 1e7,
+          par.settings=rasterTheme(region=c(st,can,fin1,fin2)), main="Circum Antarctic")
+
+# Zoom in on geomorphology to see how many sites/cells are near canyons
+
+#Ross Sea
+levelplot(subset(env_stack, "geomorph"),mapixels= 1e7,
+          par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
+xlim=c(-600000,600000), ylim=c(-2650000,-1250000), main="Ross Sea", axes=FALSE) +
+latticeExtra::layer (sp.lines(coast.proj, col="black")) +
+latticeExtra::layer(sp.points(im_loc, col="blue"))
+
+#Sabrina Coast
+levelplot(subset(env_stack,"geomorph"),mapixels= 1e7, par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
+ xlim=c(2150000,2300000), ylim=c(-1350000,-1250000), main="Sabrina Coast", axes=FALSE) +
+latticeExtra::layer (sp.lines(coast.proj, col="black")) +
+latticeExtra::layer(sp.points(im_loc, col="blue"))
+
+
+#Antarctic Peninsula
+levelplot(subset(env_stack,"geomorph"),mapixels= 1e7,
+          par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
+xlim=c(-2750000,-2100000), ylim=c(750000,2410000), main="Antarctic Peninsula", axes=FALSE) +
+latticeExtra::layer (sp.lines(coast.proj, col="black")) +
+latticeExtra::layer(sp.points(im_loc, col="blue"))
+
+# weddell Sea
+levelplot(subset(env_stack,"geomorph"),mapixels= 1e7, par.settings=rasterTheme(region=c(st,can,fin1,fin2)),
+xlim=c(-1400000,600000), ylim=c(800000,2300000),main="Weddell Sea", axes=FALSE) +
+latticeExtra::layer (sp.lines(coast.proj, col="black")) +
+latticeExtra::layer(sp.points(im_loc, col="blue"))
+
+
+
+```
+
+
+## Density/distribution plots of environmental variables 
+
+```{r env_density, fig.width=12, fig.height=18, warnings=FALSE}
+cell_metadata_env %>% 
+  filter(!is.na(cover_N)) %>%
+  pivot_longer(cols= depth:waom4k_settle6test, names_to= "Variable", values_to= "Value") %>%
+  ggplot (aes(x= Value))+
+ geom_density()+
+    theme_bw()+
+  facet_wrap(~Variable, scales="free", nrow=9)
+```
+
+```{r geomorph barplot, fig.height=5, fig.width=6}
+cell_metadata_env %>% 
+  ggplot(aes(x=geomorph_cat))+
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+```
+
+
+## Biplots with correlation between environmental variables at image cells {.tabset}
+
+### Bathy Derivatives
+
+```{r env_corr,  fig.width= 10, fig.height=10}
+cell_metadata_env<-as_tibble(cell_metadata_env)
+
+#bathy derivatives
+cell_metadata_env %>% 
+  dplyr::select(depth, slope, tpi, tpi5, tpi11, distance2canyons,waom4k_seafloorcurrents_mean) %>%
+chart.Correlation(., na.action=na.omit)
+title(main="Bathy vars", line=3)
+```
+
+
+### SST
+```{r sst_corr,  fig.width= 10, fig.height=10}
+cell_metadata_env %>% 
+  dplyr::select(starts_with("sst")) %>%
+chart.Correlation(., na.action=na.omit)
+title(main="SST vars", line=3)
+```
+
+
+### BGC
+
+```{r BGC_cor,  fig.width= 12, fig.height=12}
+
+#CARS & BSOSE BGC
+cell_metadata_env %>% 
+  dplyr::select(arag_mean:CARS_PO4_std_dev) %>%
+chart.Correlation(., na.action=na.omit)
+title(main="BCG vars", line=3)
+
+```
+
+
+### Ice 
+```{r ice_cor, fig.width= 10, fig.height=10}
+cell_metadata_env %>% 
+  dplyr::select(starts_with("ice")) %>%
+chart.Correlation(., na.action=na.omit)
+title(main="Ice vars", line=3)
+```
+
+### WAOM & OTHERS
+```{r,  fig.width= 10, fig.height=10}
+cell_metadata_env %>% 
+  dplyr::select(NPP_su_mean, waom2k_seafloorcurrents:waom4k_settle6test, distance2canyons) %>%
+chart.Correlation(., na.action=na.omit)
+title(main="Other vars", line=3)
+```
+
+### Across var types
+``` {r across types, fig.width= 10, fig.height=10}
+
+cell_metadata_env %>% 
+  dplyr::select(depth, slope, tpi, ice_sp_mean, ice_sp_sd, ice_su_mean, ice_su_max, ice_su_sd, NPP_su_mean, sst_su_mean, sst_su_sd, arag_mean, CARS_O2_mean, CARS_NO3_mean, waom4k_seafloorcurrents_mean, waom4k_seafloortemperature) %>%
+chart.Correlation(., na.action=na.omit)
+title(main="Across var types", line=3)
+
+```
+
+
+
+
