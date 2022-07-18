@@ -179,6 +179,8 @@ cover_cells_pa[cover_cells_pa>0] <- 1
 
 abund_SF.prop <- rowSums(cover_cells[,sel_SF])/n_not_na
 abund_SF <- rowSums(cover_cells[,sel_SF])
+pa_SF <- abund_SF
+pa_SF[abund_SF>0] <- 1
 richness <- rowSums(cover_cells_pa[,-sel_sed])#/n_total
 richness.l <- rowSums(cover_cells_pa[,-sel_sed])/log(n_total)
 abund_all.prop <- rowSums(cover_cells[,-sel_sed])/n_not_na
@@ -225,7 +227,7 @@ par(mfrow=c(2,2))
 plot(abund_SF.prop~ cell_metadata_env$depth)
 plot(abund_SF.prop~ cell_metadata_env$slope)
 plot(abund_SF.prop~ cell_metadata_env$waom4k_seafloorcurrents_mean)
-plot(abund_SF.prop~ cell_metadata_env$waom4k_settle6test)
+plot(abund_SF.prop~ cell_metadata_env$waom4k_test_settle08)
 
 dat <- cbind(abund_SF,n_not_na,cell_metadata_env[,20:75])
 dat$depth2 <- poly(dat$depth,2)[,2]
@@ -253,6 +255,65 @@ summary(fit <- glm.nb(abund_SF~depth+I(depth^2)+log(slope)+
 
 ################################################################
 ##### fitting a hurdle model on suspension feeder abundances
+dat <- cbind(abund_SF,pa_SF, n_not_na, cell_metadata_env[,20:75])
+## pa:
+summary(fit <- glm(pa_SF~depth+I(depth^2)+log(slope)+
+                     waom4k_seafloorcurrents_mean+
+                     waom4k_seafloorcurrents_residual+
+                     waom4k_seafloortemperature+
+                     waom4k_seafloorsalinity+
+                     waom4k_test_flux08+
+                     waom4k_test_settle08+
+                     distance2canyons
+                   ,data=dat, family="binomial"))
+summary(fit <- glm(pa_SF~depth+I(depth^2)+log(slope)+
+                     waom4k_seafloorcurrents_mean+
+                     waom4k_seafloorcurrents_residual+
+                     distance2canyons
+                   ,data=dat, family="binomial"))
+## abund conditional on presence
+dat.abund <- dat[dat$pa_SF==1,]
+summary(fit <- glm.nb(abund_SF~depth+I(depth^2)+log(slope)+
+                     waom4k_seafloorcurrents_mean+
+                     waom4k_seafloorcurrents_residual+
+                     waom4k_seafloortemperature+
+                     waom4k_seafloorsalinity+
+                     waom4k_test_flux08+
+                     waom4k_test_settle08+
+                     distance2canyons+ offset(log(n_not_na)),
+                   data=dat.abund))
+summary(fit <- glm.nb(abund_SF~depth+I(depth^2)+log(slope)+
+                        waom4k_seafloorcurrents_mean+
+                        waom4k_seafloortemperature+
+                        waom4k_seafloorsalinity+
+                        waom4k_test_flux08+
+                        waom4k_test_settle08+
+                        distance2canyons+ offset(log(n_not_na)),
+                      data=dat.abund))
+##check fit:
+rootogram(fit)
+nas <- which(is.na(rowSums(dat.abund%>%dplyr::select(depth,slope,
+                                               waom4k_seafloorcurrents_mean,
+                                               waom4k_test_flux08,
+                                               waom4k_test_settle08))))
+
+plot(fit$fitted.values, dat.abund$abund_SF[-nas])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 library(countreg)
 library(pscl)
 ## first, fit the full model
