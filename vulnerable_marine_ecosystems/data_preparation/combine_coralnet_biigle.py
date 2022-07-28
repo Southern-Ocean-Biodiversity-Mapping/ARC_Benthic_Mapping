@@ -82,7 +82,7 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
             for transect_ps81shallow in LST_PS81SHALLOW_TRANSECT:
                 idx_transect_full = df_m[(df_m["survey"] == "PS81") & (df_m["transect"] == transect_ps81shallow)].index
                 df_m.loc[idx_transect_full, "biigle839"] = 1
-
+    lst_new = []
     # Fill 1s the surveys that have been partially annotated
     lst_biigle839_notfull = [s for s in list(set(df_m["survey"].tolist())) if s not in LST_BIIGLE839_FULL]
     for survey_notfull in lst_biigle839_notfull:
@@ -100,24 +100,27 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
                                        & (df_m["transect"] == transect_notfull)
                                        & (df_m["imageID"].isin(list_annotated_str))].index
                     df_m.loc[idx_annotated, "biigle839"] = 1
-                elif (survey_notfull == "PS81" and transect_notfull == "159") \
-                        or (survey_notfull == "CRS" and transect_notfull == "1103")\
+                elif (survey_notfull == "PS81" and transect_notfull in ["159", "188", "215"]) \
+                        or (survey_notfull == "PS18" and transect_notfull in ["211", "175", "126", "131", "194", "206"]) \
+                        or (survey_notfull == "CRS" and transect_notfull in ["1103", "1278", "1284", "1103"])\
                         or (survey_notfull == "tan1901" and transect_notfull == "209")\
+                        or (survey_notfull == "LMG1311" and transect_notfull in ["2", "3"]) \
                         or (survey_notfull == "TAN1802" and transect_notfull in ["180", "160", "195", "94", "213",
                                                                                  "196", "184", "191", "208", "179",
                                                                                  "207", "209", "183", "92", "97",
                                                                                  "193", "170", "98", "197", "96",
-                                                                                 "185"]):
+                                                                                 "185", "193", "197"]):
                     pass
                     # Ignoring these transects because of bad image quality
                 else:
-                    print(survey_notfull, transect_notfull)
+                    lst_new.append((survey_notfull, transect_notfull))
                     # Issue here
-                    exit()
+                    #exit()
         else:
             print("ERROR: file not found: {} ...".format(fname_survey_notfull))
             exit()
-
+    print(lst_new)
+    exit()
     df_m.drop(columns=["transect", "imageID"], inplace=True)
 
     #print("\nRemoving {} images because area is unknown ...".format(len(df_m[df_m.area.isnull()])))

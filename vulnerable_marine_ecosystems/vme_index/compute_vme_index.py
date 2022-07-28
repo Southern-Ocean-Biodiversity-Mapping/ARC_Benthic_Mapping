@@ -6,16 +6,50 @@ import argparse
 import seaborn as sns
 import numpy as np
 import pandas as pd
+import pyreadr
+from datetime import datetime
 from datetime import datetime
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import minmax_scale
 
-# python vme_index/compute_vme_index.py -a biodata_step4.csv -v vme_index/morpho_taxa_scores_FINAL.xlsx -c vme_index/config.json -o 001
+# python vme_index/compute_vme_index.py -a biodata_step4.csv -v vme_index/morpho_taxa_scores_FINAL.xlsx -c vme_index/config.json -s C:/Users/cgros/code/IMAS/ARC_Data/annotation/Circumpolar_Annotation_Env_Data.RData -o 001
 
 
 sns.set_style("whitegrid", {
     'grid.linestyle': '--'
  })
+
+global LST_MORPHTAX_SMPL
+LST_MORPHTAX_SMPL = [
+#    "anemones_colonial-zoantharia",
+#    "anemones_solitary-actiniaria",
+#    "anemones_solitary-corallimorpharia",
+#    "antarctic_scallop-antarctic_scallop",
+    "ascidians_stalked_solitary-ascidiacea",
+    "ascidians_unstalked_colonial-ascidiacea",
+#    "basket_snake_stars-euryalida",
+#    "brachiopods-brachiopoda",
+    "bryozoans_hard_branching-bryozoans",
+    "bryozoans_soft_foliaceous-bryozoans",
+#    "crinoid_stalked-crinoid_stalked",
+#    "hydrocorals_branching-stylasterids",
+#    "hydroids_colonial_feather-hydroidolina",
+#    "hydroids_solitary-hydroidolina",
+    "octocorals_bottle_brush_simple-gorgonacea",
+    #"octocorals_branching_bushy-alcyonacea",
+    "octocorals_branching_bushy-gorgonacea",
+    "octocorals_fleshy_arborescent-alcyonacea",
+    "octocorals_fleshy_mushroom-alcyonacea",
+    "octocorals_whip-pennatulacea",
+    "octocorals_quill-pennatulacea",
+#    "polychaete-serpulidae",
+    "sponges_crust_encrusting-porifera",
+    "sponges_erect_3d-porifera",
+#    "stony_corals_solitary_free-scleractinia",
+#    "stony_corals_solitary-scleractinia",
+ #   "urchin_regular_pencil-cidaroida",
+ #   "worms_acorn-pterobranchia"
+]
 
 
 def get_parser():
@@ -35,6 +69,8 @@ def get_parser():
 
     # OPTIONAL ARGUMENTS
     optional_args = parser.add_argument_group('OPTIONAL ARGUMENTS')
+    optional_args.add_argument('-s', '--sfname', required=False, type=str,
+                               help='RData filename containing sampling information.')
     optional_args.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                                help='Shows function documentation.')
 
@@ -68,18 +104,26 @@ def compute_vulnerability_score(data, agg_fct, group_avg):
     return df_out.sort_values(by="vulnerability_score", ignore_index=True, ascending=False)
 
 
-def plot_vuln_scores(data, params, ofolder, palette):
+def plot_vuln_scores(data, y_name, params, ofolder, palette, fname_out, figsize=(30,20)):
     data["taxon"] = data["morpho_taxon"].str.split('-').str[1]
+    data_t_stats = data.groupby("taxon")["vulnerability_score"].aggregate(['count', 'mean', 'std', 'min', 'max']).sort_values(by="mean")
+    print(data_t_stats)
+    custom_dict = {}
+    for idx, row in data_t_stats.iterrows():
+        custom_dict[idx] = row["mean"]
+    print(custom_dict)
+    data = data.sort_values(by=['taxon'], key=lambda x: x.map(custom_dict))
 
-    fig, ax = plt.subplots(figsize=(30, 20))
-    sns.barplot(y="morpho_taxon", x="vulnerability_score", data=data,
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.barplot(y=y_name, x="vulnerability_score", data=data,
                      orient="h", hue="taxon", ax=ax, dodge=False, palette=palette)
     title_ = ""
     for k in params.keys():
         title_ += "{} --> {}    ".format(k, params[k])
     plt.title(title_)
+    plt.xlim([0, 3])
 
-    fig.savefig(os.path.join(ofolder, 'vuln_scores.png'), dpi=300)
+    fig.savefig(os.path.join(ofolder, fname_out), dpi=300)
 
 
 def compute_abundance_score(data, lst_columns, n_breaks=0):
@@ -131,7 +175,7 @@ def plot_validation(data_abd, data_vme_idx, ofolder):
     del fig, ax
 
 
-def compute_vme_index(fname_abd, fname_vuln, fname_config, folder_out):
+def compute_vme_index(fname_abd, fname_vuln, fname_config, folder_out, fname_sampling=None):
     print("\nLoading data ...")
     print("\tMethod parameters ...")
     with open(fname_config, 'r') as f:
@@ -171,10 +215,32 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, folder_out):
     df_vuln_agg = compute_vulnerability_score(data=df_vuln,
                                               agg_fct=dct_config["vulnerability_score"]["agg_fct"],
                                               group_avg=dct_config["vulnerability_score"]["group_avg"])
-    print(df_vuln_agg.head())
+    print(df_vuln_agg.head(20))
+    print(df_vuln_agg.tail(20))
+    fname_df_vuln_score = os.path.join(folder_out, "df_vuln_score.csv")
+    df_vuln_agg.to_csv(fname_df_vuln_score, index=False)
     lst_taxa = sorted(list(set([t.split("-")[-1] for t in lst_morpho_taxa])))
     palette_taxa = dict(zip(lst_taxa, sns.color_palette("Spectral", n_colors=len(lst_taxa))))
-    plot_vuln_scores(df_vuln_agg, dct_config["vulnerability_score"], ofolder=folder_out, palette=palette_taxa)
+    plot_vuln_scores(df_vuln_agg,
+                     y_name="morpho_taxon",
+                     params=dct_config["vulnerability_score"],
+                     ofolder=folder_out,
+                     palette=palette_taxa,
+                     fname_out="vuln_scores.png")
+    plot_vuln_scores(df_vuln_agg[df_vuln_agg.morpho_taxon.isin(LST_MORPHTAX_SMPL)],
+                     y_name="morpho_taxon",
+                     params=dct_config["vulnerability_score"],
+                     ofolder=folder_out,
+                     palette=palette_taxa,
+                     fname_out="vuln_scores_sample.png",
+                     figsize=(15, 10))
+    plot_vuln_scores(df_vuln_agg,
+                     y_name="taxon",
+                     params=dct_config["vulnerability_score"],
+                     ofolder=folder_out,
+                     palette=palette_taxa,
+                     fname_out="vuln_scores_taxon.png",
+                     figsize=(15, 10))
 
     # Abundance scores
     if dct_config["abundance_score"]["method"] == "jenks":
@@ -211,6 +277,15 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, folder_out):
           df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].max(axis=1)
     elif dct_config["vme_index"]["agg_fct"] == "sum":
         df_vme_idx["VME index"] = df_vuln_idx[lst_morpho_taxa].sum(axis=1)
+        if dct_config["abundance_score"]["method"] == "pa" and dct_config["abundance_score"]["param"]["normalize_by_area"] is True:
+            df_area = pyreadr.read_r(fname_sampling)["cover_cells_env"].reset_index()[["cellID", "counts_area"]]
+            df_area["cellID"] = pd.to_numeric(df_area["cellID"], downcast='integer')
+            cells_no_area_info = [c for c in df_abd.cellID.to_list() if c not in df_area.cellID.to_list()]
+            if len(cells_no_area_info):
+                print("\tCells with no area info:")
+                print(cells_no_area_info)
+            df_vme_idx = pd.merge(left=df_vme_idx, right=df_area, on="cellID")
+            df_vme_idx['VME index'] = df_vme_idx['VME index'] / df_vme_idx['counts_area']
     else:
         print("\nERROR: Unknown function to aggregate vulnerability indexes: {} ...")
         print("\tPlease choose between mean, median, and max")
@@ -219,6 +294,7 @@ def compute_vme_index(fname_abd, fname_vuln, fname_config, folder_out):
     # Categorisation
     if dct_config["vme_index"]["category_method"] == "jenks":
         breaks = jenkspy.jenks_breaks(df_vme_idx["VME index"], nb_class=dct_config["vme_index"]["n_breaks"])
+        print(breaks)
         df_vme_idx["VME index category"] = pd.cut(df_vme_idx["VME index"],
                                                    bins=breaks,
                                                    labels=[ll for ll in range(1, dct_config["vme_index"]["n_breaks"]+1)],
@@ -243,7 +319,8 @@ def main():
     compute_vme_index(fname_abd=args.afname,
                       fname_vuln=args.vfname,
                       fname_config=args.cfname,
-                      folder_out=args.ofolder)
+                      folder_out=args.ofolder,
+                      fname_sampling=args.sfname)
 
 
 if __name__ == "__main__":

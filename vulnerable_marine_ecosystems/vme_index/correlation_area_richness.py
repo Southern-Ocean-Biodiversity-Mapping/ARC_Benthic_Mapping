@@ -1,13 +1,15 @@
 import os
 import shutil
+import pyreadr
 import argparse
 import seaborn as sns
+import numpy as np
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
-from scipy.stats import pearsonr
 
-# python vme_index/correlation_abundance_richness.py -a 20220315100421_009 -d 20220315090028_009 -o 009
+
+# python vme_index/correlation_area_richness.py -d 20220301164405_005 -a C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Env_Data.RData -o 005
 
 
 sns.set_style("whitegrid", {
@@ -16,15 +18,15 @@ sns.set_style("whitegrid", {
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description='Assess the relation between the Abundance- and Diversity-based VME indexes.',
+    parser = argparse.ArgumentParser(description='Assess the relation between Sampling effort and Diversity-based VME indexes.',
                                      add_help=False)
 
     # MANDATORY ARGUMENTS
     mandatory_args = parser.add_argument_group('MANDATORY ARGUMENTS')
-    mandatory_args.add_argument('-a', '--afname', required=True, type=str,
-                                help='Abundance VME index data, folder with csv and config file.')
     mandatory_args.add_argument('-d', '--dfname', required=True, type=str,
                                 help='Diversity VME index data, folder with csv and config file.')
+    mandatory_args.add_argument('-a', '--afname', required=True, type=str,
+                                help='Rdata metadata file.')
     mandatory_args.add_argument('-o', '--ofolder', required=True, type=str,
                                 help='Output folder containing graph, config files and csv files.')
 
@@ -36,38 +38,29 @@ def get_parser():
     return parser
 
 
-def correlation_abundance_richness(folder_abd, folder_richness, folder_out):
+def correlation_area_richness(folder_richness, fname_area, folder_out):
     print("\nLoading data ...")
-    print("\tAbundance data ...")
-    fname_abd = os.path.join(folder_abd, "df_vme_idx.csv")
-    df_abd = pd.read_csv(fname_abd)
-    df_abd = df_abd[["cellID", "VME index"]]
-    df_abd.rename(columns={"VME index": "Abundance VME index"}, inplace=True)
+    print("\tArea data ...")
+    df_area = pyreadr.read_r(fname_area)["cell_metadata_env"].reset_index()
+    df_area = df_area[["cellID", "counts_area"]]
     print("\tDiversity data ...")
     fname_rich = os.path.join(folder_richness, "df_vme_idx.csv")
     df_rich = pd.read_csv(fname_rich)
     df_rich = df_rich[["cellID", "VME index"]]
     df_rich.rename(columns={"VME index": "Diversity VME index"}, inplace=True)
 
-    df_ = pd.merge(df_abd, df_rich, on="cellID", how="right")
+    df_ = pd.merge(df_area, df_rich, on="cellID", how="right")
     print(df_.head(10))
 
     folder_out = datetime.now().strftime("%Y%m%d%H%M%S") + "_" + folder_out
     print("\nCreating output folder ...")
     os.makedirs(folder_out)
 
-    fig, ax = plt.subplots(figsize=(10, 10))
-    sns.scatterplot(data=df_, x="Abundance VME index", y="Diversity VME index")
-    fig.savefig(os.path.join(folder_out, 'corr_abundance_diversity.png'), dpi=300)
+    fig, ax = plt.subplots(figsize=(8, 8))
+    sns.scatterplot(data=df_, x="counts_area", y="Diversity VME index")
+    fig.savefig(os.path.join(folder_out, 'corr_area_richness.png'), dpi=300)
 
-    r, p = pearsonr(df_["Abundance VME index"], df_["Diversity VME index"])
-    print("\nPearson correlation ...")
-    print("\tPearson correlation coefficient: {:.2f} ...".format(r))
-    print("\tTwo-tailed p-value: {:.4f} ...".format(p))
-
-    shutil.copyfile(fname_abd, os.path.join(folder_out, "df_vme_idx_abd.csv"))
     shutil.copyfile(fname_rich, os.path.join(folder_out, "df_vme_idx_div.csv"))
-    shutil.copyfile(os.path.join(folder_abd, "config.json"), os.path.join(folder_out, "config_abd.json"))
     shutil.copyfile(os.path.join(folder_richness, "config.json"), os.path.join(folder_out, "config_div.json"))
 
 
@@ -76,8 +69,8 @@ def main():
     args = parser.parse_args()
 
     # Run function
-    correlation_abundance_richness(folder_abd=args.afname,
-                                   folder_richness=args.dfname,
+    correlation_area_richness(folder_richness=args.dfname,
+                                   fname_area=args.afname,
                                    folder_out=args.ofolder)
 
 

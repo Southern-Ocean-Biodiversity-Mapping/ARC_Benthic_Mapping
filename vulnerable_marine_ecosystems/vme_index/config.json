@@ -1,11 +1,11 @@
 {
   "vulnerability_score": {
-    "group_avg": null,
-    "agg_fct": "sum"
+    "group_avg": ["Longevity", "Slow growth"],
+    "agg_fct": "quadratic_mean"
   },
   "abundance_score": {
     "method": null,
-    "param": 0
+    "param": {"normalize_by_area": true}
   },
   "vme_index": {
     "agg_fct": "sum",

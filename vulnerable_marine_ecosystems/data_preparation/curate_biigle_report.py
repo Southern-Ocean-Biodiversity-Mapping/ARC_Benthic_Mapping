@@ -1,8 +1,8 @@
 import argparse
 import pandas as pd
-
+import os
 import sys
-sys.path.insert(1, '..\..\..\..\..\biigle')
+sys.path.insert(1, '../../../biigle_scripts')
 from biigle.biigle import Api
 
 
@@ -96,7 +96,7 @@ def curate_biigle_reports(fname_i, fname_o):
     df.reset_index(drop=True, inplace=True)
     print(df.head())
     print(" ... resulting with {} annotations ...".format(len(df)))
-
+    exit()
     # Gather annotations of each taxa within each image
     # Init dict
     dct_cover = {"filename": []}
