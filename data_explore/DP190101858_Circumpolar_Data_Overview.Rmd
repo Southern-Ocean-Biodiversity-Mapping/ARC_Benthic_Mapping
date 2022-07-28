@@ -18,6 +18,8 @@ library(raster)
 library(viridis) ## for a nice continuous color palette (viridis or magma)
 library(RColorBrewer)
 library(graticule)
+library(terra)
+library(rgdal)
 ```
 
 ### Setting up the environment
@@ -44,10 +46,10 @@ source(paste0(tools.dir,"SOmap_functions_JJ.R"))
 ##### load still and diatom sample locations and bathymetry:
 
 ## from "Readin_Circumpolar_DownwardImage_Data.Rmd"
-load(paste0(ARC_Data.dir,"Circumpolar_DownwardImages_metadata.Rdata"))
+load(paste0(ARC_Data.dir,"prep_image/Circumpolar_DownwardImages_metadata.Rdata"))
 
 ## from "Readin_Circumpolar_Diatom_Data.Rmd"
-load(paste0(ARC_Data.dir,"Circumpolar_Diatom_metadata.Rdata"))
+load(paste0(ARC_Data.dir,"FAM/Circumpolar_Diatom_metadata.Rdata"))
 
 ## from "ReadIn_Circumpolar_Environmental_Data.Rmd"
 r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_depth.grd"))
@@ -55,6 +57,24 @@ r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_dept
 ##### load coastline
 #stereo <- as.character(r2@crs)
 load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
+```
+
+```{r, eval=FALSE}
+##### load shelfline
+# shelf_contour <- vect(readOGR(paste0(env.derived,"Antarctic_shelf_1500m_outline/Antarctic_shelf_1500m_outline.shp")))
+# shelf_contour.proj <- terra::project(shelf_contour, "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs")
+# r2.t <- rast(r2)
+# test1 <- terra::mask(r2.t, shelf_contour.proj)
+#shelf_contour_proj <- readOGR(paste0(env.derived,"Antarctic_shelf_1500m_outline/Antarctic_shelf_1500m_outline_polygons.shp"))
+#shelf_r2 <- mask(r2, shelf_contour_proj)
+
+shelf.area <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_depth_1500mcontourline.grd"))
+
+length(which(!is.na(shelf.area[])))#12808075
+length(which(shelf.area[]<(-200)))#12134133
+12134133/12808075
+
+mean(shelf.area[], na.rm=TRUE) # something like 570m
 ```
 
 ```{r, echo=FALSE}
