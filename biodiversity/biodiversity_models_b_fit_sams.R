@@ -1,13 +1,14 @@
 ##### Setting up----
-library(raster)
-library(readxl)
-library(readr)
-library(dplyr)
-library(data.table)
-library(proj4)
-library(stringr)
-library(RColorBrewer)
-library(SOmap)
+# library(raster)
+# library(readxl)
+# library(readr)
+# library(dplyr)
+# library(data.table)
+# library(proj4)
+# library(stringr)
+# library(RColorBrewer)
+# library(SOmap)
+library(ecomix)
 
 user = "Jan"
 #user = "charley"
@@ -42,14 +43,13 @@ load(file=paste0(biodiv.dir,"biodiversity_bio_dat.Rdata"))
 load(file=paste0(biodiv.dir,"biodiversity_env_dat.Rdata"))
 
 ##### Select species with greater than ten occurrences across all sites.
-spdata <- dat_pa_clean[,-which(colSums(dat_pa_clean)<10)][,1:20]
+spdata <- dat_cov_pa[,-which(colSums(dat_cov_pa)<10)][,1:20]
 
 # samdat_10p <- cbind(spdata,cell_metadata_env[,c(21,22,43,70:76)])
-samdat_10p <- cbind(spdata, cell_metadata_env_clean_scaled[,c(1,2,23,49:63)])
+#samdat_10p <- cbind(spdata, cell_metadata_env_clean_scaled[,c(21,22,43,69:ncol(cell_metadata_env_clean))])
+samdat_10p <- cbind(spdata, cell_metadata_env_clean_scaled[,c(8,10:11,18,20,78,79,sel.not.correlated,68,69)])
 
 ##############################################################################################################
-library(ecomix)
-
 ## Archetype formula
 # archetype_formula <- as.formula(paste0(paste0('cbind(', 
 #                                               paste(colnames(spdata),collapse=", "),
@@ -102,9 +102,8 @@ sam_fit <- species_mix(archetype_formula = archetype_formula, # Archetype formul
 plot(sam_fit,fitted.scale = 'logit')
 plot(sam_fit,fitted.scale = 'logit', species="Bryozoan_Hard_BrAnt")
 
-
 ## multiple models
-nArchetypes <- 2:3
+nArchetypes <- 6:9
 sam_multifit <- species_mix.multifit(archetype_formula = archetype_formula, # Archetype formula
                                      # species_formula = species_formula,     # Species formula
                                      data = samdat_10p,                     # Data
@@ -113,6 +112,21 @@ sam_multifit <- species_mix.multifit(archetype_formula = archetype_formula, # Ar
                                      family = 'bernoulli',                  # Which family to use
                                      control = list(quiet = FALSE))
 plot(sam_multifit,type="BIC")
+
+
+## fit a single model multiple times:
+sam_fit_list <- list()
+for(i in 2:10){
+  print(paste0(i," archetypes"))
+  sam_fit_list[[i]] <- species_mix(archetype_formula = archetype_formula, # Archetype formula
+                       species_formula = species_formula,    # Species formula
+                       data = samdat_10p,            # Data
+                       nArchetypes = i,              # Number of groups (mixtures) to fit
+                       family = 'bernoulli',         # Which family to use
+                       control = list(quiet = TRUE))
+  message(paste0("BIC = ",round(sam_fit_list[[i]]$BIC,2)))
+}
+
 
 
 ######################################## FROM RCP, NEED TO CHANGE TO SAM
@@ -138,9 +152,10 @@ env_vars <- c("distance2canyons","slope","waom4k_test_settle08")
 weight <- rep(1,20)
 
 ## stepwise analysis
+samdat_10p_r <- samdat_10p[,c(1:20,28,29,35,48)]
 lin_step1<-SAM_fwd_step_linear(start_vars="depth", start_BIC=depth_mod$BIC,
                                add_vars=env_vars, species=colnames(spdata),
-                               dist="bernoulli", data=samdat_10p,
+                               dist="bernoulli", data=samdat_10p_r,
                                nstarts=10, ## change to ~ 100 starts- this may take some time to run!
                                min.nSAM=2, max.nSAM=4,#weight=weight,
                                mc.cores=detectCores())   # if runing on VM van use more cores

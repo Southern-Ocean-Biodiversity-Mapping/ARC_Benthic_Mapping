@@ -81,7 +81,6 @@ mean(shelf.area[], na.rm=TRUE) # something like 570m
 ##### set colour parameters
 ## disrete colours:
 leg.cols <- brewer.pal(12,"Paired")
-ross_sea_cols <- leg.cols[c(4,8,11)]
 wap_cols <- leg.cols[3:11]#leg.cols[c(4,8,11,6)]
 
 ## set continuous colors for raster:
@@ -105,18 +104,18 @@ leg.args <- seq(-3000,0, by=500)
 
 West.cols.AP <- brewer.pal(9,"Set1")
 West.cols.WS <- brewer.pal(5,"Set1")[-2]
-East.cols <- brewer.pal(6,"Set1")[-2]
+East.cols <- brewer.pal(7,"Set1")[-2]
 
 West.cols.leg.AP <- West.cols.AP
 West.cols.leg.WS <- c(West.cols.WS,rep("white",5))
-East.cols.leg <- c(rep("white",4),East.cols)
+East.cols.leg <- c(rep("white",3),East.cols)
 
 West.cruise.AP <- c("JR17001","CRS","LMG1311","PS81","PS61","JR17003","PS118","JR262","JR15005")
 West.cruise.WS <- c("PS96","PS06","PS14","PS18","","","","","")
-East.cruise <- c("","","","","NBP1402","AA2011","TAN0802","TAN1802","TAN1901")
+East.cruise <- c("","","","NBP1402","AA2011","NBP1502","TAN0802","TAN1802","TAN1901")
 
 ## points plotted in the sequence of objects in names(polar.dat.list.clean)
-col.v <- c(West.cols.AP[2],West.cols.WS[2:4],West.cols.AP[c(5,4,4)],West.cols.WS[1],West.cols.AP[7],East.cols[c(3:5,1:2)],West.cols.AP[c(8:9,1,6,3)])
+col.v <- c(West.cols.AP[2],West.cols.WS[2:4],West.cols.AP[c(5,4,4)],West.cols.WS[1],West.cols.AP[7],East.cols[c(4:6,1,3,2)],West.cols.AP[c(8:9,1,6,3)])
 
 pch <- 20
 cex <- 2
@@ -211,11 +210,11 @@ plot(r2, xlim=c(-600000,600000), ylim=c(-2650000,-1250000),col=cols, main="Ross 
 #plot(r2, xlim=c(-600000,600000), ylim=c(-2650000,-1250000),col=cols, main="Ross Sea", axes=FALSE)
 plot(coast.proj, add=TRUE)
 scalebar(200000, type="bar", label=c("0","100","200"), below="km")
-points(polar.dat.start.list$TAN0802, pch=pch, col=ross_sea_cols[1], cex=cex)
-points(polar.dat.start.list$TAN1802, pch=pch, col=ross_sea_cols[2], cex=cex)
-points(polar.dat.start.list$TAN1901, pch=pch, col=ross_sea_cols[3], cex=cex)
-points(polar.dat.NBP1502, pch=pch, col="red", cex=cex)
-legend("left", pch=pch, pt.cex=cex, col=c(ross_sea_cols,"red"), legend=c("TAN0802","TAN1802","TAN1901","NBP1502"))
+points(polar.dat.start.list$TAN0802, pch=pch, col=East.cols[4], cex=cex)
+points(polar.dat.start.list$TAN1802, pch=pch, col=East.cols[5], cex=cex)
+points(polar.dat.start.list$TAN1901, pch=pch, col=East.cols[6], cex=cex)
+points(polar.dat.NBP1502, pch=pch, col=East.cols[3], cex=cex)
+legend("left", pch=pch, pt.cex=cex, col=East.cols[c(4:6,3)], legend=c("TAN0802","TAN1802","TAN1901","NBP1502"))
 plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
 
@@ -226,15 +225,15 @@ plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,lab
 plot(r2, xlim=c(-430000,480000), ylim=c(-2130000,-1330000),col=cols, main="Ross Sea - shelf & slope only", axes=FALSE, breaks=breaks, legend=FALSE)
 plot(coast.proj, add=TRUE)
 scalebar(200000, type="bar", label=c("0","100","200"), below="km")
-points(polar.dat.start.list$TAN0802, pch=pch, col=ross_sea_cols[1], cex=cex)
-points(polar.dat.start.list$TAN1802, pch=pch, col=ross_sea_cols[2], cex=cex)
-points(polar.dat.start.list$TAN1901, pch=pch, col=ross_sea_cols[3], cex=cex)
-points(polar.dat.NBP1502, pch=pch, col=wap_cols[4], cex=cex)
-legend("left", pch=pch, pt.cex=cex, col=ross_sea_cols, legend=c("TAN0802","TAN1802","TAN1901"))
-text.plot(levels(dat.list$TAN0802$transectID),dat.start.list$TAN0802,polar.dat.start.list$TAN0802, col=ross_sea_cols[1])
-text.plot(levels(dat.list$TAN1802$transectID),dat.start.list$TAN1802,polar.dat.start.list$TAN1802,col=ross_sea_cols[2], adj=-0.7)
-text.plot(levels(dat.list$TAN1901$transectID),dat.start.list$TAN1901,polar.dat.start.list$TAN1901,col=ross_sea_cols[3])
-text(polar.dat.NBP1502,labels=dat.list$NBP1502$transectID, adj=1.5, cex=0.7,col=wap_cols[4])
+points(polar.dat.start.list$TAN0802, pch=pch, col=East.cols[4], cex=cex)
+points(polar.dat.start.list$TAN1802, pch=pch, col=East.cols[5], cex=cex)
+points(polar.dat.start.list$TAN1901, pch=pch, col=East.cols[6], cex=cex)
+points(polar.dat.NBP1502, pch=pch, col=East.cols[3], cex=cex)
+legend("left", pch=pch, pt.cex=cex, col=East.cols[c(4:6,3)], legend=c("TAN0802","TAN1802","TAN1901","NBP1502"))
+text.plot(levels(dat.list$TAN0802$transectID),dat.start.list$TAN0802,polar.dat.start.list$TAN0802, col=East.cols[4])
+text.plot(levels(dat.list$TAN1802$transectID),dat.start.list$TAN1802,polar.dat.start.list$TAN1802,col=East.cols[5], adj=-0.7)
+text.plot(levels(dat.list$TAN1901$transectID),dat.start.list$TAN1901,polar.dat.start.list$TAN1901,col=East.cols[6])
+text(polar.dat.NBP1502,labels=dat.list$NBP1502$transectID, adj=1.5, cex=0.7,col=East.cols[3])
 plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
 
@@ -244,15 +243,15 @@ plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,lab
 plot(r2, xlim=c(-430000,50000), ylim=c(-1630000,-1330000),col=cols, main="Ross Sea - shelf & slope only", axes=FALSE, breaks=breaks, legend=FALSE)
 plot(coast.proj, add=TRUE)
 scalebar(100000, type="bar", label=c("0","50","100"), below="km")
-points(polar.dat.start.list$TAN0802, pch=pch, col=ross_sea_cols[1], cex=cex)
-points(polar.dat.start.list$TAN1802, pch=pch, col=ross_sea_cols[2], cex=cex)
-points(polar.dat.start.list$TAN1901, pch=pch, col=ross_sea_cols[3], cex=cex)
-points(polar.dat.NBP1502, pch=pch, col=wap_cols[4], cex=cex)
-legend("left", pch=pch, pt.cex=cex, col=ross_sea_cols, legend=c("TAN0802","TAN1802","TAN1901"))
-text.plot(levels(dat.list$TAN0802$transectID),dat.start.list$TAN0802,polar.dat.start.list$TAN0802, col=ross_sea_cols[1])
-text.plot(levels(dat.list$TAN1802$transectID),dat.start.list$TAN1802,polar.dat.start.list$TAN1802,col=ross_sea_cols[2], adj=-0.7)
-text.plot(levels(dat.list$TAN1901$transectID),dat.start.list$TAN1901,polar.dat.start.list$TAN1901,col=ross_sea_cols[3])
-text(polar.dat.NBP1502,labels=dat.list$NBP1502$transectID, adj=1.5, cex=0.7,col=wap_cols[4])
+points(polar.dat.start.list$TAN0802, pch=pch, col=East.cols[4], cex=cex)
+points(polar.dat.start.list$TAN1802, pch=pch, col=East.cols[5], cex=cex)
+points(polar.dat.start.list$TAN1901, pch=pch, col=East.cols[6], cex=cex)
+points(polar.dat.NBP1502, pch=pch, col=East.cols[3], cex=cex)
+legend("left", pch=pch, pt.cex=cex, col=East.cols[c(4:6,3)], legend=c("TAN0802","TAN1802","TAN1901","NBP1502"))
+text.plot(levels(dat.list$TAN0802$transectID),dat.start.list$TAN0802,polar.dat.start.list$TAN0802, col=East.cols[4])
+text.plot(levels(dat.list$TAN1802$transectID),dat.start.list$TAN1802,polar.dat.start.list$TAN1802,col=East.cols[5], adj=-0.7)
+text.plot(levels(dat.list$TAN1901$transectID),dat.start.list$TAN1901,polar.dat.start.list$TAN1901,col=East.cols[6])
+text(polar.dat.NBP1502,labels=dat.list$NBP1502$transectID, adj=1.5, cex=0.7,col=East.cols[3])
 plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
 
@@ -262,13 +261,13 @@ plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,lab
 plot(r2, xlim=c(-250000,430000), ylim=c(-2620000,-2200000),col=cols, main="Ross Sea - seamounts", axes=FALSE, breaks=breaks, legend=FALSE)
 plot(coast.proj, add=TRUE)
 scalebar(100000, xy=c(0,-2590000), type="bar", label=c("0","50","100"), below="km")
-points(polar.dat.start.list$TAN0802, pch=pch, col=ross_sea_cols[1], cex=cex)
-points(polar.dat.start.list$TAN1802, pch=pch, col=ross_sea_cols[2], cex=cex)
-points(polar.dat.start.list$TAN1901, pch=pch, col=ross_sea_cols[3], cex=cex)
-legend("topright",pch=pch, pt.cex=cex, col=ross_sea_cols, legend=c("TAN0802","TAN1802","TAN1901"))
-text.plot(levels(dat.list$TAN0802$transectID),dat.start.list$TAN0802,polar.dat.start.list$TAN0802, col=ross_sea_cols[1])
-text.plot(levels(dat.list$TAN1802$transectID),dat.start.list$TAN1802,polar.dat.start.list$TAN1802,col=ross_sea_cols[2], adj=-0.7)
-text.plot(levels(dat.list$TAN1901$transectID),dat.start.list$TAN1901,polar.dat.start.list$TAN1901,col=ross_sea_cols[3])
+points(polar.dat.start.list$TAN0802, pch=pch, col=East.cols[4], cex=cex)
+points(polar.dat.start.list$TAN1802, pch=pch, col=East.cols[5], cex=cex)
+points(polar.dat.start.list$TAN1901, pch=pch, col=East.cols[6], cex=cex)
+legend("topright",pch=pch, pt.cex=cex, col=East.cols[c(4:6,3)], legend=c("TAN0802","TAN1802","TAN1901"))
+text.plot(levels(dat.list$TAN0802$transectID),dat.start.list$TAN0802,polar.dat.start.list$TAN0802, col=East.cols[4])
+text.plot(levels(dat.list$TAN1802$transectID),dat.start.list$TAN1802,polar.dat.start.list$TAN1802,col=East.cols[5], adj=-0.7)
+text.plot(levels(dat.list$TAN1901$transectID),dat.start.list$TAN1901,polar.dat.start.list$TAN1901,col=East.cols[6])
 plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
 
@@ -300,8 +299,8 @@ plot(c(depth.0802,depth.1802,depth.1901))
 plot(r2, xlim=c(2150000,2300000), ylim=c(-1350000,-1250000),col=cols, main="Sabrina Coast", axes=FALSE, breaks=breaks, legend=FALSE)
 plot(coast.proj, add=TRUE)
 scalebar(20000, type="bar", label=c("0","10","20"), below="km")
-points(polar.dat.start.list$NBP1402 , pch=pch, col=ross_sea_cols[1], cex=cex)
-text.plot(levels(dat.list$NBP1402$transectID),dat.start.list$NBP1402,polar.dat.start.list$NBP1402, col=ross_sea_cols[1])
+points(polar.dat.start.list$NBP1402 , pch=pch, col=East.cols[1], cex=cex)
+text.plot(levels(dat.list$NBP1402$transectID),dat.start.list$NBP1402,polar.dat.start.list$NBP1402, col=East.cols[1])
 plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
 
