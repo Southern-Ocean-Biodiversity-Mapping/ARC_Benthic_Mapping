@@ -36,6 +36,7 @@ if (user == "nicole") {
 }
 
 biodiv.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Benthic_Mapping/biodiversity")
+distr.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Benthic_Mapping/species_distributions")
 
 ##############################################################################################################
 ##############################################################################################################
@@ -56,8 +57,8 @@ names(env_stack_scaled)[10:17]<-c("waom4k_seafloorcurrents_absolute", "waom4k_se
 
 
 ## load data (generated in "biodiversity_models_a_prep.R" in folder ARC_Benthic_Mapping/biodiversity)
-load(file=paste0(biodiv.dir,"/biodiversity_bio_dat.Rdata"))
-load(file=paste0(biodiv.dir,"/biodiversity_env_dat.Rdata"))
+load(file=paste0(distr.dir,"/biodiversity_bio_dat.Rdata"))
+load(file=paste0(distr.dir,"/biodiversity_env_dat.Rdata"))
 
 # dat.hmsc <- cbind(dat_pa_clean, cell_metadata_env_clean[,c(21,22,43,69:ncol(cell_metadata_env_clean))])
 
@@ -79,11 +80,14 @@ library(Hmsc)
 # Y <- dat_cov_pa[s2,c(1,4,6,7:11,13,15)]  ## species data
 
 ## or go with the full dataset here (minus species that are super rare)
-# Y <- dat_cov_pa  ## species data
+## COMPARE THIS LIST TO THE EXCEL FILE WITH THE 2% CUTOFF!
+Y <- dat_cov_pa[,-which((colSums(dat_cov_pa)/nrow(dat_cov_pa))<0.018)]
+
+## species data
 # Y <- dat_cov_pa[,-c(1, 25, 34, 40, 52, 68, 70, 74, 80, 85, 86, 90,100,102,103,105,109,110,114,115,118,120:130)] ## minus species at less than 10 sites
 #Y <- dat_cov_pa[,-c(1,24,25,34,40,52,54,62,65,67:74,76,80,85,86,88:90,97,99:115,118:130)] ## minus species at less than 20 sites
 ## only Bryozoans
-Y <- dat_cov_pa[,c(4,5,13,16,17,20,21,30,31,74,61,97,104,105,107)] ##
+# Y <- c(grep("Bryo",names(dat_cov_pa)),grep("UBS_B",names(dat_cov_pa)))
 #Y <- dat_cov_pa[s2,c(4,5,13,16,17,20,21,30,31,74,61,97,104,105,107)] ##
 
 
@@ -111,7 +115,7 @@ rL$nfMax = 10
 # ## simple random effect
 # rL = HmscRandomLevel(units=studyDesign$transectID_full)
 
-XFormula = ~ depth + depth2 + slope + tpi + distance2canyons + waom4k_seafloortemperature + waom4k_seafloorcurrents_mean + waom4k_test_settle08#+ NPP_su_mean
+XFormula = ~ depth + depth2 + logslope + tpi + distance2canyons + waom4k_seafloortemperature + waom4k_seafloorcurrents_mean + waom4k_test_settle08#+ NPP_su_mean
 ## a few NPP values are NA, set to 0 (or the scaled equivalent of 0)
 #XData$NPP_su_mean[which(is.na(XData$NPP_su_mean))] <- min(XData$NPP_su_mean, na.rm=T)
 
@@ -135,7 +139,7 @@ adaptNf = rep(ceiling(0.4*samples*thin),1)
 nChains = 2
 set.seed(1)
 ptm = proc.time()
-for(i in 1){
+for(i in 2){
   print(i)
   models[[i]] <- sampleMcmc(models[[i]], samples = samples, thin = thin,
                adaptNf = adaptNf, transient = transient,

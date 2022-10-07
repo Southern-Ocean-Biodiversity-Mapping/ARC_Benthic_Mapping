@@ -339,12 +339,12 @@ names(pred_stack.dat) <- c("depth", "depth2", "distance2canyons","distance2canyo
 pred_stack.dat$gear <- "OFOS"
 pred_stack.dat$cover_cells_survey <- "PS96"
 pred_stack.dat$cover_cells_transect1 <- "PS96_001"
-save(pred_stack.dat, file=paste0(biodiv.dir,"biodiversity_pred_stack_scaled_dat.Rdata"))
+save(pred_stack.dat, file=paste0(distr.dir,"biodiversity_pred_stack_scaled_dat.Rdata"))
 
 
 
 ###################################################################
-## mask for environmental space
+## TO DO: mask for environmental space
 
 
 
