@@ -38,20 +38,44 @@ source(paste0(tools.dir,"SOmap_functions_JJ.R"))
 ##### load still and diatom sample locations and bathymetry:
 
 ## from "Readin_Circumpolar_DownwardImage_Data.Rmd"
-load(paste0(ARC_Data.dir,"Circumpolar_DownwardImages_metadata.Rdata"))
+load(paste0(ARC_Data.dir,"prep_image/Circumpolar_DownwardImages_metadata.Rdata"))
 
 ## from ???
-load(paste0(ARC_Data.dir,"Circumpolar_Diatom_metadata.Rdata"))
+load(paste0(ARC_Data.dir,"FAM/Circumpolar_Diatom_metadata.Rdata"))
 
 ## from "ReadIn_Circumpolar_Environmental_Data.Rmd"
-r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_bathy_gebco_depth.grd"))
+r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_ibcso2_depth.tif"))
 
 ##### load coastline
 #stereo <- as.character(r2@crs)
 load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
 ```
 
-### how many images are annotated?
+### how many images are annotated? What is their depth range
+
+```{r}
+m <- data.frame(matrix(NA,nrow=length(dat.subset.list), ncol=7))
+names(m) <- c("Survey", "Total number of useful images", "Images to annotate","depth-min all","depth-max all", "depth-min annotated", "depth-max annotated")
+xy.sel.list <- list(1:2,6:7,6:7,6:7,6:7,
+                    1:2,1:2,1:2,1:2,1:2,
+                    1:2,1:2,1:2,c(4,3),c(7,6),
+                    5:6,5:6,5:6,5:6,5:6)
+m[,1] <- names(dat.list.clean)
+for(i in 1:length(dat.subset.list)){
+  xy.dat1 <- as.data.frame(proj4::project(dat.list.clean[[i]][,xy.sel.list[[i]]], proj=crs(r2)))
+  xy.dat2 <- as.data.frame(proj4::project(dat.subset.list[[i]][,1:2], proj=crs(r2)))
+  m[i,2] <- nrow(dat.list.clean[[i]])
+  m[i,3] <- nrow(dat.subset.list[[i]])
+  m[i,4] <- round(min(extract(r2,xy.dat1)),0)
+  m[i,5] <- round(max(extract(r2,xy.dat1)),0)
+  m[i,6] <- round(min(extract(r2,xy.dat2)),0)
+  m[i,7] <- round(max(extract(r2,xy.dat2)),0)
+}
+#m[length(dat.subset.list)+1,] <- c("TOTAL",sum(m[,2]),sum(m[,3]))
+m
+```
+
+### depth range of annotated images
 
 ```{r}
 m <- data.frame(matrix(NA,nrow=length(dat.subset.list), ncol=3))

@@ -20,7 +20,7 @@ library(whitebox)
 library(rayshader)
 library(rayrender)
 library(raster)
-#library(terra)
+library(terra)
 library(spatstat)
 library(spatstat.utils)
 library(suncalc)
@@ -56,62 +56,21 @@ lon_rho <- ncvar_get(grd10k_nc, varid="lon_rho")
 lat_rho <- ncvar_get(grd10k_nc, varid="lat_rho")
 
 #### Prepare empty rasters to assign correct projected values to
-roms.coords.proj <- project(cbind(c(lon_rho), c(lat_rho)), proj=ant.proj)
-x.range <- c(min(roms.coords.proj[,1])-5000,max(roms.coords.proj[,1])+5000)
-y.range <- c(min(roms.coords.proj[,2])-5000,max(roms.coords.proj[,2])+5000)
-empty.roms.ra <- raster(extent(c(x.range,y.range)), crs=ant.proj, resolution=10000)
-
-#### load other ROMS data (currents & depth)
-#depth
-h <- raster(paste0(data.dat100,"ocean_avg_0003.nc"), varname="h", level=1)
-## remove inland values for depth
-h2 <- empty.roms.ra
-h2[] <- h[]
-
-#seafloor currents (seafloor-layer is 1)
-u.raw <- brick(paste0(data.dat100,"ocean_his_0003.nc"), varname="u", level=1)
-v.raw <- brick(paste0(data.dat100,"ocean_his_0003.nc"), varname="v", level=1)
-
-## sum up monthly values for a climatology (THIS SHOULD BE DONE ON HIGH RESOLUTION HISTORY FILES)
-u.sum <- sum(u.raw)
-v.sum <- sum(v.raw)
-u.sum.abs <- sum(abs(u.raw))
-v.sum.abs <- sum(abs(v.raw))
-
-## extract current speeds at rho-points where depth is defined
-## (in ROMS they are all at different locations):
-## u has one less column than the grid, so all coordinates need to be moved half a cell to the right for the grids to match up
-coord.grd.u <- coordinates(h)
-coord.grd.u[,1] <- coordinates(h)[,1]-0.5
-## v has one less row than the grid, so all coordinates need to be moved half a cell up for the grids to match up
-coord.grd.v <- coordinates(h)
-coord.grd.v[,2] <- coordinates(h)[,2]-0.5
-## now extract values at the rho-points and interpolate (because they are 2km away from the nearest original point), and place into projected raster
-u <- v <- empty.roms.ra
-u[] <- extract(u.sum, coord.grd.u, method="bilinear")
-v[] <- extract(v.sum, coord.grd.v, method="bilinear")
-#temporal mean seafloor current speed
-mean.uv <- sqrt(u^2+v^2)
-
-h2[is.na(mean.uv)] <- NA
-h3 <- h2
-h3[is.na(h2)] <- 0
+# roms.coords.proj <- project(cbind(c(lon_rho), c(lat_rho)), proj=ant.proj)
+# x.range <- c(min(roms.coords.proj[,1])-5000,max(roms.coords.proj[,1])+5000)
+# y.range <- c(min(roms.coords.proj[,2])-5000,max(roms.coords.proj[,2])+5000)
+#empty.roms.ra <- rast(ext(c(x.range,y.range)), crs=ant.proj, resolution=10000)
 
 ##### topography/bathymetry from GEBCO:
 ### with land
 ## 5km res
 # topo.dat.full <- raster(paste0(env.derived,"Circumpolar_EnvData_5km_bathy_gebco.grd"))
 ## 500m res
-topo.dat.full.with.land <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_bathy_ibcso2_depth.tif"))
+topo.dat.full.with.land <- rast(paste0(env.derived,"Circumpolar_EnvData_500m_bathy_ibcso2_depth.tif"))
 ### underwater only
 topo.dat.full <- topo.dat.full.with.land #raster(paste0(env.derived,"Circumpolar_EnvData_500m_bathy_gebco_depth.grd"))
 ## setting land to 0 instead of NA?
 topo.dat.full[topo.dat.full.with.land>=0] <- 0
-
-########################################
-##### current speeds from OLD!!! high-res ROMS:
-## ocean currents
-#curr.dat.full <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_waom2k_seafloorcurrents.tif"))
 
 #######################################
 
@@ -152,19 +111,19 @@ SF.dat$coloursSF[SF.dat$cover_SF_prop>=1] <- col.palette(5)[3]
 SF.dat$coloursSF[SF.dat$cover_SF_prop>=10] <- col.palette(5)[4]
 SF.dat$coloursSF[SF.dat$cover_SF_prop>=50] <- col.palette(5)[5]
 ## coordinates
-sf_points <- st_as_sf(SpatialPoints(SF.dat[,1:2], proj4string = crs(u)))
+sf_points <- st_as_sf(SpatialPoints(SF.dat[,3:4], proj4string = CRS(crs(topo.dat.full, proj=TRUE))))
 
-richness.r <- raster(paste0(bio.dir,"Circumpolar_biodiversity_map_2km_richness_glmm_pred.tif"))
+richness.r <- rast(paste0(bio.dir,"Circumpolar_biodiversity_map_2km_richness_glmm_pred.tif"))
 richness.r500 <- resample(richness.r, topo.dat.full.with.land) 
 ```
 
 ```{r}
 ## crop to smaller extent
-ross.extent     <- extent(c(-500000,500000,-2100000,-1150000))
-ap.extent       <- extent(c(-2750000,-2200000,1000000,2000000))
-mertz.extent    <- extent(c(1250000,1900000,-2300000,-1900000))
-filchner.extent <- extent(c(-1600000,-500000,300000,1200000))
-weddell.extent  <- extent(c(-1300000,-400000,800000,2000000))
+ross.extent     <- ext(c(-500000,500000,-2100000,-1150000))
+ap.extent       <- ext(c(-2750000,-2200000,1000000,2000000))
+mertz.extent    <- ext(c(1250000,1900000,-2300000,-1900000))
+filchner.extent <- ext(c(-1600000,-500000,300000,1200000))
+weddell.extent  <- ext(c(-1300000,-400000,800000,2000000))
 
 ## bathymetry data
 # topo.dat.ross     <- crop(h3,ross.extent)
@@ -174,12 +133,12 @@ topo.dat.mertz    <- crop(topo.dat.full, mertz.extent)
 topo.dat.filchner <- crop(topo.dat.full, filchner.extent)
 topo.dat.weddell  <- crop(topo.dat.full, weddell.extent)
 
-## current speed data
-curr.dat.ross     <- crop(mean.uv, ross.extent)
-curr.dat.ap       <- crop(mean.uv, ap.extent)
-curr.dat.mertz    <- crop(mean.uv, mertz.extent)
-curr.dat.filchner <- crop(mean.uv, filchner.extent)
-curr.dat.weddell  <- crop(mean.uv, weddell.extent)
+# ## current speed data
+# curr.dat.ross     <- crop(mean.uv, ross.extent)
+# curr.dat.ap       <- crop(mean.uv, ap.extent)
+# curr.dat.mertz    <- crop(mean.uv, mertz.extent)
+# curr.dat.filchner <- crop(mean.uv, filchner.extent)
+# curr.dat.weddell  <- crop(mean.uv, weddell.extent)
 
 ## biodiversity map data
 rich.dat.ross     <- crop(richness.r500, ross.extent)
@@ -200,6 +159,8 @@ windowsize <- c(1000,1000)
 
 ```{r}
 prepare_overlays <- function(){
+  topo.ext <- raster::extent(as.vector(ext(topo.dat)))
+  
   ## change data to matrix
   topo_mat=raster_to_matrix(topo.dat)
 #  curr_mat=raster_to_matrix(curr.dat)
@@ -214,11 +175,11 @@ prepare_overlays <- function(){
   
 #  heightshades  = height_shade( curr_mat, texture=rev(heat.colors(256)))
   heightshades  = height_shade( rich_mat, texture=rev(heat.colors(256)))
-  coastoverlay = generate_line_overlay(sf_coast, extent=ext(topo.dat), heightmap=topo_mat)
-  lineoverlay  = generate_line_overlay(sf_lines, extent=ext(topo.dat), heightmap=topo_mat, color="black", offset=c(1500,-1500))
+  coastoverlay = generate_line_overlay(sf_coast, extent=topo.ext, heightmap=topo_mat)
+  lineoverlay  = generate_line_overlay(sf_lines, extent=topo.ext, heightmap=topo_mat, color="black", offset=c(1500,-1500))
   
-  SF_overlay_shadow = generate_point_overlay(sf_points, extent=ext(topo.dat), heightmap=topo_mat, color="black", offset=c(1500,-1500), size=5, pch=21)
-  SF_overlay = generate_point_overlay(sf_points, extent=ext(topo.dat), heightmap=topo_mat, color=SF.dat$coloursSF, size=5, pch=21)
+  SF_overlay_shadow = generate_point_overlay(sf_points, extent=topo.ext, heightmap=topo_mat, color="black", offset=c(1500,-1500), size=5, pch=21)
+  SF_overlay = generate_point_overlay(sf_points, extent=topo.ext, heightmap=topo_mat, color=SF.dat$coloursSF, size=5, pch=21)
   
   return(list(topo_mat = topo_mat,
               sphereshades = sphereshades,
@@ -255,11 +216,35 @@ rs <- prepare_overlays()
 par(mfrow=c(1,2))
 plot(topo.dat)
 plot(coast.proj, add=TRUE)
-plot(curr.dat)
+plot(rich.dat)
 plot(coast.proj, add=TRUE)
 ```
 
-##### current speeds on 3D bathymetry
+##### richness (not current speeds) on 3D bathymetry
+
+```{r, fig.height=10}
+rs$topo_mat %>%
+  sphere_shade(texture = "bw") %>%
+  add_overlay(rs$heightshades, alphalayer = 0.6) %>%
+  add_overlay(rs$coastoverlay) %>% 
+  #add_overlay(rs$lineoverlay) %>%  
+  add_overlay(rs$SF_overlay_shadow) %>% 
+  add_overlay(rs$SF_overlay) %>%   
+  plot_map()
+```
+
+```{r, fig.height=10, eval=FALSE}
+rs$topo_mat %>%
+  sphere_shade(texture = "bw") %>%
+  add_overlay(rs$heightshades, alphalayer = 0.6) %>%
+  add_overlay(rs$coastoverlay) %>% 
+  #add_overlay(rs$lineoverlay) %>%   
+  add_overlay(rs$SF_overlay_shadow) %>% 
+  add_overlay(rs$SF_overlay) %>% 
+  plot_3d(rs$topo_mat, zscale=zscale, phi=phi, theta=theta, zoom=zoom, windowsize=windowsize)
+render_snapshot()
+```
+
 
 ```{r, fig.height=10}
 rs$topo_mat %>%
@@ -283,6 +268,61 @@ rs$topo_mat %>%
   plot_3d(rs$topo_mat, zscale=zscale, phi=phi, theta=theta, zoom=zoom, windowsize=windowsize)
 render_snapshot()
 ```
+
+
+
+
+
+
+
+
+## ONLY UPDATED UNTIL HERE
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r, eval=FALSE, echo=FALSE}
 # angles= seq(0,360,length.out = 1441)[-1]

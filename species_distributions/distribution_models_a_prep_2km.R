@@ -9,6 +9,8 @@
 
 ##### Setting up----
 library(PerformanceAnalytics) ## plotting correlations
+library(raster)
+
 user = "Jan"
 #user = "charley"
 #user="nicole"
@@ -36,17 +38,23 @@ if (user == "nicole") {
   env.derived <-  paste0(sci.dir,"data_environmental/derived/")
   tools.dir <-    paste0(sci.dir,"Analysis/Useful_Functions_Tools/")
 }
+
+distr.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Benthic_Mapping/species_distributions/")
+
 ##############################################################################################################
 ##############################################################################################################
 
-##### load biological and environmental data
-load(paste0(ARC_Data.dir,"annotation/Circumpolar_Annotation_Data.Rdata"))
-## cell_metadata, count_cells, cover_cells
-## image_metadata, count_images, cover_images
+##### load image metadata only
+load(paste0(ARC_Data.dir,"annotation/Circumpolar_Annotation_Data.RData"))
+rm(cell_metadata, count_cells, count_images, cover_cells, cover_images)
 
+##### load biological data, prepared in "3_Generate species list.R"
+load(paste0(ARC_Data.dir,"Cell_level_bioenv_2pc.RData"))
+
+##### load environmental data
 load(paste0(ARC_Data.dir,"annotation/Circumpolar_Annotation_Env_Data.RData"))
-## cell_metadata_env, count_cells_env, cover_cells_env
-## image_metadata_env
+
+
 
 ##############################################################################################################
 ##### CONSIDERING ONLY CELL DATA: the only dataframes we really need are:
@@ -56,12 +64,16 @@ load(paste0(ARC_Data.dir,"annotation/Circumpolar_Annotation_Env_Data.RData"))
 
 ##### remove NAs from data
 ## first find the CARS data (many NAs)
-cars.sel <- 34:42
+cars.sel <- grep("CARS",names(cell_metadata_env))
 ## then find NAs in waom data
 waom.na.sel <- which(!is.na(cell_metadata_env$waom4k_seafloorcurrents_absolute))
-
 cell_metadata_env_clean <- cell_metadata_env[waom.na.sel,-cars.sel]
-cover_cells_clean <- cover_cells[waom.na.sel,]
+
+cover_cells_clean <- as.data.frame(cover_mod[waom.na.sel,-1])
+rownames(cover_cells_clean) <- as.numeric(as.character(cover_mod$cellID[waom.na.sel]))
+
+count_cells_clean <- as.data.frame(count_mod[,-1])
+rownames(count_cells_clean) <- as.numeric(as.character(count_mod$cellID))
 
 ##### setup environmental data (add polynomials)
 cell_metadata_env_clean$depth2 <- poly(cell_metadata_env_clean$depth,2)[,2]
@@ -80,14 +92,16 @@ cell_metadata_env_clean$geomorph_cat <- as.factor(cell_metadata_env_clean$geomor
 cell_metadata_env_clean$cellID <- factor(cell_metadata_env_clean$cellID)
 
 ##### add information about number of unscorable points per cell
-cell_metadata_env_clean$cover_points_total <- rowSums(cover_cells_clean)
-cell_metadata_env_clean$cover_points_scorable <- rowSums(cover_cells_clean)-cover_cells_clean$Unscorable
+### NOTE some images don't add up to mulitples of 108 because very rar species have been removed
+cell_metadata_env_clean$cover_points_total <- rowSums(cover_cells_clean[,-1])
+cell_metadata_env_clean$cover_points_scorable <- rowSums(cover_cells_clean[,-1])-cover_cells_clean$Unscorable
 
-##### scale environmental data
+##### scale environmental data, but not metadata or factors
+sel.metadata.factors <- c(1:20,68,69)
 cell_metadata_env_clean_scaled <- cell_metadata_env_clean
 scale.means <- NA
 scale.sd <- NA
-for(i in (1:ncol(cell_metadata_env_clean_scaled))[-c(1:20,68,69,78,79)]){
+for(i in (1:ncol(cell_metadata_env_clean_scaled))[-sel.metadata.factors]){
   scale.means[i] <- mean(cell_metadata_env_clean_scaled[,i], na.rm=TRUE)
   scale.sd[i] <- sd(cell_metadata_env_clean_scaled[,i], na.rm=TRUE)
   cell_metadata_env_clean_scaled[,i] <- (cell_metadata_env_clean_scaled[,i]-scale.means[i])/scale.sd[i]
@@ -128,6 +142,7 @@ cover_SF_pa <- cover_SF
 cover_SF_pa[cover_SF>0] <- 1
 richness <- rowSums(cover_cells_clean_pa[,-sel_sed])
 richness.l <- rowSums(cover_cells_clean_pa[,-sel_sed])/log(cell_metadata_env_clean$cover_points_total)
+
 cover_all.prop <- rowSums(cover_cells_clean[,-sel_sed])/cell_metadata_env_clean$cover_points_scorable
 cover_all <- rowSums(cover_cells_clean[,-sel_sed])
 
@@ -144,21 +159,21 @@ cover_S_pa[cover_S>0] <- 1
 ##### setup biological data - counts
 
 ## names of faunal groups for count_cells:
-count.names <- names(count_cells)
+count.names <- names(count_cells_clean)
 
 ## selector for each faunal class
 sel_noid <- grep("NoID",count.names)
 sel_echino <- grep("Echinoderms",count.names)
 sel_crust <- grep("Crustacea",count.names)
 
-count_mobile <- rowSums(count_cells[,-sel_noid]) ## remove NoIDs
-count_echino <- rowSums(count_cells[,sel_echino])
-count_crust <- rowSums(count_cells[,sel_crust])
+count_mobile <- rowSums(count_cells_clean[,-sel_noid]) ## remove NoIDs
+count_echino <- rowSums(count_cells_clean[,sel_echino])
+count_crust <- rowSums(count_cells_clean[,sel_crust])
 
-count_cells_pa <- count_cells
-count_cells_pa[count_cells_pa>0] <- 1
-count_richness <- rowSums(count_cells_pa[,-sel_sed])
-count_richness.l <- rowSums(count_cells_pa[,-sel_sed])/log(cell_metadata_env$counts_N[!is.na(cell_metadata_env$counts_N)])
+count_cells_clean_pa <- count_cells_clean
+count_cells_clean_pa[count_cells_clean_pa>0] <- 1
+count_richness <- rowSums(count_cells_clean_pa[,-sel_sed])
+count_richness.l <- rowSums(count_cells_clean_pa[,-sel_sed])/log(cell_metadata_env$counts_N[!is.na(cell_metadata_env$counts_N)])
 
 ######################################################################################################
 ##### cover data
@@ -171,11 +186,11 @@ dat_cov_pa <- cover_cells_clean_pa[,-c(sel_sed,sel_noid.cov,sel_unsc.cov)]
 
 ##### count data
 ## individual species
-dat_count_species <- count_cells[,-sel_noid]
+dat_count_species <- count_cells_clean[,-sel_noid]
 ## large species groupings - counts
 dat_count_sum <- data.frame(cbind(count_mobile, count_echino, count_crust, count_richness, count_richness.l))
 ## presence-absence data
-dat_count_pa <- count_cells_pa[,-sel_noid]
+dat_count_pa <- count_cells_clean_pa[,-sel_noid]
 
 ######################################################################################################
 ## to specify a spatial latent factor we need coordinates for each transect, calculated here:
@@ -200,21 +215,19 @@ names(transect.xy) <- c("transectID_full", "proj_coord_x", "proj_coord_y")
 
 sel.not.correlated <- c(21:24,27,30,31,34,35,37,38,41,43,46,47,60:64,66,67,70:77)
 ######################################################################################################
-biodiv.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Benthic_Mapping/biodiversity/")
-
 save(dat_cov_species, dat_cov_sum, dat_cov_pa,
      dat_count_species, dat_count_sum, dat_count_pa,
-     file=paste0(biodiv.dir,"biodiversity_bio_dat.Rdata"))
+     file=paste0(distr.dir,"biodiversity_bio_dat.Rdata"))
 
 save(cell_metadata_env_clean, transect.xy, sel.not.correlated,
      cell_metadata_env_clean_scaled, scale.means, scale.sd,
-     file=paste0(biodiv.dir,"biodiversity_env_dat.Rdata"))
+     file=paste0(distr.dir,"biodiversity_env_dat.Rdata"))
 
 ######################################################################################################
 ##### scaling rasters and preparing circumpolar cell data for predictions
 ######################################################################################################
-load(file="biodiversity_bio_dat.Rdata")
-load(file="biodiversity_env_dat.Rdata")
+load(file=paste0(distr.dir,"biodiversity_bio_dat.Rdata"))
+load(file=paste0(distr.dir,"biodiversity_env_dat.Rdata"))
 
 ## get file names of all environmental rasters and bricks and load into one big stack----
 #all files with "gri" extension
@@ -225,12 +238,28 @@ env_list<-env_list[-grep(".500m_shelf_scaled", env_list)]
 #for the single rasters layer names are missing. Extract from file name.
 env_names<-gsub(".*_|\\..*","",env_list)
 #stack all environmental layers and make sure they have appropriate names (currently manual and a bit messy!)
-env_stack<-stack(env_list)
+env_stack<-raster::stack(env_list)
 names(env_stack) <- env_names
 names(env_stack)[10:17]<-c("waom4k_seafloorcurrents_absolute", "waom4k_seafloorcurrents_mean", 
                            "waom4k_seafloorcurrents_residual", "waom4k_seafloorsalinity", "waom4k_seafloortemperature",
                            "waom4k_test_flux08","waom4k_test_settle08","waom4k_test_susp08")
 
+## creating polynomials of raster layers
+# env_stack$depth2 <- env_stack$depth
+# env_stack$depth2 <- raster(env_stack$depth)
+# sel <- which(!is.na(env_stack$depth[]))
+# depth2.dat <- poly(env_stack$depth[sel],2)[,2] ## takes 10min or so
+# env_stack$depth2[sel] <- depth2.dat
+# writeRaster(env_stack$depth2, filename="Circumpolar_EnvData_500m_shelf_bathy_gebco_depth2.Rdata", overwrite=TRUE)
+# env_stack$distance2canyons2 <- env_stack$depth
+# env_stack$distance2canyons2 <- raster(env_stack$depth)
+# sel <- which(!is.na(env_stack$distance2canyons[]))
+# distance2canyons2.dat <- poly(env_stack$distance2canyons[sel],2)[,2] ## takes 10min or so
+# env_stack$distance2canyons2[sel] <- distance2canyons2.dat
+# writeRaster(env_stack$distance2canyons2, filename="Circumpolar_EnvData_500m_shelf_distance2canyons2.Rdata", overwrite=TRUE)
+
+# env_stack$logslope <- log(env_stack$slope)
+# writeRaster(env_stack$logslope, filename="Circumpolar_EnvData_500m_shelf_bathy_gebco_logslope.Rdata", overwrite=TRUE)
 
 
 ## only select rasters we actually need
@@ -313,12 +342,38 @@ names(pred_stack.dat) <- c("depth", "depth2", "distance2canyons","distance2canyo
 pred_stack.dat$gear <- "OFOS"
 pred_stack.dat$cover_cells_survey <- "PS96"
 pred_stack.dat$cover_cells_transect1 <- "PS96_001"
-save(pred_stack.dat, file=paste0(biodiv.dir,"biodiversity_pred_stack_scaled_dat.Rdata"))
+save(pred_stack.dat, file=paste0(distr.dir,"biodiversity_pred_stack_scaled_dat.Rdata"))
 
+
+##############################################
+## RUNNING ON 2km RESOLUTION:
+sel <- which(!is.na(env_stack_scaled$depth[]))
+
+pred_stack.dat1 <- cbind(env_stack_scaled$depth[sel], env_stack_scaled$depth2[sel],
+                         env_stack_scaled$distance2canyons[sel], env_stack_scaled$distance2canyons2[sel])
+pred_stack.dat2 <- cbind(env_stack_scaled$logslope[sel], env_stack_scaled$slope[sel],
+                         env_stack_scaled$tpi[sel], env_stack_scaled$tpi11[sel])
+pred_stack.dat3 <- cbind(env_stack_scaled$tpi5[sel], env_stack_scaled$waom4k_test_flux08[sel],
+                         env_stack_scaled$waom4k_test_settle08[sel], env_stack_scaled$waom4k_test_susp08[sel])
+pred_stack.dat4 <- cbind(env_stack_scaled$waom4k_seafloorcurrents_absolute[sel], env_stack_scaled$waom4k_seafloorcurrents_mean[sel],
+                         env_stack_scaled$waom4k_seafloorcurrents_residual[sel])
+pred_stack.dat5 <- cbind(env_stack_scaled$waom4k_seafloorsalinity[sel], env_stack_scaled$waom4k_seafloortemperature[sel])
+
+pred_stack.dat <- data.frame(cbind(pred_stack.dat1, pred_stack.dat2, pred_stack.dat3, pred_stack.dat4, pred_stack.dat5, 10))
+names(pred_stack.dat) <- c("depth", "depth2", "distance2canyons","distance2canyons2",
+                           "logslope","slope","tpi","tpi11",
+                           "tpi5", "waom4k_test_flux08","waom4k_test_settle08","waom4k_test_susp08",
+                           "waom4k_seafloorcurrents_absolute","waom4k_seafloorcurrents_mean","waom4k_seafloorcurrents_residual",
+                           "waom4k_seafloorsalinity","waom4k_seafloortemperature",
+                           "annotated_area")
+pred_stack.dat$gear <- "OFOS"
+pred_stack.dat$cover_cells_survey <- "PS96"
+pred_stack.dat$cover_cells_transect1 <- "PS96_001"
+save(pred_stack.dat, file=paste0(distr.dir,"biodiversity_pred_stack_scaled_dat.Rdata"))
 
 
 ###################################################################
-## mask for environmental space
+## TO DO: mask for environmental space
 
 
 

@@ -1,0 +1,39 @@
+---
+title: "HMSC maps"
+author: "Jan Jansen"
+date: '2022-11-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(terra)
+sci.dir <-      "C:/Users/jjansen/Desktop/science/"
+# env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+# tools.dir <-    paste0(sci.dir,"SouthernOceanBiodiversityMapping/Useful_Functions_Tools/")
+# ARC_Data.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Data/")
+map.dir <- paste0(sci.dir,"data_output/hmsc/2km_circumantarctic/")
+```
+
+```{r}
+tif.files <- list.files(map.dir)
+```
+
+```{r}
+maps <- rast(paste0(map.dir,tif.files))
+```
+
+```{r}
+maxcell=10000000
+range=c(0,1)
+xlim=c(-2750000,-2100000)
+ylim=c(1350000,2350000)
+```
+
+```{r, fig.height=7.5, fig.width=10}
+for(i in seq(1,148,by=2)){
+  par(mfrow=c(1,2),mar=c(3,1,2,1), oma=c(0,0,0,2))
+  plot(maps[[i]],  xlim=xlim, ylim=ylim, maxcell=maxcell, range=range, mar=NA, main=names(maps)[i], legend=FALSE)
+  plot(maps[[i+1]],xlim=xlim, ylim=ylim, maxcell=maxcell, range=range, mar=NA, main=names(maps)[i+1])  
+}
+```
+

@@ -1,13 +1,16 @@
 # ##### Setting up----
-# library(raster)
-# library(readxl)
+#library(raster)
+library(terra)
+library(Hmsc)
 # library(readr)
-# library(dplyr)
+library(dplyr)
 # library(data.table)
 # library(proj4)
 # library(stringr)
 # library(RColorBrewer)
 # library(SOmap)
+
+'%!in%' <- function(x,y)!('%in%'(x,y))
 
 user = "Jan"
 #user = "charley"
@@ -39,35 +42,47 @@ biodiv.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Benthic_Mappi
 distr.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Benthic_Mapping/species_distributions")
 
 ##############################################################################################################
+
+#res <- "500m"
+res <- "2km"
+
 ##############################################################################################################
-## get file names of all environmental rasters and bricks and load into one big stack----
-#all files with "gri" extension
-env_list<-list.files(path = env.derived, pattern="gri$",  full.names=TRUE) 
-#subset to  "shelf" files
-env_list<-env_list[grep(".500m_shelf_scaled", env_list)]
-#for the single rasters layer names are missing. Extract from file name.
-env_names<-gsub(".*_|\\..*","",env_list)
-#stack all environmental layers and make sure they have appropriate names (currently manual and a bit messy!)
-env_stack_scaled<-stack(env_list)
-names(env_stack_scaled) <- env_names
-names(env_stack_scaled)[10:17]<-c("waom4k_seafloorcurrents_absolute", "waom4k_seafloorcurrents_mean", 
-                                  "waom4k_seafloorcurrents_residual", "waom4k_seafloorsalinity", "waom4k_seafloortemperature",
-                                  "waom4k_test_flux08","waom4k_test_settle08","waom4k_test_susp08")
+## load scaled environmental rasters:
+env_stack_scaled <- rast(paste0(env.derived,"Circumpolar_EnvData_",res,"_shelf_mask_scaled.tif"))
 
-
-
-## load data (generated in "biodiversity_models_a_prep.R" in folder ARC_Benthic_Mapping/biodiversity)
-load(file=paste0(distr.dir,"/biodiversity_bio_dat.Rdata"))
-load(file=paste0(distr.dir,"/biodiversity_env_dat.Rdata"))
+## load data
+load(file=paste0(ARC_Data.dir,"Cell_level_env_",res,".Rdata"))
+load(file=paste0(ARC_Data.dir,"Cell_level_bio_2pc_",res,".Rdata"))
 
 # dat.hmsc <- cbind(dat_pa_clean, cell_metadata_env_clean[,c(21,22,43,69:ncol(cell_metadata_env_clean))])
 
-metadat <- cell_metadata_env_clean_scaled
+r <- rast(paste0(env.derived,"Circumpolar_EnvData_",res,"_shelf_mask_unscaled_variables.tif"))
+r2 <- r$depth
+
+#### check for NAs in the data:
+## find NAs in waom data
+waom.na.sel <- which(!is.na(cell_metadata_env_scaled$seafloorcurrents_absolute))
+metadat <- cell_metadata_env_scaled[waom.na.sel,]
+metadat$cellID <- factor(metadat$cellID)
+cover_cells <- cover_mod[waom.na.sel,]
+
+
+## presence absence data:
+cov_pa.raw <- cover_cells[,-1]
+cov_pa.raw[cov_pa.raw>0] <- 1
+
+## remove rare species
+cov_pa.raw2 <- cov_pa.raw[,-which(colSums(cov_pa.raw)<=18)]
+
+## remove substrates, noid and unscorable
+if(res=="2km") cov_pa <- cov_pa.raw2[,-c(grep("Sub",names(cov_pa.raw2)),grep("Unsco",names(cov_pa.raw2)),grep("NoID",names(cov_pa.raw2))[1:2])]
+
+## remove NoIDs???
+
 
 ##############################################################################################################
 
 ## fitting an hmsc using Otsos course scripts and : https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.13345&file=mee313345-sup-0002-AppendixS2.pdf
-library(Hmsc)
 
 ###########################
 ##### set up the data #####
@@ -81,8 +96,8 @@ library(Hmsc)
 
 ## or go with the full dataset here (minus species that are super rare)
 ## COMPARE THIS LIST TO THE EXCEL FILE WITH THE 2% CUTOFF!
-Y <- dat_cov_pa[,-which((colSums(dat_cov_pa)/nrow(dat_cov_pa))<0.018)]
-
+Y <- cov_pa#[,-which((colSums(dat_cov_pa)/nrow(dat_cov_pa))<0.018)]
+#Y <- Y[,1:15]
 ## species data
 # Y <- dat_cov_pa[,-c(1, 25, 34, 40, 52, 68, 70, 74, 80, 85, 86, 90,100,102,103,105,109,110,114,115,118,120:130)] ## minus species at less than 10 sites
 #Y <- dat_cov_pa[,-c(1,24,25,34,40,52,54,62,65,67:74,76,80,85,86,88:90,97,99:115,118:130)] ## minus species at less than 20 sites
@@ -94,7 +109,12 @@ Y <- dat_cov_pa[,-which((colSums(dat_cov_pa)/nrow(dat_cov_pa))<0.018)]
 ## with NPP:
 # XData <- metadat[,c(21:23,34,45,60:67,70:77)] ## environmental data, 78 is geomorph
 ## without NPP:
-XData <- metadat[,c(21:23,34,60:67,70:77)] ## environmental data, 78 is geomorph
+#XData <- metadat[,c(23:36,38:72)] ## environmental data, 37 is geomorph
+
+## XData only the variables we choose in XFormula below
+model_vars <- c("depth","depth2","logslope","tpi","distance2canyons","seafloortemperature","seafloorcurrents_mean","test_settle08")
+XData <- dplyr::select(metadat, model_vars)
+
 ############################
 ##### set up the model #####
 
@@ -108,14 +128,62 @@ xy <- metadat[,4:5]
 colnames(xy) = c("x","y")
 sRL = xy
 rownames(sRL) = metadat$cellID
-rL = HmscRandomLevel(sData=sRL)
-rL$nfMin = 5
-rL$nfMax = 10
+
+# rL = HmscRandomLevel(sData=sRL)
+# rL$nfMin = 5
+# rL$nfMax = 10
+
+## first specifying knots on a grid, keeping them to a minimum
+
+
+########## knots at 200km distance, 250km min distance:
+## add points between AP and Ross Sea
+xy.knots <- rbind(xy,
+                  c(-2143647,498436),
+                  c(-1916289,355285),
+                  c(-2000000,100000),
+                  c(-1983655,-368890),
+                  c(-1739456,-638350),
+                  c(-1621567,-975176),
+                  c(-1360527,-1160431),
+                  c(-900000,-1300000),
+                  c(-627930,-1345685))
+## add points to East Antarctica
+xy.knots <- rbind(xy.knots,
+                  c(710952,-2154067),
+                  c(1115144,-2288798),
+                  c(2100359,-1724614),
+                  c(2529812,-1017280),
+                  c(2757170,-629930),
+                  c(2824535,-318366),
+                  c(2672963,-57326),
+                  c(2656122,254237),
+                  c(2487709,498436),
+                  c(2386661,742635),
+                  c(2268772,1256295),
+                  c(2125621,1685748),
+                  c(1645644,1812057),
+                  c(820421,2056256),
+                  c(1200000,2000000))
+## add a point to Weddell Sea
+xy.knots <- rbind(xy.knots,
+                  c(-1503678,1054199),
+                  c(-1436312,1300000),
+                  c(-1958393,1298398))
+Knots = constructKnots(xy.knots, knotDist = 200000, minKnotDist = 250000)
+#Knots = constructKnots(xy, knotDist = 50000, minKnotDist = 2000000)
+# plot(r2)
+# points(xy.knots[,1],xy.knots[,2],pch=18)
+# points(Knots[,1],Knots[,2],col='red',pch=18)
+rL = HmscRandomLevel(sData=sRL, sMethod='GPP', sKnot=Knots)
+#rL = setPriors(rL,nfMin=1,nfMax=1)
 
 # ## simple random effect
 # rL = HmscRandomLevel(units=studyDesign$transectID_full)
 
-XFormula = ~ depth + depth2 + logslope + tpi + distance2canyons + waom4k_seafloortemperature + waom4k_seafloorcurrents_mean + waom4k_test_settle08#+ NPP_su_mean
+#XFormula = paste0("~", paste(model_vars, collapse="+"))
+XFormula = ~depth+depth2+logslope+tpi+distance2canyons+seafloortemperature+seafloorcurrents_mean+test_settle08
+
 ## a few NPP values are NA, set to 0 (or the scaled equivalent of 0)
 #XData$NPP_su_mean[which(is.na(XData$NPP_su_mean))] <- min(XData$NPP_su_mean, na.rm=T)
 
@@ -128,15 +196,16 @@ mSPACE = Hmsc(Y = Y, XData = XData, XFormula = ~1, distr = "probit",
 
 #######################################
 ##### run MCMC and save the model #####
+## 28h for full model with 10k iterations on 74 species, 455 samples, 9 covariates, 1 spatial variable using GPP
 ## space only is very slow: 5min for 2 samples, 9min for 4 samples (-> 10k iteration will take a week!)
 models <- list(mFULL, mENV, mSPACE)
 modeltype = 1
 model = 1
 thin = 10  ## a value of 10 means every 10th iteration is kept (the higher the less correlated the samples are but the longer it takes)
-samples = 100 ## how many total samples we want
+samples = 1000 ## how many total samples we want
 transient = ceiling(0.5*samples*thin)
 adaptNf = rep(ceiling(0.4*samples*thin),1)
-nChains = 2
+nChains = 4
 set.seed(1)
 ptm = proc.time()
 for(i in 2){
@@ -147,15 +216,13 @@ for(i in 2){
                initPar = "fixed effects")
 }
 computational.time = proc.time() - ptm
-filename = file.path(biodiv.dir, paste("model_", as.character(model), "_",
+filename = file.path(biodiv.dir, paste(res,"_model_", as.character(model), "_",
                                      c("pa","abundance")[modeltype], 
                                      "_chains_",as.character(nChains),
                                      "_thin_", ... = as.character(thin),
                                      "_samples_", as.character(samples), ".Rdata", sep = ""))
-# filename = file.path(biodiv.dir, paste("model_", "pa", "_thin_", ... = as.character(thin),
-#                                        "_samples_", as.character(samples), ".Rdata", sep = ""))
 save(models, file=filename, computational.time)
-m <- models[[2]]
+m <- models[[1]]
 
 #######################################
 ##### examine parameter estimates #####
@@ -241,9 +308,10 @@ MF.cv = evaluateModelFit(hM=m, predY = preds.cv)
 MF.cv
 
 ####################################################################
-load(paste0(biodiv.dir,"/model_1_pa_chains_2_thin_10_samples_1000.Rdata"))
+# load(paste0(biodiv.dir,"/",res,"_model_1_pa_chains_4_thin_1_samples_1000.Rdata"))
+load(paste0(biodiv.dir,"/",res,"_model_1_pa_chains_4_thin_10_samples_1000.Rdata"))
 
-load(paste0(biodiv.dir,"/biodiversity_pred_stack_scaled_dat.Rdata")) #(~5GB large)
+load(paste0(env.derived,"/Circumpolar_EnvData_",res,"_shelf_mask_scaled_dataframe.Rdata")) #(~5GB large)
 
 # ###################### MAP THE HMSC !!!
 # library(raster)
@@ -284,8 +352,8 @@ load(paste0(biodiv.dir,"/biodiversity_pred_stack_scaled_dat.Rdata")) #(~5GB larg
 
 ## prepare data for prediction and mapping:
 library(terra)
-r2 <- rast(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_depth.grd"))
-# plot(r2)
+r <- rast(paste0(env.derived,"Circumpolar_EnvData_",res,"_shelf_mask_unscaled_variables.tif"))
+# plot(r$depth)
 # abline(v=-3000000)
 # abline(v=-2500000)
 # abline(v=-2000000)
@@ -297,36 +365,36 @@ r2 <- rast(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_depth.
 # abline(h=500000)
 # abline(h=0)
 
-grid <- pred_stack.dat[,c(1:3,6,7,17,14,11)]
+grid <- pred_stack.dat[,c(1,48,50,3,14,44,41,46)]#[,c(1:3,6,7,17,14,11)]
 ## spatial data
-xy.grid.raw <- coordinates(r2)[which(!is.na(r2[])),]
+xy.grid.raw <- crds(r$depth)
 ## remove NAs
-sel <- which(complete.cases(pred_stack.dat))
+sel <- which(complete.cases(grid))
 XData.grid <- grid[sel,]
 xy.grid <- xy.grid.raw[sel,]
 
 ## first find which cells we have ignored before
-sel.not.na <- which(!is.na(r2[]))
+sel.not.na <- which(!is.na(r$depth[]))
 ## create an empty raster to fill for mapping
-empty.ra <- rast(r2)
+empty.ra <- rast(r$depth)
 empty.ra[] <- NA
 
 ## save data
-save(sel, sel.not.na, file="biodiversity/hmsc_model_cell_sel.Rdata")
-save(XData.grid, xy.grid, file="biodiversity/hmsc_model_cell_grid.Rdata")
-rm(xy.grid.raw, grid, r2, pred_stack.dat)
+save(sel, sel.not.na, file=paste0("biodiversity/hmsc_",res,"_model_cell_sel.Rdata"))
+save(XData.grid, xy.grid, file=paste0("biodiversity/hmsc_",res,"_model_cell_grid.Rdata"))
+rm(xy.grid.raw, grid, r, pred_stack.dat)
 
 
 
 #############################################################
 ## load data
-load("biodiversity/model_1_pa_chains_2_thin_10_samples_100.Rdata")
-m <- models[[2]]
-load("biodiversity/hmsc_model_cell_sel.Rdata")
-load("biodiversity/hmsc_model_cell_grid.Rdata")
+load(paste0("biodiversity/",res,"_model_1_pa_chains_4_thin_10_samples_1000.Rdata"))
+m <- models[[1]]
+load(paste0(biodiv.dir,"/hmsc_",res,"_model_cell_sel.Rdata"))
+load(paste0(biodiv.dir,"/hmsc_",res,"_model_cell_grid.Rdata"))
 
-r2 <- rast(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_depth.grd"))
-empty.ra <- rast(r2)
+r <- rast(paste0(env.derived,"Circumpolar_EnvData_",res,"_shelf_mask_unscaled_variables.tif"))
+empty.ra <- rast(r$depth)
 empty.ra[] <- NA
 
 
@@ -336,16 +404,63 @@ xmax <- seq(-2500000,3000000, by=500000)
 ymin <- seq(-3000000,2500000, by=500000)
 ymax <- seq(-2500000,3000000, by=500000)
 
+## size of prediction boxes
+xmin <- seq(-3000000,2750000, by=250000)
+xmax <- seq(-2750000,3000000, by=250000)
+ymin <- seq(-3000000,2750000, by=250000)
+ymax <- seq(-2750000,3000000, by=250000)
+
+## size of prediction boxes
+xmin <- seq(-3000000,2900000, by=100000)
+xmax <- seq(-2900000,3000000, by=100000)
+ymin <- seq(-3000000,2900000, by=100000)
+ymax <- seq(-2900000,3000000, by=100000)
+
+## size of prediction boxes
+xmin <- seq(-3000000,2950000, by=50000)
+xmax <- seq(-2950000,3000000, by=50000)
+ymin <- seq(-3000000,2950000, by=50000)
+ymax <- seq(-2950000,3000000, by=50000)
+
+plot(r$depth)
+for(i in 2:length(xmin)){
+  abline(h=ymin[i])
+  abline(v=xmin[i])
+}
+
+## we can reduce the runtime by 12h (for 14400 cells) if we skip over the empty cells
+## create a look-up table to check which cells we need to predict
+## keep in mind that the raster starts at the bottom left and the matrix start filling in values from the top left!
+# cells_with_data <- matrix(NA, nrow=length(ymin), ncol=length(xmin))
+# for(i in 1:length(xmin)){
+#   print(i)
+#   for(k in 1:length(ymin)){
+#     sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
+#                         xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
+#     ## fill the matrix from the bottom up
+#     #x.sel <- (length(xmin):1)[i]
+#     #y.sel <- (length(ymin):1)[k]
+#     if(length(sel.loop>0)){
+#       cells_with_data[k,i] <- 1
+#     }
+#   }}
+# save(cells_with_data, file=paste0("biodiversity/",res,"_model_50km_cells_with_data.Rdata"))
+load(file=paste0("biodiversity/",res,"_model_50km_cells_with_data.Rdata"))
+
+##################
+
 ## 10h on the laptop for 15 species
 ptm = proc.time()
-for(i in 3:length(xmin)){
+for(i in 30){#3:length(xmin)){
   message(paste0("x = ",i))
-  for(k in 1:length(ymin)){
+  for(k in 14){#1:length(ymin)){
     print(paste0("y = ",k))
+    print(proc.time())
     sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
                         xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
     XData.grid.loop <- XData.grid[sel.loop,]
     xy.grid.loop <- xy.grid[sel.loop,]
+    print(paste0(nrow(xy.grid.loop)," cells to predict on"))
     ## setup prediction
     Gradient = prepareGradient(m, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
     ## predict
@@ -357,7 +472,7 @@ for(i in 3:length(xmin)){
     predY.sd <- apply(predY.loop, 1:2, sd)
     dimnames(predY.mean) <- dimnames(predY.sd) <- mat.names
 
-    dat.name <- paste0("biodiversity/pred_files/","model_", as.character(model), "_",
+    dat.name <- paste0("biodiversity/pred_files/",res,"_model_", as.character(model), "_",
                                     c("pa","abundance")[modeltype],
                                     "_chains_",as.character(nChains),
                                     "_thin_", ... = as.character(thin),
@@ -371,6 +486,147 @@ for(i in 3:length(xmin)){
   }
 }
 computational.time = proc.time() - ptm
+
+
+
+
+
+
+## parallel processing: PER CELL that contains values
+library(doParallel)
+library(foreach)
+parallel::detectCores()
+UseCores = parallel::detectCores() - 1
+c1<-makeCluster(UseCores, outfile="")
+registerDoParallel(c1)
+getDoParWorkers()
+
+cell.sel.v <- which(!is.na(cells_with_data))
+cell.sel.df <- which(!is.na(cells_with_data), arr.ind = TRUE)
+
+iterations <- 100
+
+ptm = proc.time()
+foreach(j=1:iterations) %dopar%{ #3:length(xmin)
+  library(Hmsc)
+  i <- cell.sel.df[j,2]
+  k <- cell.sel.df[j,1]
+  sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
+                      xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
+  print(i)
+  ##
+  XData.grid.loop <- XData.grid[sel.loop,]
+  xy.grid.loop <- xy.grid[sel.loop,]
+  ## setup prediction
+  Gradient = prepareGradient(m, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
+  ## predict
+  predY.loop <- predict(m, Gradient=Gradient)
+  mat.names <- dimnames(predY.loop[[1]])
+  predY.loop <- array(unlist(predY.loop), c(nrow(xy.grid.loop),ncol(m$Y),samples*nChains), dimnames(predY.loop[[1]]))
+  ## derived values
+  predY.mean <- apply(predY.loop, 1:2, mean)
+  predY.sd <- apply(predY.loop, 1:2, sd)
+  dimnames(predY.mean) <- dimnames(predY.sd) <- mat.names
+  ## save
+  dat.name <- paste0("biodiversity/pred_files/",res,"/",res,"_model_", as.character(model), "_",
+                     c("pa","abundance")[modeltype],
+                     "_chains_",as.character(nChains),
+                     "_thin_", ... = as.character(thin),
+                     "_samples_", as.character(samples),
+                     "_pred_")
+  run.name <- sprintf("%05d",cell.sel.v[j])
+  save(predY.loop, file=paste0(dat.name,"fulldat_",run.name,".Rdata"))
+  save(predY.mean, predY.sd, sel.loop, XData.grid.loop, xy.grid.loop,
+       file=paste0(dat.name,run.name,".Rdata"))
+  rm(predY.loop, predY.mean, predY.sd)
+}
+computational.time = proc.time() - ptm
+parallel::stopCluster(cl = c1)
+
+pred.files <- list.files(paste0("biodiversity/pred_files/",res,"/"))
+pred.files.longindices <- substr(pred.files, nchar(pred.files[1])-10, nchar(pred.files[1])-6)
+pred.files.indices <- as.numeric(sub("^0+", "", pred.files.longindices))
+
+cell.sel.v[which(cell.sel.v%!in%pred.files.indices)]
+
+
+# ## parallel processing: PER COLUMN
+# library(doParallel)
+# library(foreach)
+# parallel::detectCores()
+# UseCores = parallel::detectCores() - 1
+# c1<-makeCluster(UseCores, outfile="")
+# registerDoParallel(c1)
+# getDoParWorkers()
+# 
+# col.sel <- which(colSums(cells_with_data, na.rm=T)>0)
+# iterations <- 8
+# 
+# ptm = proc.time()
+# foreach(j=1:iterations) %dopar%{ #3:length(xmin)
+#   i <- col.sel[j]
+#   library(Hmsc)
+#   print(i)
+#   ys <- which(!is.na(cells_with_data[,i]))
+#   for(k in ys){#1:length(ymin)){
+#     sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
+#                         xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
+#     if(length(sel.loop)==0){
+#       print(paste0("skipping: x = ",i,"; y = ",k)) 
+#     }
+#     #print(paste0("x = ",i,"; y = ",k))
+#     #print(proc.time())
+#     XData.grid.loop <- XData.grid[sel.loop,]
+#     xy.grid.loop <- xy.grid[sel.loop,]
+#     #print(paste0(nrow(xy.grid.loop)," cells to predict on"))
+#     ## setup prediction
+#     Gradient = prepareGradient(m, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
+#     ## predict
+#     predY.loop <- predict(m, Gradient=Gradient)
+#     mat.names <- dimnames(predY.loop[[1]])
+#     predY.loop <- array(unlist(predY.loop), c(nrow(xy.grid.loop),ncol(m$Y),samples*nChains), dimnames(predY.loop[[1]]))
+# 
+#     predY.mean <- apply(predY.loop, 1:2, mean)
+#     predY.sd <- apply(predY.loop, 1:2, sd)
+#     dimnames(predY.mean) <- dimnames(predY.sd) <- mat.names
+# 
+#     dat.name <- paste0("biodiversity/pred_files/",res,"/",res,"_model_", as.character(model), "_",
+#                        c("pa","abundance")[modeltype],
+#                        "_chains_",as.character(nChains),
+#                        "_thin_", ... = as.character(thin),
+#                        "_samples_", as.character(samples),
+#                        "_pred_")
+#     run.name <- paste0("x",i,"_y",k)
+#     save(predY.loop, file=paste0(dat.name,"fulldat_",run.name,".Rdata"))
+#     save(predY.mean, predY.sd, sel.loop, XData.grid.loop, xy.grid.loop,
+#          file=paste0(dat.name,run.name,".Rdata"))
+#     rm(predY.loop, predY.mean, predY.sd)
+#   }
+# }
+# computational.time = proc.time() - ptm
+# 
+# parallel::stopCluster(cl = c1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
