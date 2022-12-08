@@ -3,7 +3,7 @@ import argparse
 
 
 # Example:
-#   python data_preparation\curate_coralnet_report.py -i C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -o biodata_step3.csv
+#   python data_preparation\03_curate_coralnet_report.py -i ..\..\ARC_Data\annotation\Circumpolar_Annotation_Data_500m.RData -o data\biodata\biodata_step3.csv
 
 
 DCT_CORALNET = {"Bryozoan_Hard_BrAnt": "bryozoans_hard_branching-bryozoans",
@@ -68,15 +68,10 @@ def curate_coralnet_report(fname_i, fname_o):
     # Read data
     df = pyreadr.read_r(fname_i)["cover_images"].reset_index()
 
+    lst_coralnet_labels = list(df.keys())[1:]
     # Get n annotation per images
-    df["n_annotation"] = df.sum(axis=1)
-    """
-                         - df["Unscorable"] - df["NoID"] - df["NoID_ExpOp"] \
-                         - df["NoID_ExpOp_maybe_sponge"] - df["NoID_ExpOp_translucent"] \
-                         - df["NoID_ExpOp_Sheetlike"] - df["NoId_ExpOp_GreyBuriedBranchingThings"] \
-                         - df["NoID_ExpOp_maybe_colonial_anemone"] - df["NoID_ExpOp_branching"]
-                         # Sponge_TBD_Sediment, Sponge_TBD_Grey, Bryozoan_unspecified
-    """
+    df["n_annotation"] = df[lst_coralnet_labels].sum(axis=1)
+
     # Rename column
     df.rename(columns={"rownames": "filename"}, inplace=True)
 
