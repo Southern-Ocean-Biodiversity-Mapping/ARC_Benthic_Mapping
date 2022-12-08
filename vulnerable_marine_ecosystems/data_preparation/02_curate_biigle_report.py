@@ -7,7 +7,7 @@ from biigle.biigle import Api
 
 
 # Example:
-#   python data_preparation\curate_biigle_report.py -i biodata_step1.csv -o biodata_step2.csv
+#   python data_preparation\02_curate_biigle_report.py -i data\biodata\biodata_step1.csv -o data\biodata\biodata_step2.csv
 
 DCT_BIIGLE254 = {"Basketstars": "basket_snake_stars-euryalida",
                  "Basketstar-like": "basket_snake_stars-euryalida",
@@ -95,8 +95,9 @@ def curate_biigle_reports(fname_i, fname_o):
     df = df[~df.final_label.isna()]
     df.reset_index(drop=True, inplace=True)
     print(df.head())
+    print(df.final_label.unique())
     print(" ... resulting with {} annotations ...".format(len(df)))
-    exit()
+
     # Gather annotations of each taxa within each image
     # Init dict
     dct_cover = {"filename": []}
