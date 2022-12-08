@@ -4,7 +4,7 @@ import pandas as pd
 
 
 # Example:
-#   python data_preparation\merge_biigle_reports.py -i 292_image_annotation_area_report -o biodata_step1.csv
+#   python data_preparation\01_merge_biigle_reports.py -i data\rawdata\292_image_annotation_area_report -o data\biodata\biodata_step1.csv
 
 
 def get_parser():
