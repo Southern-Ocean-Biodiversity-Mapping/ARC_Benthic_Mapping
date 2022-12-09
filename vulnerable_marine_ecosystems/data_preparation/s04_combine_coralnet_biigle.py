@@ -3,11 +3,11 @@ import argparse
 import pandas as pd
 import pyreadr
 
-import curate_biigle_report
+import s02_curate_biigle_report
 
 
 # Example:
-#   python data_preparation\combine_coralnet_biigle.py -b biodata_step2.csv -c biodata_step3.csv -m C:\Users\cgros\code\IMAS\ARC_Data\annotation\Circumpolar_Annotation_Data.Rdata -a coverage_biigle839 -p px_size.csv -o biodata_step4.csv -g groupings.csv
+#   python data_preparation\s04_combine_coralnet_biigle.py -b data\biodata\biodata_step2.csv -c data\biodata\biodata_step3.csv -m ..\..\ARC_Data\annotation\Circumpolar_Annotation_Data_500m.RData -a coverage_biigle839 -p px_size.csv -o data\biodata\biodata_step4.csv -g groupings.csv
 
 
 LST_BIIGLE839_FULL = ["PS81_shallow", "PS61", "PS14", "PS06", "JR17001", "JR262", "AA2011", "JR15005", "PS96", "JR17003"]
@@ -120,7 +120,7 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
             print("ERROR: file not found: {} ...".format(fname_survey_notfull))
             exit()
     print(lst_new)
-    exit()
+
     df_m.drop(columns=["transect", "imageID"], inplace=True)
 
     #print("\nRemoving {} images because area is unknown ...".format(len(df_m[df_m.area.isnull()])))
@@ -141,13 +141,15 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     print("\tBIIGLE254: {} ...".format(len(df_m[df_m["biigle254"] == 1].index)))
     print("\tBIIGLE839: {} ...".format(len(df_m[df_m["biigle839"] == 1].index)))
 
-    list_im_biigle = list(set(df_m[df_m.biigle254 == 1]["filename"].tolist() + df_m[df_m.biigle839 == 1]["filename"].tolist()))
+#    list_im_biigle = list(set(df_m[df_m.biigle254 == 1]["filename"].tolist() + df_m[df_m.biigle839 == 1]["filename"].tolist()))
+    list_im_biigle = list(set(df_m[df_m.biigle839 == 1]["filename"].tolist()))
     list_ann_biigle = list(set(df_b["filename"].tolist()))
     list_no_ann_biigle = [f for f in list_im_biigle if f not in list_ann_biigle]
     print("\nAdding zeros to biigle report where no annotation was made, {} images ...".format(len(list_no_ann_biigle)))
     dct_no_ann = {"filename": list_no_ann_biigle}
     for taxon_biigle in [c for c in df_b.keys() if c not in ['filename']]:
         dct_no_ann[taxon_biigle] = [0 for _ in list_no_ann_biigle]
+
     df_b = pd.concat([df_b, pd.DataFrame.from_dict(dct_no_ann)])
 
     df_b = pd.merge(df_p, df_b, on="filename", how="right")
@@ -156,8 +158,8 @@ def combine_coralnet_biigle(fname_biigle, fname_coralnet, fname_metadata, folder
     df_b = pd.merge(df_m[['cellID', 'filename']], df_b, on="filename", how="right")
 
     lst_taxa_coralnet = [t for t in df_c.keys() if t not in ["cellID", "filename", "n_annotation"]]
-    lst_taxa_254 = list(set(curate_biigle_report.DCT_BIIGLE254.values()))
-    lst_taxa_839 = [t for t in df_b.keys() if t not in ["cellID", "filename", "image_size_sqpx"] + list(curate_biigle_report.DCT_BIIGLE254.values())]
+    lst_taxa_254 = list(set(s02_curate_biigle_report.DCT_BIIGLE254.values()))
+    lst_taxa_839 = [t for t in df_b.keys() if t not in ["cellID", "filename", "image_size_sqpx"] + list(s02_curate_biigle_report.DCT_BIIGLE254.values())]
 
     df_b_254 = df_b[["cellID", "filename", "image_size_sqpx"] + lst_taxa_254]
     df_b_839 = df_b[["cellID", "filename", "image_size_sqpx"] + lst_taxa_839]
