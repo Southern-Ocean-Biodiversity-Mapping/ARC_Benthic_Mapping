@@ -1,22 +1,23 @@
 library(tidyverse)
 library(abind)
 library(caret)
-#library(boral)
-#library(Hmsc)
-#library(sjSDM)
-#library(mistnet)
+library(boral)
+library(Hmsc)
+library(sjSDM)
+library(mistnet)
 library(brms)
 
 source('utils.R')
 
 # Load data
-load("../04_data.RData")
-Y = as.matrix(df_pa[, 2:ncol(df_pa)])
-X = as.matrix(df_env_scaled[, 2:ncol(df_env_scaled)])
+load("../../data/modellingdata/modelling_data.RData")
+Y = as.data.frame(df_bio_clean[, 2:ncol(df_bio_clean)])
+Y = as.data.frame((Y > 0) * 1)
+X = as.data.frame(df_env_clean[, 4:ncol(df_env_clean)])
 
 path_trained_models = "../trained_model"
 
-list_algo = c("brms") #c("hmsc", "boral", "sjsdm", "mistnet", "brms")
+list_algo = c("hmsc", "boral", "sjsdm", "mistnet", "brms")
 
 df <- data.frame(algo=character(),
                  model_name=character(),
