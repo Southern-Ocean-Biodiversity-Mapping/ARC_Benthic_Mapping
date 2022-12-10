@@ -10,7 +10,6 @@ load("../../data/modellingdata/modelling_data.RData")
 X = as.data.frame(df_env_clean[, 4:ncol(df_env_clean)])
 Y = as.data.frame(df_bio_clean[, 2:ncol(df_bio_clean)])
 
-
 # Params
 currency_data = "abd" #"pa"
 method_env = c(rep("linear", 4), rep("DNN", 4))
