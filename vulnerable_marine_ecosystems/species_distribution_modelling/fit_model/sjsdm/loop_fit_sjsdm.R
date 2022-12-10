@@ -6,9 +6,10 @@ set.seed(seed_)
 
 source('fit_model_sjSDM.R')
 
-load("../04_data.RData")
+load("../../data/modellingdata/modelling_data.RData")
+X = as.data.frame(df_env_clean[, 4:ncol(df_env_clean)])
+Y = as.data.frame(df_bio_clean[, 2:ncol(df_bio_clean)])
 
-X = as.matrix(df_env_scaled[, 2:ncol(df_env_scaled)])
 
 # Params
 currency_data = "abd" #"pa"
@@ -20,12 +21,12 @@ if (currency_data == "pa") {
   folder_root = "../trained_model/sjsdm/pa"
   dir.create(folder_root, showWarnings = FALSE)
   
-  Y = as.matrix(df_pa[, 2:ncol(df_pa)])
+  Y = as.data.frame((Y > 0) * 1)
 } else if (currency_data == "abd") {
   folder_root = "../trained_model/sjsdm/abd"
   dir.create(folder_root, showWarnings = FALSE)
   
-  Y = as.matrix(df_abd[, 2:ncol(df_abd)]) / 100
+  Y = as.data.frame(Y / 100)
 }
 
 n_param = length(n_iter)
