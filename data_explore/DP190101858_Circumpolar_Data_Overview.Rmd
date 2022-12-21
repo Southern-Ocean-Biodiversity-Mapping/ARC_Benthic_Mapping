@@ -52,7 +52,7 @@ load(paste0(ARC_Data.dir,"prep_image/Circumpolar_DownwardImages_metadata.Rdata")
 load(paste0(ARC_Data.dir,"FAM/Circumpolar_Diatom_metadata.Rdata"))
 
 ## from "ReadIn_Circumpolar_Environmental_Data.Rmd"
-r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_depth.grd"))
+r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_ibcso2_depth.tif"))
 
 ##### load coastline
 #stereo <- as.character(r2@crs)
@@ -68,12 +68,13 @@ load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
 #shelf_contour_proj <- readOGR(paste0(env.derived,"Antarctic_shelf_1500m_outline/Antarctic_shelf_1500m_outline_polygons.shp"))
 #shelf_r2 <- mask(r2, shelf_contour_proj)
 
-shelf.area <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_gebco_depth_1500mcontourline.grd"))
+ra.stack <- rast(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_mask_unscaled_variables.tif"))
+shelf.area <- ra.stack$depth
+shelf.area[shelf.area[]<(-1500)] <- NA
 
 length(which(!is.na(shelf.area[])))#12808075
 length(which(shelf.area[]<(-200)))#12134133
 12134133/12808075
-
 mean(shelf.area[], na.rm=TRUE) # something like 570m
 ```
 
@@ -110,12 +111,12 @@ West.cols.leg.AP <- West.cols.AP
 West.cols.leg.WS <- c(West.cols.WS,rep("white",5))
 East.cols.leg <- c(rep("white",3),East.cols)
 
-West.cruise.AP <- c("JR17001","CRS","LMG1311","PS81","PS61","JR17003","PS118","JR262","JR15005")
+West.cruise.AP <- c("CRS","JR17001","LMG1311","PS81","PS61","JR17003","PS118","JR262","JR15005")
 West.cruise.WS <- c("PS96","PS06","PS14","PS18","","","","","")
 East.cruise <- c("","","","NBP1402","AA2011","NBP1502","TAN0802","TAN1802","TAN1901")
 
 ## points plotted in the sequence of objects in names(polar.dat.list.clean)
-col.v <- c(West.cols.AP[2],West.cols.WS[2:4],West.cols.AP[c(5,4,4)],West.cols.WS[1],West.cols.AP[7],East.cols[c(4:6,1,3,2)],West.cols.AP[c(8:9,1,6,3)])
+col.v <- c(West.cols.AP[1],West.cols.WS[2:4],West.cols.AP[c(5,4,4)],West.cols.WS[1],West.cols.AP[7],East.cols[c(4:6,1,3,2)],West.cols.AP[c(8:9,2,6,3)])
 
 pch <- 20
 cex <- 2
@@ -126,6 +127,8 @@ text.plot <- function(transects,dat,polar.dat,col="black", adj=1.5, cex=0.7){
     text(pts[1],labels=transects[i], adj=adj, cex=cex,col=col)
   }}
 leg.steps <- c(1,2,2.75,3)
+
+lcex <- 1
 ```
 
 ## Image Data
@@ -173,11 +176,14 @@ message(paste0(a," different sampling transects"))
 ```{r, warning=FALSE, echo=FALSE, fig.height=10, fig.width=10}
 #### Image survey sites on bathymetry
 #pdf(file="Circumpolar_overview_images.pdf", width=10, height=10)
-par(oma=c(0,0,0,0))
-JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps)
-JJ_SOleg(col=West.cols.leg.AP, ticks=length(West.cols.leg.AP), border_width=0, label="Survey IDs\nAntarctic Pensinsula", position = "topleft",tlabs=West.cruise.AP, leg.steps=leg.steps)
-JJ_SOleg(col=West.cols.leg.WS, ticks=length(West.cols.WS), border_width=0, label="Survey IDs\nWeddell and Lazarev Sea", position = "topright",tlabs=West.cruise.WS, leg.steps=leg.steps)
-JJ_SOleg(col=East.cols.leg, ticks=length(East.cols), border_width=0, label="Survey IDs\nEast Antarctic", position = "bottomright",tlabs=East.cruise, leg.steps=leg.steps)
+par(oma=c(1,1,1,1), mar=c(3,3,3,3))
+JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps, lcex=lcex)
+JJ_SOleg(col=West.cols.leg.AP, ticks=length(West.cols.leg.AP), border_width=0, lcex=lcex, leg.steps=leg.steps,
+         label="Survey IDs\nAntarctic Pensinsula", position = "topleft",tlabs=West.cruise.AP)
+JJ_SOleg(col=West.cols.leg.WS, ticks=length(West.cols.WS), border_width=0, lcex=lcex, leg.steps=leg.steps,
+         label="Survey IDs\nWeddell and Lazarev Sea", position = "topright",tlabs=West.cruise.WS)
+JJ_SOleg(col=East.cols.leg, ticks=length(East.cols), border_width=0, lcex=lcex, leg.steps=leg.steps,
+         label="Survey IDs\nEast Antarctic", position = "bottomright",tlabs=East.cruise)
 for(i in 1:length(polar.dat.list.clean)){
   plot(polar.dat.list.clean[[i]], add=TRUE, pch=pch, cex=cex, col=col.v[i])
 }

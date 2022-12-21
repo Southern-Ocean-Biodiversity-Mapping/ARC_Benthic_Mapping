@@ -243,7 +243,7 @@ prepare_overlays <- function(){
 ```{r, echo=FALSE, message=FALSE}
 ## make raster suitable for plotting
 topo.dat <- aggregate(topo.dat.ross,2)
-#curr.dat <- resample(curr.dat.ross, topo.dat.ross)
+curr.dat <- resample(curr.dat.ross, topo.dat.ross)
 rich.dat <- resample(rich.dat.ross, topo.dat.ross)
 
 rs <- prepare_overlays()
