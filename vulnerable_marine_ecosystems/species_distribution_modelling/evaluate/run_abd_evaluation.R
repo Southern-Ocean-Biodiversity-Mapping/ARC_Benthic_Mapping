@@ -1,21 +1,21 @@
 library(tidyverse)
 library(abind)
 library(Hmsc)
-#library(sjSDM)
-#library(mistnet)
+library(sjSDM)
+library(mistnet)
 library(Metrics)
 
 source('utils.R')
 
 # Load data
-load("../04_data.RData")
-Y = as.matrix(df_abd[, 2:ncol(df_abd)])
-X = as.matrix(df_env_scaled[, 2:ncol(df_env_scaled)])
-Y_pa = as.matrix(df_pa[, 2:ncol(df_pa)])
+load("../../data/modellingdata/modelling_data.RData")
+Y = as.data.frame(df_bio_clean[, 2:ncol(df_bio_clean)])
+Y_pa = as.data.frame((Y > 0) * 1)
+X = as.data.frame(df_env_clean[, 4:ncol(df_env_clean)])
 
 path_trained_models = "../trained_model"
 
-list_algo = c("hmsc") #c("hmsc", "sjsdm", "mistnet")
+list_algo = c("hmsc", "sjsdm", "mistnet")
 
 df <- data.frame(algo=character(),
                  model_name=character(),
@@ -105,7 +105,7 @@ for (algo_ in list_algo) {
           Y_pred_pa_bin[, morpho_taxon] = (Y_pred_pa[, morpho_taxon] > lst_thr[morpho_taxon]) * 1
         }
         
-        Y_pred_abd = exp(Y_pred_abd_cod) * Y_pred_pa_bin
+        Y_pred_abd = Y_pred_abd_cod * Y_pred_pa_bin * 100.
         Y_pred_abd = as.data.frame(Y_pred_abd)
       } else if (algo_ == "sjsdm") {
         Y_pred = predict(model_fit, newdata = X_test)
