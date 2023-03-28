@@ -53,6 +53,8 @@ env_stack_scaled <- rast(paste0(env.derived,"Circumpolar_EnvData_",res,"_shelf_m
 ## load data
 load(file=paste0(ARC_Data.dir,"Cell_level_env_",res,".Rdata"))
 load(file=paste0(ARC_Data.dir,"Cell_level_bio_2pc_",res,".Rdata"))
+cover_mod <- cover_mod.2km
+count_mod <- count_mod.2km
 
 # dat.hmsc <- cbind(dat_pa_clean, cell_metadata_env_clean[,c(21,22,43,69:ncol(cell_metadata_env_clean))])
 
@@ -61,24 +63,29 @@ r2 <- r$depth
 
 #### check for NAs in the data:
 ## find NAs in waom data
-waom.na.sel <- which(!is.na(cell_metadata_env_scaled$seafloorcurrents_absolute))
-metadat <- cell_metadata_env_scaled[waom.na.sel,]
+waom.na.sel <- which(is.na(cell_metadata_env_scaled$seafloorcurrents_absolute))
+npp.na.sel <- which(is.na(cell_metadata_env_scaled$npp_mean))
+na.sel <- c(waom.na.sel,npp.na.sel)
+metadat <- cell_metadata_env_scaled[-na.sel,]
 metadat$cellID <- factor(metadat$cellID)
-cover_cells <- cover_mod[waom.na.sel,]
-
+cover_cells <- cover_mod.2km[-na.sel,]
 
 ## presence absence data:
 cov_pa.raw <- cover_cells[,-1]
 cov_pa.raw[cov_pa.raw>0] <- 1
 
 ## remove rare species
-cov_pa.raw2 <- cov_pa.raw[,-which(colSums(cov_pa.raw)<=18)]
+cov_pa.raw2 <- cov_pa.raw[,-which(colSums(cov_pa.raw)<18)]
+
+## combine UBS_B with Bryozoan_Hard_Branching_Antler
+cov_pa.raw2$Bryozoan_Hard_Branching_Antler <- cov_pa.raw2$Bryozoan_Hard_Branching_Antler+cov_pa.raw2$UBS_B
+cov_pa.raw2$Bryozoan_Hard_Branching_Antler[cov_pa.raw2$Bryozoan_Hard_Branching_Antler>1] <- 1
+cov_pa.raw3 <- cov_pa.raw2[,-grep("UBS_B",names(cov_pa.raw2))]
 
 ## remove substrates, noid and unscorable
-if(res=="2km") cov_pa <- cov_pa.raw2[,-c(grep("Sub",names(cov_pa.raw2)),grep("Unsco",names(cov_pa.raw2)),grep("NoID",names(cov_pa.raw2))[1:2])]
-
-## remove NoIDs???
-
+if(res=="2km") cov_pa <- cov_pa.raw3[,-c(grep("Sub",names(cov_pa.raw3)),
+                                         grep("Unsco",names(cov_pa.raw3)),
+                                         grep("NoID",names(cov_pa.raw3))[1:2])]
 
 ##############################################################################################################
 
@@ -93,6 +100,13 @@ if(res=="2km") cov_pa <- cov_pa.raw2[,-c(grep("Sub",names(cov_pa.raw2)),grep("Un
 # metadat <- metadat[s2,]
 # metadat$cellID <- factor(metadat$cellID)
 # Y <- dat_cov_pa[s2,c(1,4,6,7:11,13,15)]  ## species data
+
+## or only PS81 data
+# s <- which(metadat$counts_cells_survey=="PS81")
+# Y <- cov_pa[s,]
+# metadat <- metadat[s,]
+# metadat$cellID <- factor(metadat$cellID)
+# metadat$cover_cells_transect1 <- factor(metadat$cover_cells_transect1)
 
 ## or go with the full dataset here (minus species that are super rare)
 ## COMPARE THIS LIST TO THE EXCEL FILE WITH THE 2% CUTOFF!
@@ -112,16 +126,25 @@ Y <- cov_pa#[,-which((colSums(dat_cov_pa)/nrow(dat_cov_pa))<0.018)]
 #XData <- metadat[,c(23:36,38:72)] ## environmental data, 37 is geomorph
 
 ## XData only the variables we choose in XFormula below
-model_vars <- c("depth","depth2","logslope","tpi","distance2canyons","seafloortemperature","seafloorcurrents_mean","test_settle08")
-XData <- dplyr::select(metadat, model_vars)
+model_vars <- c("depth","depth2","logslope","tpi","distance2canyons","distance2canyons2","seafloortemperature","seafloorcurrents_mean","seafloorcurrents_sd","npp_mean")
+#XData <- dplyr::select(metadat, model_vars)
+XData <- metadat[,which(names(metadat)%in%model_vars)]
 
 ############################
 ##### set up the model #####
 
 ## study design - a random effect at the sample level (raster-cell)
-studyDesign <- data.frame(cellID=metadat$cellID)#,
-                          # imageQuality=metadat$image_quality_score,
-                          # transectID=metadat$cover_cells_transect1)
+studyDesign <- data.frame(cellID=metadat$cellID, surveyID=metadat$cover_cells_survey, transectID=metadat$cover_cells_transect1,
+                          gear=metadat$gear, year=as.factor(metadat$year))
+
+## survey effect:
+rL.s = HmscRandomLevel(units=levels(metadat$cover_cells_survey))
+## transect effect:
+rL.t = HmscRandomLevel(units=levels(metadat$cover_cells_transect1))
+## gear effect:
+rL.g = HmscRandomLevel(units=levels(metadat$gear))
+## year effect:
+rL.y = HmscRandomLevel(units=levels(as.factor(metadat$year)))
 
 ## spatial random effect
 xy <- metadat[,4:5]
@@ -176,23 +199,25 @@ Knots = constructKnots(xy.knots, knotDist = 200000, minKnotDist = 250000)
 # points(xy.knots[,1],xy.knots[,2],pch=18)
 # points(Knots[,1],Knots[,2],col='red',pch=18)
 rL = HmscRandomLevel(sData=sRL, sMethod='GPP', sKnot=Knots)
+rL$nfMax=10
+rL.s$nfMax=10
+rL.t$nfMax=10
+rL.g$nfMax=10
+rL.y$nfMax=10
 #rL = setPriors(rL,nfMin=1,nfMax=1)
 
 # ## simple random effect
 # rL = HmscRandomLevel(units=studyDesign$transectID_full)
 
-#XFormula = paste0("~", paste(model_vars, collapse="+"))
-XFormula = ~depth+depth2+logslope+tpi+distance2canyons+seafloortemperature+seafloorcurrents_mean+test_settle08
-
-## a few NPP values are NA, set to 0 (or the scaled equivalent of 0)
-#XData$NPP_su_mean[which(is.na(XData$NPP_su_mean))] <- min(XData$NPP_su_mean, na.rm=T)
+###
+XFormula = ~depth+depth2+logslope+tpi+distance2canyons+distance2canyons2+seafloortemperature+seafloorcurrents_mean+seafloorcurrents_sd+npp_mean
 
 mFULL = Hmsc(Y = Y, XData = XData, XFormula = XFormula, distr = "probit",
-             studyDesign = studyDesign, ranLevels = list(cellID=rL)) #ranLevels = list(transectID_full=rL))
+             studyDesign = studyDesign, ranLevels = list(cellID=rL, surveyID=rL.s))
 mENV = Hmsc(Y = Y, XData = XData, XFormula = XFormula, distr = "probit",
             studyDesign = studyDesign)
 mSPACE = Hmsc(Y = Y, XData = XData, XFormula = ~1, distr = "probit",
-              studyDesign = studyDesign, ranLevels = list(cellID=rL)) #ranLevels = list(transectID_full=rL))
+              studyDesign = studyDesign, ranLevels = list(cellID=rL, surveyID=rL.s))
 
 #######################################
 ##### run MCMC and save the model #####
@@ -202,18 +227,17 @@ models <- list(mFULL, mENV, mSPACE)
 modeltype = 1
 model = 1
 thin = 10  ## a value of 10 means every 10th iteration is kept (the higher the less correlated the samples are but the longer it takes)
-samples = 1000 ## how many total samples we want
+samples = 500 ## how many total samples we want
 transient = ceiling(0.5*samples*thin)
 adaptNf = rep(ceiling(0.4*samples*thin),1)
-nChains = 4
+nChains = 2
 set.seed(1)
 ptm = proc.time()
-for(i in 2){
+for(i in 1){
   print(i)
   models[[i]] <- sampleMcmc(models[[i]], samples = samples, thin = thin,
-               adaptNf = adaptNf, transient = transient,
-               nChains = nChains, nParallel = nChains,
-               initPar = "fixed effects")
+               adaptNf = rep(adaptNf,length(models[[i]]$rLNames)), transient = transient,
+               nChains = nChains, nParallel = nChains,initPar = "fixed effects")
 }
 computational.time = proc.time() - ptm
 filename = file.path(biodiv.dir, paste(res,"_model_", as.character(model), "_",

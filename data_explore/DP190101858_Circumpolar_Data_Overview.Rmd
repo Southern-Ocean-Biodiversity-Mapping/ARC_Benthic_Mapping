@@ -78,6 +78,8 @@ length(which(shelf.area[]<(-200)))#12134133
 mean(shelf.area[], na.rm=TRUE) # something like 570m
 ```
 
+
+
 ```{r, echo=FALSE}
 ##### set colour parameters
 ## disrete colours:

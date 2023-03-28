@@ -47,10 +47,10 @@ if (user == "nicole") {
 }
 
 load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
-bathy<-raster(paste0(env.derived, "Circumpolar_EnvData_500m_shelf_bathy_gebco_depth"))
+bathy<-raster(paste0(env.derived, "Circumpolar_EnvData_500m_shelf_bathy_ibcso2_depth.tif"))
 
-load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data.RData"))
-load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data.RData"))
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data_2km.RData"))
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data_2km.RData"))
 
 source(paste0(tools.dir,"bubbleplot.R"))
 ```
@@ -369,10 +369,10 @@ Removing 'Unscorable' and calculating overall percentages (across all cells) for
 perc<-cover_cells_env %>%
   select(., -Unscorable) 
 
-  perc_cell<- cbind(cover_cells_env %>% select (cellID:geomorph_cat),
-        prop.table(as.matrix(perc %>% select (Sub_Fine:S_CupIncmp)), margin=1)*100)
+  perc_cell<- cbind(cover_cells_env %>% select (cellID:logslope),
+        prop.table(as.matrix(perc %>% select ("1Sub_Fine":"Octocorals_Seapen")), margin=1)*100)
   
-  perc_overall<-colSums(prop.table(as.matrix(perc %>% select (Sub_Fine:S_CupIncmp)))*100)
+  perc_overall<-colSums(prop.table(as.matrix(perc %>% select ("1Sub_Fine":"Octocorals_Seapen")))*100)
 
 perc_overall<- as.data.frame(perc_overall)
 
@@ -403,23 +403,23 @@ Would be good to colour-code by survey- TO DO
 taxa_im<-SpatialPointsDataFrame(perc_cell[,c("proj_coord_x", "proj_coord_y")], perc_cell,proj4string = crs(bathy))
 
 raster::plot(bathy, col=depth_pal)
-        bubble.plot(taxa_im, var = "Sub_Fine", pch=1)
+        bubble.plot(taxa_im, var = "1Sub_Fine", pch=1)
 
 raster::plot(bathy, col=depth_pal)
-        bubble.plot(taxa_im, var = "Sub_PbGrv", pch=1)
+        bubble.plot(taxa_im, var = "2Sub_PbGrv", pch=1)
 
 raster::plot(bathy, col=depth_pal)
-        bubble.plot(taxa_im, var = "Sub_BioRu", pch=1)
+        bubble.plot(taxa_im, var = "5Sub_BioRu", pch=1)
 
 raster::plot(bathy, col=depth_pal)
-      bubble.plot(taxa_im, var = "BH_BrAnt", pch=1)
+      bubble.plot(taxa_im, var = "Bryozoan_Hard_BrAnt", pch=1)
 
 
 raster::plot(bathy, col=depth_pal)
-      bubble.plot(taxa_im, var = "E_O_BritO", pch=1)
+      bubble.plot(taxa_im, var = "Echinoderms_Ophiuroids_Other", pch=1)
       
 raster::plot(bathy, col=depth_pal)
-      bubble.plot(taxa_im, var = "HydrC_Br", pch=1)
+      bubble.plot(taxa_im, var = "Hydrozoa_Hydrocorals_Branching", pch=1)
       
 
 ```
@@ -427,7 +427,7 @@ raster::plot(bathy, col=depth_pal)
 
 ```{r subs taxa cor, warning=FALSE}
  
-subs<-c("Sub_Fine", "Sub_PbGrv", "Sub_Bould", "Sub_Cbble", "Sub_BioRu")
+subs<-c("1Sub_Fine", "2Sub_PbGrv", "4Sub_Bould", "3Sub_Cbble", "5Sub_BioRu")
 
 sub_cors<-as.data.frame(matrix(ncol = length(subs), nrow = 124))
 for(i in 1:length(subs)){
@@ -444,5 +444,72 @@ sub_cors %>%
 
 ```
 
+
+## Round maps for data-paper
+
+```{r}
+library(SOmap)
+sci.dir <-      "C:/Users/jjansen/Desktop/science/"
+tools.dir <-    paste0(sci.dir,"SouthernOceanBiodiversityMapping/Useful_Functions_Tools/")
+source(paste0(tools.dir,"SOmap_functions_JJ.R"))
+
+blues <- rev(blues9)
+better.ramp2 <- grDevices::colorRampPalette(blues)
+leg.steps <- c(1,2,2.75,3)
+lcex <- 1
+
+#### specify colour ramp for percentage cover
+g.cols <- rev(heat.colors(10))
+```
+
+
+```{r, warning=FALSE, echo=FALSE, fig.height=10, fig.width=10}
+morphotype.dat <- data.frame(taxa_im$`1Sub_Fine`)
+
+## split range of diatom values into 10
+val.10 <- cut(morphotype.dat[,1],breaks = 11)
+val.range <- range(morphotype.dat[,1])
+val.seq <- seq(val.range[1],val.range[2],length.out=11)
+val.labels <- round(val.seq,3)
+## colour by abundance
+morphotype.dat$Col <- g.cols[as.numeric(val.10)]
+
+#pdf(file="Circumpolar_overview_annotations_substrate.pdf", width=10, height=10)
+par(oma=c(1,1,1,1), mar=c(3,3,3,3))
+JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps, lcex=lcex)
+
+JJ_SOleg(col=g.cols, ticks=length(val.seq), border_width=0, label="%-cover", position="bottomright", tlabs=val.labels, leg.steps=leg.steps, type="continuous")
+## add sampling points
+points(taxa_im, pch=20, col=morphotype.dat$Col)
+
+scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
+#dev.off()
+```
+
+```{r, warning=FALSE, echo=FALSE, fig.height=10, fig.width=10}
+toMatch <- c("Sponge","Octocoral","Ascidian","Anemone","Hydr","Bryozoa")
+sel <- unique(grep(paste(toMatch,collapse="|"),names(taxa_im), value=TRUE))
+morphotype.dat.raw <- data.frame(taxa_im[sel])[,-c(53:55)] ## take care when transforming from a spatialdataframe
+morphotype.dat <- data.frame(log(rowSums(morphotype.dat.raw)+1))
+
+## split range of diatom values into 10
+val.10 <- cut(morphotype.dat[,1],breaks = 11)
+val.range <- range(morphotype.dat[,1])
+val.seq <- seq(val.range[1],val.range[2],length.out=11)
+val.labels <- round(exp(val.seq),0)
+## colour by abundance
+morphotype.dat$Col <- g.cols[as.numeric(val.10)]
+
+#pdf(file="Circumpolar_overview_annotations_SF.pdf", width=10, height=10)
+par(oma=c(1,1,1,1), mar=c(3,3,3,3))
+JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps, lcex=lcex)
+
+JJ_SOleg(col=g.cols, ticks=length(val.seq), border_width=0, label="%-cover", position="bottomright", tlabs=val.labels, leg.steps=leg.steps, type="continuous")
+## add sampling points
+points(taxa_im, pch=20, col=morphotype.dat$Col)
+
+scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
+#dev.off()
+```
 
 
