@@ -301,6 +301,17 @@ plot(c(depth.0802,depth.1802,depth.1901))
 ```
 
 
+#### Mertz
+
+```{r, warning=FALSE, echo=FALSE, fig.width=10, fig.height=4.5}
+plot(r2, xlim=c(700000,1700000), ylim=c(-2350000,-2000000),col=cols, main="Mertz", axes=FALSE, breaks=breaks, legend=FALSE)
+plot(coast.proj, add=TRUE)
+scalebar(20000, type="bar", label=c("0","10","20"), below="km")
+points(polar.dat.start.list$AA2011 , pch=pch, col=East.cols[1], cex=cex)
+text.plot(levels(dat.list$NBP1402$transectID),dat.start.list$NBP1402,polar.dat.start.list$NBP1402, col=East.cols[1])
+plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
+```
+
 #### Sabrina Coast
 
 ```{r, warning=FALSE, echo=FALSE, fig.width=6, fig.height=4.5}
