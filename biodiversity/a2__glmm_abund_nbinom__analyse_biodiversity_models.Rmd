@@ -1,0 +1,236 @@
+---
+title: "glmm - cells - abundance - model diagnostics"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r, warning=FALSE, message=FALSE}
+library(glmmTMB)
+library(bayesplot)
+'%!in%' <- function(x,y)!('%in%'(x,y))
+#res <- "500m"
+res <- "2km"
+```
+
+```{r}
+sci.dir <- "C:/Users/jjansen/Desktop/science/"
+biodiv.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Benthic_Mapping/biodiversity")
+
+load(file=paste0(biodiv.dir,"/biodiversity_fit_",res,"_glmms_dat.Rdata"))
+load(file=paste0(biodiv.dir,"/biodiversity_fit_",res,"_glmms_richness.Rdata"))
+load(file=paste0(biodiv.dir,"/biodiversity_fit_",res,"_glmms_totalcover.Rdata"))
+load(file=paste0(biodiv.dir,"/biodiversity_fit_",res,"_glmms_sfcover.Rdata"))
+load(file=paste0(biodiv.dir,"/biodiversity_fit_",res,"_glmms_speciescover.Rdata"))
+load(file=paste0(biodiv.dir,"/biodiversity_fit_",res,"_glmms_speciespa.Rdata"))
+```
+
+## Diagnostics {.tabset}
+
+### assess explanatory power {.tabset}
+
+#### Model Fit/Diagnostics
+
+```{r}
+library(DHARMa)
+glmm.c.res <- simulateResiduals(fit.glmm.c)
+plot(glmm.c.res)
+```
+
+```{r}
+## glmm with survey and transect random effect
+glmm.ct.res <- simulateResiduals(fit.glmm.ct)
+plot(glmm.ct.res)
+```
+
+#### Predicted vs Observed {.tabset}
+
+##### RICHNESS
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+par(mfrow=c(1,2))
+plot(fitted(fit.glm.r), fit.glm.r$y, ylab="observed values", main="glm")
+abline(0,1, col="grey", lty=2)
+plot(fitted(fit.glmm.r), fit.glm.r$y, ylab="observed values", main="glmm")
+abline(0,1, col="grey", lty=2)
+```
+
+##### INDIVIDUAL SPECIES PA
+
+```{r, echo=FALSE}
+sites_sums_fitted.pa.glm <- fit.pa.glm.list[[1]]$fitted.values
+for(i in 2:length(fit.pa.glm.list)){
+  if(is.null(fit.pa.glm.list[[i]]$fitted.values)) next
+  sites_sums_fitted.pa.glm <- sites_sums_fitted.pa.glm + fit.pa.glm.list[[i]]$fitted.values
+}
+sites_sums_fitted.pa.glmm <- fitted(fit.pa.glmm.list[[1]])
+for(i in 2:length(fit.pa.glmm.list)){
+  if(is.null(fitted(fit.pa.glmm.list[[i]]))) next
+  sites_sums_fitted.pa.glmm <- sites_sums_fitted.pa.glmm + fitted(fit.pa.glmm.list[[i]])
+}
+```
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+## glm site 200 is ridiculously high (>80000)
+par(mfrow=c(1,2))
+plot(sites_sums_fitted.pa.glm, fit.glm.r$y, ylab="observed values", main="glm")
+abline(0,1, col="grey", lty=2)
+plot(sites_sums_fitted.pa.glmm, fit.glm.r$y, ylab="observed values", main="glmm")
+abline(0,1, col="grey", lty=2)
+```
+
+##### COVER
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+xlim=ylim=c(0,1600)
+par(mfrow=c(1,2))
+plot(fitted(fit.glm.c), fit.glm.c$y, ylab="observed values", main="glm", xlim=xlim, ylim=ylim)
+abline(0,1, col="grey", lty=2)
+plot(fitted(fit.glmm.c), fit.glm.c$y, ylab="observed values", main="glmm", xlim=xlim, ylim=ylim)
+abline(0,1, col="grey", lty=2)
+```
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+xlim=ylim=c(0,1600)
+par(mfrow=c(1,2))
+plot(fitted(fit.glmm.ct), fit.glm.c$y, ylab="observed values", main="glmm", xlim=xlim, ylim=ylim)
+abline(0,1, col="grey", lty=2)
+```
+##### INDIVIDUAL SPECIES COVER
+
+```{r, echo=FALSE}
+sites_sums_fitted.glm <- fit.glm.list[[1]]$fitted.values
+for(i in 2:length(fit.glm.list)){
+  if(is.null(fit.glm.list[[i]]$fitted.values)) next
+  sites_sums_fitted.glm <- sites_sums_fitted.glm + fit.glm.list[[i]]$fitted.values
+}
+sites_sums_fitted.glmm <- fitted(fit.glmm.list[[1]])
+for(i in 2:length(fit.glmm.list)){
+  if(is.null(fitted(fit.glmm.list[[i]]))) next
+  sites_sums_fitted.glmm <- sites_sums_fitted.glmm + fitted(fit.glmm.list[[i]])
+}
+```
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+## glm site 200 is ridiculously high (>80000)
+par(mfrow=c(1,2))
+plot(sites_sums_fitted.glm, fit.glm.c$y, ylab="observed values", xlim=c(0,8000), main="glm")
+abline(0,1, col="grey", lty=2)
+plot(sites_sums_fitted.glmm, fit.glm.c$y, ylab="observed values", main="glmm")
+abline(0,1, col="grey", lty=2)
+```
+
+
+
+
+
+
+
+
+##### SF COVER
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+xlim=ylim=c(0,1600)
+par(mfrow=c(1,2))
+plot(fitted(fit.glm.sf), fit.glm.sf$y, ylab="observed values", main="glm", xlim=xlim, ylim=ylim)
+abline(0,1, col="grey", lty=2)
+plot(fitted(fit.glmm.sf), fit.glm.sf$y, ylab="observed values", main="glmm", xlim=xlim, ylim=ylim)
+abline(0,1, col="grey", lty=2)
+```
+
+
+
+
+
+
+#### Variance explained
+```{r, warning=FALSE}
+## what proportion of variance is explained by the different models and their parameters
+```
+
+
+### cross-validation {.tabset}
+
+#### RICHNESS
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+par(mfrow=c(1,2))
+## GLM cv
+plot(fitted(fit.glm.r), fit.glm.r$y, col="red", xlab="predicted", ylab="observed", xlim=c(0,150), ylim=c(0,150), main="GLM")
+abline(0,1,col="grey", lty=2)
+for(i in 1:5){
+  points(preds.glm.r.cv[[i]], dat.for.cv$richness[partition.cv==i])
+}
+legend("topleft", col=c("black","red"), legend=c("CV", "full"), pch=1)
+
+## GLMM cv
+plot(fitted(fit.glmm.r), fit.glm.r$y, col="red", xlab="predicted", ylab="observed", main="GLMM")
+abline(0,1,col="grey", lty=2)
+for(i in 1:5){
+  points(preds.glmm.r.cv[[i]], dat.for.cv$richness[partition.cv==i])
+}
+legend("topleft", col=c("black","red"), legend=c("CV", "full"), pch=1)
+```
+
+#### TOTAL COVER
+
+```{r, fig.height=8, fig.width=8, echo=FALSE}
+par(mfrow=c(2,2))
+## glm
+plot(fitted(fit.glm.c), fit.glm.c$y, col="red", xlab="predicted", ylab="observed", xlim=c(0,1700), ylim=c(0,1700), main="GLM")
+abline(0,1,col="grey", lty=2)
+for(i in 1:5){
+  points(preds.glm.c.cv[[i]], dat.for.cv$cover_all[partition.cv==i])
+}
+legend("bottomright", col=c("black","red"), legend=c("CV", "full"), pch=1)
+## glmm
+plot(fitted(fit.glmm.c), fit.glm.c$y, col="red", xlab="predicted", ylab="observed", xlim=c(0,1700), ylim=c(0,1700), main="GLMM (surveyID)")
+abline(0,1,col="grey", lty=2)
+for(i in 1:5){
+  points(preds.glmm.c.cv[[i]], dat.for.cv$cover_all[partition.cv==i])
+}
+legend("bottomright", col=c("black","red"), legend=c("CV", "full"), pch=1)
+## glmm transects
+plot(fitted(fit.glmm.ct), fit.glm.c$y, col="red", xlab="predicted", ylab="observed", xlim=c(0,1700), ylim=c(0,1700), main="GLMM (surveyID + transectID) vs CV")
+abline(0,1,col="grey", lty=2)
+for(i in 1:5){
+  points(preds.glmm.ct.cv[[i]], dat.for.cv$cover_all[partition.cv==i])
+}
+legend("bottomright", col=c("black","red"), legend=c("CV", "full"), pch=1)
+
+## glmm transects vs without
+plot(preds.glmm.c.cv[[1]], dat.for.cv$cover_all[partition.cv==1], col="red", xlab="predicted", ylab="observed", xlim=c(0,1700), ylim=c(0,1700), main="GLMM (surveyID) vs CV)")
+abline(0,1,col="grey", lty=2)
+for(i in 2:5){
+  points(preds.glmm.c.cv[[i]], dat.for.cv$cover_all[partition.cv==i], col="red")
+}
+for(i in 1:5){
+  points(preds.glmm.ct.cv[[i]], dat.for.cv$cover_all[partition.cv==i])
+}
+legend("bottomright", col=c("black","red"), legend=c("transects", "no transects"), pch=1)
+
+```
+
+#### SF cover
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+par(mfrow=c(1,2))
+## glm
+plot(fitted(fit.glm.sf), fit.glm.sf$y, col="red", xlab="predicted", ylab="observed", xlim=c(0,1700), ylim=c(0,1700), main="GLM")
+abline(0,1,col="grey", lty=2)
+for(i in 1:5){
+  points(preds.glm.sf.cv[[i]], dat.for.cv$cover_SF[partition.cv==i])
+}
+legend("bottomright", col=c("black","red"), legend=c("CV", "full"), pch=1)
+## glmm
+plot(fitted(fit.glmm.sf), fit.glm.sf$y, col="red", xlab="predicted", ylab="observed", xlim=c(0,1700), ylim=c(0,1700), main="GLMM")
+abline(0,1,col="grey", lty=2)
+for(i in 1:5){
+  points(preds.glmm.sf.cv[[i]], dat.for.cv$cover_SF[partition.cv==i])
+}
+legend("bottomright", col=c("black","red"), legend=c("CV", "full"), pch=1)
+
+```
+
+
