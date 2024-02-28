@@ -193,6 +193,40 @@ scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
 #dev.off()
 ```
 
+#### Overview of SHALLOW (<300m) sampling locations
+
+```{r}
+xy.sel.list <- list(1:2,6:7,6:7,6:7,6:7,
+                    1:2,1:2,1:2,1:2,1:2,
+                    1:2,1:2,1:2,c(4,3),c(7,6),
+                    5:6,5:6,5:6,5:6,5:6)
+```
+
+
+```{r, warning=FALSE, echo=FALSE, fig.height=10, fig.width=10}
+#### Image survey sites on bathymetry
+lcex=1.5
+pdf(file="DECRA_Circumpolar_overview_images.pdf", width=10, height=10)
+par(oma=c(1,1,1,1), mar=c(3,3,3,3))
+JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps, lcex=lcex)
+for(i in 1:length(polar.dat.list.clean)){
+  plot(polar.dat.list.clean[[i]], add=TRUE, pch=pch, cex=cex, col="black")
+  
+  xy.dat2 <- as.data.frame(proj4::project(dat.subset.list[[i]][,1:2], proj=crs(r2)))
+  depth <- extract(r2,xy.dat2)
+  sel <- which(depth>=-200)
+  sel.t <- which(dat.list.clean[[i]]$transectID%in%as.character(unique(dat.subset.list[[i]]$transectID[sel])))
+  plot(polar.dat.list.clean[[i]][sel.t,], add=TRUE, pch=pch, cex=cex, col="purple")
+  
+  sel2 <- which(depth>=-150)
+  sel2.t <- which(dat.list.clean[[i]]$transectID%in%as.character(unique(dat.subset.list[[i]]$transectID[sel2])))
+  plot(polar.dat.list.clean[[i]][sel2.t,], add=TRUE, pch=pch, cex=cex, col="red")
+}
+JJ_SOleg(col=c("white","white","white","red","purple","black"), ticks=2, border_width=0, lcex=lcex, leg.steps=leg.steps, label="AS-AID images", position = "bottomright",tlabs=c("","","","< 150m depth","150-200m depth","> 200m depth"))
+
+scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
+dev.off()
+```
 
 ### Region specific overviews {.tabset}
 
