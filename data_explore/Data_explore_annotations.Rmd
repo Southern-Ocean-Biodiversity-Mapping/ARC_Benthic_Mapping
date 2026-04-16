@@ -23,7 +23,7 @@ user = "Jan"
 
 if (user == "Jan") {
   
-  sci.dir <-      "C:/Users/jjansen/Desktop/science/"
+  sci.dir <-      "C:/Users/jjansen/OneDrive - University of Tasmania/science/"
   env.derived <-  paste0(sci.dir,"data_environmental/derived/")
   tools.dir <-    paste0(sci.dir,"SouthernOceanBiodiversityMapping/Useful_Functions_Tools/")
   ARC_Data.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Data/")
@@ -49,8 +49,8 @@ if (user == "nicole") {
 load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
 bathy<-raster(paste0(env.derived, "Circumpolar_EnvData_500m_shelf_bathy_ibcso2_depth.tif"))
 
-load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data_2km.RData"))
-load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data_2km.RData"))
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Data_2km_202312.RData"))
+load(paste0(ARC_Data.dir, "annotation/Circumpolar_Annotation_Env_Data_2km_202412.RData"))
 
 source(paste0(tools.dir,"bubbleplot.R"))
 ```
@@ -449,7 +449,7 @@ sub_cors %>%
 
 ```{r}
 library(SOmap)
-sci.dir <-      "C:/Users/jjansen/Desktop/science/"
+sci.dir <-      "C:/Users/jjansen/OneDrive - University of Tasmania/science/"
 tools.dir <-    paste0(sci.dir,"SouthernOceanBiodiversityMapping/Useful_Functions_Tools/")
 source(paste0(tools.dir,"SOmap_functions_JJ.R"))
 

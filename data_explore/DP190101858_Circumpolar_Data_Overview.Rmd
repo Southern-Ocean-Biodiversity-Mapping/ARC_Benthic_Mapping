@@ -1,5 +1,5 @@
 ---
-title: "DP190101858 Biologcial Data Overview"
+title: "DP190101858 Biological Data Overview"
 author: "Jan Jansen"
 date: "2019-2022"
 output: html_document
@@ -14,19 +14,19 @@ Main contents:
 
 ```{r, warning=FALSE, message=FALSE}
 library(SOmap)
-library(raster)
+#library(raster)
 library(viridis) ## for a nice continuous color palette (viridis or magma)
 library(RColorBrewer)
 library(graticule)
 library(terra)
-library(rgdal)
+#library(rgdal)
 ```
 
 ### Setting up the environment
 
 ```{r}
 ## Jan's local machine:
-sci.dir <-      "C:/Users/jjansen/Desktop/science/"
+sci.dir <-      "C:/Users/jjansen/OneDrive - University of Tasmania/science/"
 env.derived <-  paste0(sci.dir,"data_environmental/derived/")
 bio.dir <-      paste0(sci.dir,"data_biological/")
 
@@ -52,11 +52,37 @@ load(paste0(ARC_Data.dir,"prep_image/Circumpolar_DownwardImages_metadata.Rdata")
 load(paste0(ARC_Data.dir,"FAM/Circumpolar_Diatom_metadata.Rdata"))
 
 ## from "ReadIn_Circumpolar_Environmental_Data.Rmd"
-r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_ibcso2_depth.tif"))
+# r2 <- raster(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_ibcso2_depth.tif"))
+r2 <- rast(paste0(env.derived,"Circumpolar_EnvData_500m_shelf_bathy_ibcso2_depth.tif"))
 
 ##### load coastline
 #stereo <- as.character(r2@crs)
 load(paste0(env.derived,"Circumpolar_Coastline.Rdata"))
+
+##### CRS data needs to be split into 3 separate surveys
+sel.crs <- which(dat.list.clean$WAP$transectID%in%c(1207,1208,1217,1219,1255,1267))
+sel.nbp0808 <- which(dat.list.clean$WAP$transectID%in%c(1069,1072,1091,1130,1132))
+sel.nbp1001 <- (1:nrow(dat.list.clean$WAP))[-c(sel.crs, sel.nbp0808)]
+
+sel.t.crs     <- which(levels(dat.list.clean$WAP$transectID)%in%c(1207,1208,1217,1219,1255,1267))
+sel.t.nbp0808 <- which(levels(dat.list.clean$WAP$transectID)%in%c(1069,1072,1091,1130,1132))
+sel.t.nbp1001 <- (1:length(levels(dat.list.clean$WAP$transectID)))[-c(sel.t.crs, sel.t.nbp0808)]
+
+dat.list.clean$NBP0808 <- dat.list.clean$WAP[sel.nbp0808,]
+dat.list.clean$NBP1001 <- dat.list.clean$WAP[sel.nbp1001,]
+dat.list.clean$LMG0902 <- dat.list.clean$WAP[sel.crs,]
+
+polar.dat.list.clean$NBP0808 <- polar.dat.list.clean$WAP[sel.nbp0808]
+polar.dat.list.clean$NBP1001 <- polar.dat.list.clean$WAP[sel.nbp1001]
+polar.dat.list.clean$LMG0902     <- polar.dat.list.clean$WAP[sel.crs]
+
+polar.dat.start.list$NBP0808 <- polar.dat.start.list$WAP[sel.t.nbp0808]
+polar.dat.start.list$NBP1001 <- polar.dat.start.list$WAP[sel.t.nbp1001]
+polar.dat.start.list$LMG0902     <- polar.dat.start.list$WAP[sel.t.crs]
+
+dat.list.clean <- dat.list.clean[-1]
+polar.dat.list.clean <- polar.dat.list.clean[-1]
+polar.dat.start.list <- polar.dat.start.list[-1]
 ```
 
 ```{r, eval=FALSE}
@@ -82,9 +108,9 @@ mean(shelf.area[], na.rm=TRUE) # something like 570m
 
 ```{r, echo=FALSE}
 ##### set colour parameters
-## disrete colours:
-leg.cols <- brewer.pal(12,"Paired")
-wap_cols <- leg.cols[3:11]#leg.cols[c(4,8,11,6)]
+## discrete colours:
+leg.cols <- c(brewer.pal(9,"Set1"),brewer.pal(8,"Set2"))
+wap_cols <- leg.cols#leg.cols[c(4,8,11,6)]
 
 ## set continuous colors for raster:
 # depth.pal <- colorRampPalette(c('black','grey10','grey20','navy','blue','dodgerblue','lightcyan'))
@@ -105,7 +131,7 @@ leg.args <- seq(-3000,0, by=500)
 #leg.args <- seq(-7500,0, by=500)
 
 
-West.cols.AP <- brewer.pal(9,"Set1")
+West.cols.AP <- c(brewer.pal(9,"Set1"),brewer.pal(8,"Set2"))
 West.cols.WS <- brewer.pal(5,"Set1")[-2]
 East.cols <- brewer.pal(7,"Set1")[-2]
 
@@ -113,12 +139,17 @@ West.cols.leg.AP <- West.cols.AP
 West.cols.leg.WS <- c(West.cols.WS,rep("white",5))
 East.cols.leg <- c(rep("white",3),East.cols)
 
-West.cruise.AP <- c("CRS","JR17001","LMG1311","PS81","PS61","JR17003","PS118","JR262","JR15005")
+# West.cruise.AP <- c("JR17001","LMG1311","PS81","PS61","JR17003","PS118","JR262","JR15005","LMG0902","NBP0808","NBP1001")
+## sequence of surveys on the AP from south to north:
+West.cruise.AP <- c("JR17001","NBP0808","LMG0902","NBP1001","LMG1311","PS81","JR17003","PS61","PS118","JR262","JR15005")
+## which translates to selecting these numbers in order:
+seq.AP <- match(West.cruise.AP, names(polar.dat.start.list))
+##
 West.cruise.WS <- c("PS96","PS06","PS14","PS18","","","","","")
 East.cruise <- c("","","","NBP1402","AA2011","NBP1502","TAN0802","TAN1802","TAN1901")
 
 ## points plotted in the sequence of objects in names(polar.dat.list.clean)
-col.v <- c(West.cols.AP[1],West.cols.WS[2:4],West.cols.AP[c(5,4,4)],West.cols.WS[1],West.cols.AP[7],East.cols[c(4:6,1,3,2)],West.cols.AP[c(8:9,2,6,3)])
+col.v <- c(West.cols.WS[2:4],West.cols.AP[c(8,6,6)],West.cols.WS[1],West.cols.AP[9],East.cols[c(4:6,1,3,2)],West.cols.AP[c(10,11,1,7,5,2,4,3)])
 
 pch <- 20
 cex <- 2
@@ -177,8 +208,8 @@ message(paste0(a," different sampling transects"))
 
 ```{r, warning=FALSE, echo=FALSE, fig.height=10, fig.width=10}
 #### Image survey sites on bathymetry
-#pdf(file="Circumpolar_overview_images.pdf", width=10, height=10)
-par(oma=c(1,1,1,1), mar=c(3,3,3,3))
+pdf(file="Circumpolar_overview_images.pdf", width=10, height=10)
+par(oma=c(1,1,1,1), mar=c(3,6,3,3))
 JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps, lcex=lcex)
 JJ_SOleg(col=West.cols.leg.AP, ticks=length(West.cols.leg.AP), border_width=0, lcex=lcex, leg.steps=leg.steps,
          label="Survey IDs\nAntarctic Pensinsula", position = "topleft",tlabs=West.cruise.AP)
@@ -190,7 +221,7 @@ for(i in 1:length(polar.dat.list.clean)){
   plot(polar.dat.list.clean[[i]], add=TRUE, pch=pch, cex=cex, col=col.v[i])
 }
 scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
-#dev.off()
+dev.off()
 ```
 
 #### Overview of SHALLOW (<300m) sampling locations
@@ -203,10 +234,10 @@ xy.sel.list <- list(1:2,6:7,6:7,6:7,6:7,
 ```
 
 
-```{r, warning=FALSE, echo=FALSE, fig.height=10, fig.width=10}
+```{r, warning=FALSE, echo=FALSE, fig.height=10, fig.width=10, eval=FALSE}
 #### Image survey sites on bathymetry
 lcex=1.5
-pdf(file="DECRA_Circumpolar_overview_images.pdf", width=10, height=10)
+#pdf(file="DECRA_Circumpolar_overview_images.pdf", width=10, height=10)
 par(oma=c(1,1,1,1), mar=c(3,3,3,3))
 JJ_SOmap(ramp.col = better.ramp2, border=FALSE, graticules = TRUE, label = "depth\n(m)", leg.steps=leg.steps, lcex=lcex)
 for(i in 1:length(polar.dat.list.clean)){
@@ -225,7 +256,7 @@ for(i in 1:length(polar.dat.list.clean)){
 JJ_SOleg(col=c("white","white","white","red","purple","black"), ticks=2, border_width=0, lcex=lcex, leg.steps=leg.steps, label="AS-AID images", position = "bottomright",tlabs=c("","","","< 150m depth","150-200m depth","> 200m depth"))
 
 scalebar(1000000, type="bar", label=c("0","500","1000"), below="km")
-dev.off()
+#dev.off()
 ```
 
 ### Region specific overviews {.tabset}
@@ -374,17 +405,37 @@ plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,lab
 plot(r2, xlim=c(-2750000,-2100000), ylim=c(750000,2410000),col=cols, main="Antarctic Peninsula", axes=FALSE)
 plot(coast.proj, add=TRUE)
 scalebar(200000, type="bar", label=c("0","100","200"), below="km")
-points(polar.dat.start.list$WAP, pch=pch, cex=cex, col=wap_cols[1])
-points(polar.dat.start.list$PS61, pch=pch, cex=cex, col=wap_cols[2])
-points(polar.dat.start.list$PS81, pch=pch, cex=cex, col=wap_cols[3])
-points(polar.dat.start.list$PS118, pch=pch, cex=cex, col=wap_cols[4])
-points(polar.dat.start.list$JR262, pch=pch, cex=cex, col=wap_cols[5])
-points(polar.dat.start.list$JR15005, pch=pch, cex=cex, col=wap_cols[6])
-points(polar.dat.start.list$JR17001, pch=pch, cex=cex, col=wap_cols[7])
-points(polar.dat.start.list$JR17003, pch=pch, cex=cex, col=wap_cols[8])
-points(polar.dat.start.list$LMG1311, pch=pch, cex=cex, col=wap_cols[9])
+for(i in 1:11){
+  points(polar.dat.start.list[[seq.AP[i]]], pch=pch, cex=cex, col=wap_cols[i])
+}
+# points(polar.dat.start.list$JR17001, pch=pch, cex=cex, col=wap_cols[1])
+# points(polar.dat.start.list$NBP0808, pch=pch, cex=cex, col=wap_cols[2])
+# points(polar.dat.start.list$CRS,     pch=pch, cex=cex, col=wap_cols[3])
+# points(polar.dat.start.list$NBP1001, pch=pch, cex=cex, col=wap_cols[4])
+# points(polar.dat.start.list$LMG1311, pch=pch, cex=cex, col=wap_cols[5])
+# points(polar.dat.start.list$PS81,    pch=pch, cex=cex, col=wap_cols[6])
+# points(polar.dat.start.list$JR17003, pch=pch, cex=cex, col=wap_cols[7])
+# points(polar.dat.start.list$PS61,    pch=pch, cex=cex, col=wap_cols[8])
+# points(polar.dat.start.list$PS118,   pch=pch, cex=cex, col=wap_cols[9])
+# points(polar.dat.start.list$JR262,   pch=pch, cex=cex, col=wap_cols[10])
+# points(polar.dat.start.list$JR15005, pch=pch, cex=cex, col=wap_cols[11])
+
+# ## sorted by year:
+# points(polar.dat.start.list$PS61,    pch=pch, cex=cex, col=wap_cols[1])
+# points(polar.dat.start.list$JR262,   pch=pch, cex=cex, col=wap_cols[2])
+# points(polar.dat.start.list$NBP0808, pch=pch, cex=cex, col=wap_cols[3])
+# points(polar.dat.start.list$CRS,     pch=pch, cex=cex, col=wap_cols[4])
+# points(polar.dat.start.list$NBP1001, pch=pch, cex=cex, col=wap_cols[5])
+# points(polar.dat.start.list$PS81,    pch=pch, cex=cex, col=wap_cols[6])
+# points(polar.dat.start.list$LMG1311, pch=pch, cex=cex, col=wap_cols[7])
+# points(polar.dat.start.list$JR15005, pch=pch, cex=cex, col=wap_cols[8])
+# points(polar.dat.start.list$JR17001, pch=pch, cex=cex, col=wap_cols[9])
+# points(polar.dat.start.list$JR17003, pch=pch, cex=cex, col=wap_cols[10])
+# points(polar.dat.start.list$PS118,   pch=pch, cex=cex, col=wap_cols[11])
+
 # points(polar.dat.ANA08D,pch=pch, cex=cex,col="pink")
-legend("topleft",pch=pch, pt.cex=cex, col=wap_cols, legend=c("WAP","PS61","PS81","PS118","JR262","JR15005","JR17001","JR17003","LMG1311"))
+legend("topleft",pch=pch, pt.cex=cex, col=rev(wap_cols[1:11]),legend=rev(names(polar.dat.start.list)[seq.AP]))
+##legend=c("CRS","NBP0808","NBP1001","PS61","PS81","PS118","JR262","JR15005","JR17001","JR17003","LMG1311"))
 # text.plot(levels(dat.list$WAP$transectID),dat.start.list$WAP,polar.dat.start.list$WAP, col=wap_cols[1])
 # text.plot(levels(dat.list$PS61$transectID),dat.start.list$PS61,polar.dat.start.list$PS61, col=wap_cols[2])
 # text.plot(levels(dat.list$PS81$transectID),dat.start.list$PS81,polar.dat.start.list$PS81, col=wap_cols[3])
@@ -404,36 +455,20 @@ legend("topleft",pch=pch, pt.cex=cex, col=wap_cols, legend=c("WAP","PS61","PS81"
 plot(r2, xlim=c(-2550000,-2100000), ylim=c(2000000,2420000), main="Antarctic Peninsula - South Orkney", axes=FALSE, col=cols)#cols, breaks=breaks, legend=FALSE
 plot(coast.proj, add=TRUE)
 scalebar(20000, type="bar", label=c("0","10","20"), below="km")
-points(polar.dat.start.list$PS61, pch=pch, cex=cex, col=wap_cols[2])
-points(polar.dat.start.list$PS118, pch=pch, cex=cex, col=wap_cols[4])
-points(polar.dat.start.list$JR262, pch=pch, cex=cex, col=wap_cols[5])
-points(polar.dat.start.list$JR15005, pch=pch, cex=cex, col=wap_cols[6])
-legend("topleft",pch=pch, pt.cex=cex, col=wap_cols[c(2,4:6)], legend=c("PS61","PS118","JR262","JR15005"))
-# text.plot(levels(dat.list$PS61$transectID),dat.start.list$PS61,polar.dat.start.list$PS61, col=wap_cols[2])
-# text.plot(levels(dat.list$PS118$transectID),dat.start.list$PS118,polar.dat.start.list$PS118, col=wap_cols[4])
-# text.plot(levels(dat.list$JR262$transectID),dat.start.list$JR262,polar.dat.start.list$JR262, col=wap_cols[5])
-# text.plot(levels(dat.list$JR15005$transectID),dat.start.list$JR15005,polar.dat.start.list$JR15005, col=wap_cols[6])
-#plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
+for(i in 8:11){
+  points(polar.dat.start.list[[seq.AP[i]]], pch=pch, cex=cex, col=wap_cols[i])
+}
+legend("topleft",pch=pch, pt.cex=cex, col=rev(wap_cols[8:11]), legend=rev(names(polar.dat.start.list)[seq.AP[8:11]]))
 ```
 
 ```{r, warning=FALSE, echo=FALSE, fig.width=10, fig.height=10}
 plot(r2, xlim=c(-2750000,-2300000), ylim=c(1400000,1900000), main="Antarctic Peninsula - Tip", axes=FALSE, col=cols)#cols, breaks=breaks, legend=FALSE
 plot(coast.proj, add=TRUE)
 scalebar(20000, type="bar", label=c("0","10","20"), below="km")
-points(polar.dat.start.list$WAP, pch=pch, cex=cex, col=wap_cols[1])
-points(polar.dat.start.list$PS61, pch=pch, cex=cex, col=wap_cols[2])
-points(polar.dat.start.list$PS81, pch=pch, cex=cex, col=wap_cols[3])
-points(polar.dat.start.list$PS118, pch=pch, cex=cex, col=wap_cols[4])
-points(polar.dat.start.list$JR17001, pch=pch, cex=cex, col=wap_cols[7])
-points(polar.dat.start.list$JR17003, pch=pch, cex=cex, col=wap_cols[8])
-legend("topleft",pch=pch, pt.cex=cex, col=wap_cols[c(1:4,7,8)], legend=c("WAP","PS61","PS81","PS118","JR17001","JR17003"))
-#text.plot(levels(dat.list$WAP$transectID),dat.start.list$WAP,polar.dat.start.list$WAP, col=wap_cols[1])
-# text.plot(levels(dat.list$PS61$transectID),dat.start.list$PS61,polar.dat.start.list$PS61, col=wap_cols[2])
-# text.plot(levels(dat.list$PS81$transectID),dat.start.list$PS81,polar.dat.start.list$PS81, col=wap_cols[3])
-# text.plot(levels(dat.list$PS118$transectID),dat.start.list$PS118,polar.dat.start.list$PS118, col=wap_cols[4])
-# text.plot(levels(dat.list$JR17001$transectID),dat.start.list$JR17001,polar.dat.start.list$JR17001, col=wap_cols[7])
-# text.plot(levels(dat.list$JR17003$transectID),dat.start.list$JR17003,polar.dat.start.list$JR17003, col=wap_cols[8])
-#plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
+for(i in 1:8){
+  points(polar.dat.start.list[[seq.AP[i]]], pch=pch, cex=cex, col=wap_cols[i])
+}
+legend("topleft",pch=pch, pt.cex=cex, col=rev(wap_cols[1:8]), legend=rev(names(polar.dat.start.list)[seq.AP[1:8]]))
 ```
 
 
@@ -442,14 +477,10 @@ legend("topleft",pch=pch, pt.cex=cex, col=wap_cols[c(1:4,7,8)], legend=c("WAP","
 plot(r2, xlim=c(-2600000,-2375000), ylim=c(800000,1400000), main="Antarctic Peninsula - lower", axes=FALSE, col=cols)#cols, breaks=breaks, legend=FALSE
 plot(coast.proj, add=TRUE)
 scalebar(20000, type="bar", label=c("0","10","20"), below="km")
-points(polar.dat.start.list$WAP, pch=pch, cex=cex, col=wap_cols[1])
-points(polar.dat.start.list$JR17001, pch=pch, cex=cex, col=wap_cols[7])
-points(polar.dat.start.list$LMG1311, pch=pch, cex=cex, col=wap_cols[9])
-legend("topright",pch=pch, pt.cex=cex, col=wap_cols[c(1,7,9)], legend=c("WAP","JR17001","LMG1311"))
-# text.plot(levels(dat.list$WAP$transectID),dat.start.list$WAP,polar.dat.start.list$WAP, col=wap_cols[1])
-# text.plot(levels(dat.list$JR17001$transectID),dat.start.list$JR17001,polar.dat.start.list$JR17001, col=wap_cols[7])
-# text.plot(levels(dat.list$LMG1311$transectID),dat.start.list$LMG1311,polar.dat.start.list$LMG1311, col=wap_cols[9])
-#plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
+for(i in 1:5){
+  points(polar.dat.start.list[[seq.AP[i]]], pch=pch, cex=cex, col=wap_cols[i])
+}
+legend("topright",pch=pch, pt.cex=cex, col=rev(wap_cols[1:5]), legend=rev(names(polar.dat.start.list)[seq.AP[1:5]]))
 ```
 
 #### Weddell Sea
@@ -457,15 +488,15 @@ legend("topright",pch=pch, pt.cex=cex, col=wap_cols[c(1,7,9)], legend=c("WAP","J
 plot(r2, xlim=c(-1400000,600000), ylim=c(800000,2300000),col=cols, main="Weddell Sea", axes=FALSE)#, breaks=breaks, legend=FALSE)
 plot(coast.proj, add=TRUE)
 scalebar(200000, xy=c(0,900000), type="bar", label=c("0","100","200"), below="km")
-points(polar.dat.PS06, pch=pch, cex=cex, col=wap_cols[1])
-points(polar.dat.PS14, pch=pch, cex=cex, col=wap_cols[2])
-points(polar.dat.PS18, pch=pch, cex=cex, col=wap_cols[3])
-points(polar.dat.PS96, pch=pch, cex=cex, col=wap_cols[4])
-legend("bottomright",pch=pch, pt.cex=cex, col=wap_cols, legend=c("PS06","PS14","PS18","PS96"))
-text.plot(levels(dat.list$PS06$transectID),dat.list$PS06,polar.dat.PS06, col=wap_cols[1])
-text.plot(levels(dat.list$PS14$transectID),dat.list$PS14,polar.dat.PS14,col=wap_cols[2], adj=-0.7)
-text.plot(levels(dat.list$PS18$transectID),dat.list$PS18,polar.dat.PS18,col=wap_cols[3])
-text.plot(levels(dat.list$PS96$transectID),dat.list$PS96,polar.dat.PS96,col=wap_cols[4])
+points(polar.dat.PS06, pch=pch, cex=cex, col=West.cols.WS[2])
+points(polar.dat.PS14, pch=pch, cex=cex, col=West.cols.WS[3])
+points(polar.dat.PS18, pch=pch, cex=cex, col=West.cols.WS[4])
+points(polar.dat.PS96, pch=pch, cex=cex, col=West.cols.WS[1])
+legend("bottomright",pch=pch, pt.cex=cex, col=West.cols.WS, legend=c("PS96","PS06","PS14","PS18"))
+text.plot(levels(dat.list$PS06$transectID),dat.list$PS06,polar.dat.PS06, col=West.cols.WS[2])
+text.plot(levels(dat.list$PS14$transectID),dat.list$PS14,polar.dat.PS14, col=West.cols.WS[3], adj=-0.7)
+text.plot(levels(dat.list$PS18$transectID),dat.list$PS18,polar.dat.PS18, col=West.cols.WS[4])
+text.plot(levels(dat.list$PS96$transectID),dat.list$PS96,polar.dat.PS96, col=West.cols.WS[1])
 #plot(r2,legend.only=TRUE,col=cols, breaks=breaks, axis.args=list(at=leg.args,labels=leg.args))
 ```
 
@@ -648,8 +679,8 @@ lons <- seq(-70, -50, by = 10)
 lats <- seq(-75, -50, by = 2)
 xl <-  range(lons) + c(-0.4, 0.4)
 yl <- range(lats) + c(-0.4, 0.4)
-grat <- graticule(lons, lats, proj = stereo, ylim = yl, xlim = xl)
-labs <- graticule_labels(lons, lats, xline = min(xl), yline = max(yl), proj = stereo) #
+#grat <- graticule(lons, lats, proj = stereo, ylim = yl, xlim = xl)
+#labs <- graticule_labels(lons, lats, xline = min(xl), yline = max(yl), proj = stereo) #
 ```
 
 #### Antarctic Peninsula
@@ -667,10 +698,10 @@ plot(coast.proj, add=TRUE)
 scalebar(200000, type="bar", label=c("0","100","200"), below="km")
 points(polar.dat.diatom, col=diatom.dat$Col, cex=pt.cex, pch=pt.pch)
 ## the lines are a SpatialLinesDataFrame
-plot(grat, add = TRUE, lty = 5, col = rgb(0, 0, 0, 0.8))
+#plot(grat, add = TRUE, lty = 5, col = rgb(0, 0, 0, 0.8))
 ## the labels are a SpatialPointsDataFrame, and islon tells us which kind
-text(subset(labs, labs$islon), lab = parse(text = labs$lab[labs$islon]), pos = 3)
-text(subset(labs, !labs$islon), lab = parse(text = labs$lab[!labs$islon]), pos = 2)
+#text(subset(labs, labs$islon), lab = parse(text = labs$lab[labs$islon]), pos = 3)
+#text(subset(labs, !labs$islon), lab = parse(text = labs$lab[!labs$islon]), pos = 2)
 
 legend("topright",title=leg.title, legend=leg.vals, col=g.cols, pt.cex=pt.cex, pch=pt.pch)
 ```
