@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Large data / outputs — never commit
+*.nc
+*.tif
+*.tiff
+*.Rdata
+*.Rds
