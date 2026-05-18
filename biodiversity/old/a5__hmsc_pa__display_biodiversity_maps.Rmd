@@ -1,0 +1,247 @@
+---
+title: "display biodiversity maps"
+output: html_document
+---
+
+```{r}
+## fitting an hmsc using Otsos book, course scripts and : https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.13345&file=mee313345-sup-0002-AppendixS2.pdf
+library(Hmsc)
+library(terra)
+library(viridis)
+'%!in%' <- function(x,y)!('%in%'(x,y))
+
+##############################################################################################################
+#res <- "500m"
+res <- "2km"
+
+##############################################################################################################
+user = "Jan"
+#user = "charley"
+#user="nicole"
+if (user == "Jan") {
+  sci.dir <-      "C:/Users/jjansen/Desktop/science/"
+  env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+  #bio.dir <-      paste0(sci.dir,"data_biological/")
+  ## remote repository (DOESN'T WORK YET):
+  # env.dir <- "https://data.imas.utas.edu.au/data_transfer/admin/files/EnvironmentalData/"
+  ## common paths (after "sci.dir")
+  tools.dir <-    paste0(sci.dir,"SouthernOceanBiodiversityMapping/Useful_Functions_Tools/")
+  ARC_Data.dir <- paste0(sci.dir,"SouthernOceanBiodiversityMapping/ARC_Data/")
+} 
+if (user == "charley") {
+  sci.dir <- "C:/Users/cgros/code/IMAS/"
+  ARC_Data.dir <- paste0(sci.dir,"ARC_Data/")
+  env.derived <-  "C:/Users/cgros/data/SO_env_layers/derived/"
+  tools.dir <-    paste0(sci.dir,"Useful_Functions_Tools/")
+}
+if (user == "nicole") {
+  sci.dir <-    "C:/Users/hillna/OneDrive - University of Tasmania/UTAS_work/Projects/Benthic Diversity ARC/"
+  ARC_Data.dir <- paste0(sci.dir,"Analysis/ARC_Data/")
+  env.derived <-  paste0(sci.dir,"data_environmental/derived/")
+  tools.dir <-    paste0(sci.dir,"Analysis/Useful_Functions_Tools/")
+}
+
+r.stack <- rast(paste0(env.derived,"Circumpolar_EnvData_",res,"_shelf_mask_unscaled_variables.tif"))
+r2 <- r.stack$depth
+```
+
+```{r}
+modeltype = 1
+model = 1
+thin = 10  ## a value of 10 means every 10th iteration is kept (the higher the less correlated the samples are but the longer it takes)
+samples = 800 ## how many total samples we want
+transient = ceiling(0.5*samples*thin)
+adaptNf = rep(ceiling(0.4*samples*thin),1)
+nChains = 4
+
+#########################################
+## first define the character string to save the files:
+base.str <- paste0("/pvol/biodiversity_prediction/",res,
+                    "_model_", as.character(model), "_",
+                    c("pa","abundance")[modeltype], 
+                    "_chains_",as.character(nChains),
+                    "_thin_", ... = as.character(thin),
+                    "_samples_", as.character(samples),"_")
+```
+
+```{r}
+################################
+## read in and compare predictions:
+ra.dir <- paste0(sci.dir,"data_biological/circumpolar_prediction_outputs/")
+ra.list <- list.files(ra.dir)
+ra.list <- ra.list[grep("800_",ra.list)]
+
+hmsc.maps <- rast(paste0(ra.dir,ra.list))
+
+hmsc.maps.mean <- subset(hmsc.maps,seq(1,nlyr(hmsc.maps),by=2))
+hmsc.maps.sd <- subset(hmsc.maps,seq(2,nlyr(hmsc.maps),by=2))
+
+hmsc.maps.richness <- sum(hmsc.maps.mean)
+```
+
+## p/a maps {.tabset}
+
+### p/a - overview
+
+```{r, fig.width=10, fig.height=10}
+plot(hmsc.maps.richness, col=viridis(99))
+```
+
+### p/a - individual species
+
+```{r, fig.width=13, fig.height=7}
+par(mfrow=c(1,2), oma=c(2,0,2,3))
+mar <- c(1,1,1,0)
+for(i in seq(1,166, by=2)){
+  range <- range(minmax(c(hmsc.maps[[i]],hmsc.maps[[i+1]])))
+  plot(hmsc.maps[[i]], range=range, main=names(hmsc.maps)[i], mar=mar, legend=FALSE, col=viridis(99))
+  plot(hmsc.maps[[i+1]], range=range, main=names(hmsc.maps)[i+1], mar=mar, col=viridis(99))
+}
+```
+
+
+### p/a uncertainty hotspots
+
+requires more thinking about how to detect the hotspots  
+essentially need to look at where a standardised prediction error is the smallest, because larger predictions will have larger errors... And for p/a data small and large probabilities will have small errors, so can't simply divide occurrence by the error...  
+
+```{r, eval=FALSE, echo=FALSE, fig.width=13, fig.height=7}
+par(mfrow=c(1,2), oma=c(2,0,2,3))
+mar <- c(1,1,1,0)
+uncertainty_map <- hmsc.maps[[19]]/hmsc.maps[[20]]
+plot(hmsc.maps[[19]], main=names(hmsc.maps)[19], mar=mar, legend=FALSE, col=viridis(99))
+plot(uncertainty_map, main="proportional uncertainty", mar=mar, col=viridis(99))
+
+par(mfrow=c(1,1), oma=c(2,0,2,3))
+mar <- c(1,1,1,0)
+uncertainty_map <- hmsc.maps[[19]]/(hmsc.maps[[20]]^2)
+plot(uncertainty_map, main="proportional uncertainty", mar=mar, col=viridis(99))
+
+
+#top 10% occurrence, top 1% certainty
+#top10% occurrence, bottom 1% certainty
+
+unc.map2 <- uncertainty_map
+unc.map2[which(!is.na(uncertainty_map[]))] <- 0
+sel.uncert.top1 <- selectHighest(uncertainty_map, 50000)
+unc.map2[sel.uncert.top1] <- 1
+
+prob.map2 <- hmsc.maps[[19]]
+prob.map2[which(!is.na(hmsc.maps[[19]][]))] <- 0
+sel.prob.top1 <- selectHighest(hmsc.maps[[19]], 50000)
+prob.map2[sel.prob.top1] <- 1
+
+par(mfrow=c(1,1))
+plot(unc.map2, main="top 5% certainty")
+plot(prob.map2, main="top 5% probability of presence")
+```
+
+```{r, eval=FALSE, echo=FALSE, fig.width=13, fig.height=7}
+m <- hmsc.maps[[47]]
+s <- hmsc.maps[[48]]
+par(mfrow=c(1,2), oma=c(2,0,2,3))
+mar <- c(1,1,1,0)
+uncertainty_map <- m/s
+plot(m, main=names(m), mar=mar, legend=FALSE, col=viridis(99))
+plot(uncertainty_map, main="proportional uncertainty", mar=mar, col=viridis(99))
+
+par(mfrow=c(1,1), oma=c(2,0,2,3))
+mar <- c(1,1,1,0)
+uncertainty_map <- m/(s^2)
+plot(uncertainty_map, main="proportional uncertainty", mar=mar, col=viridis(99))
+
+
+#top 10% occurrence, top 1% certainty
+#top10% occurrence, bottom 1% certainty
+
+# unc.map2 <- uncertainty_map
+# unc.map2[which(!is.na(uncertainty_map[]))] <- 0
+# sel.uncert.top1 <- selectHighest(uncertainty_map, 50000)
+# unc.map2[sel.uncert.top1] <- 1
+unc.map2 <- s
+unc.map2[which(!is.na(s[]))] <- 0
+sel.uncert.top1 <- selectHighest(s, 200000, low=TRUE)
+unc.map2[sel.uncert.top1] <- 1
+
+prob.map2 <- m
+prob.map2[which(!is.na(m[]))] <- 0
+sel.prob.top1 <- selectHighest(m, 200000)
+prob.map2[sel.prob.top1] <- 1
+
+par(mfrow=c(1,1))
+plot(unc.map2, main="top 10% certainty")
+plot(prob.map2, main="top 10% probability of presence")
+plot(unc.map2+prob.map2)
+```
+
+### p/a - regional snapshots
+
+#### Antarctic Peninsula
+
+```{r, fig.height=8, fig.width=10}
+maxcell=10000000
+xlim=c(-2800000,-1800000)
+ylim=c(1350000,2350000)
+plot(hmsc.maps.richness, xlim=xlim, ylim=ylim, maxcell=maxcell, col=viridis(99))
+```
+
+#### Ross Sea
+
+```{r, fig.height=8, fig.width=10}
+maxcell=10000000
+xlim=c(-800000,500000)
+ylim=c(-2350000,-1250000)
+plot(hmsc.maps.richness, xlim=xlim, ylim=ylim, maxcell=maxcell, col=viridis(99))
+```
+
+### p/a - East Antarctica - individual species
+
+```{r}
+source(paste0(tools.dir,"SOmap_functions_JJ.R"))
+```
+
+```{r}
+library(raster)
+JJ_SOmap(env.var.raster=raster(hmsc.maps[[19]]), ramp.col = viridis(99), border=FALSE, graticules = TRUE, label = "probability of presence") #, leg.steps=leg.steps, lcex=lcex
+```
+
+
+
+
+```{r, fig.width=7, fig.height=10}
+maxcell=10000000
+xlim=c(0,2500000)
+ylim=c(-2400000,-1000000)
+par(mfrow=c(2,1), bg=NA)
+for(i in 19){
+  range <- range(minmax(c(hmsc.maps[[i]],hmsc.maps[[i+1]])))
+  plot(hmsc.maps[[i]], xlim=xlim, ylim=ylim, maxcell=maxcell, range=range, main=names(hmsc.maps)[i], mar=mar, legend=FALSE, col=viridis(99))
+  plot(hmsc.maps[[i+1]], xlim=xlim, ylim=ylim, maxcell=maxcell, range=range, main=names(hmsc.maps)[i+1], mar=mar, col=viridis(99))
+}
+```
+
+```{r, fig.width=7, fig.height=10}
+maxcell=10000000
+xlim=c(1000000,3000000)
+ylim=c(-2400000,1600000)
+png(paste0(sci.dir,"Circumpolar_BHAnt_zoom.png"), width=2400, height=2400, res=300)
+par(mfrow=c(1,2),bg=NA)
+for(i in 19){
+  range <- range(minmax(c(hmsc.maps[[i]],hmsc.maps[[i+1]])))
+  plot(hmsc.maps[[i]], xlim=xlim, ylim=ylim, maxcell=maxcell, range=range, main=names(hmsc.maps)[i], mar=mar, legend=FALSE, col=viridis(99), axes=FALSE)
+  plot(hmsc.maps[[i+1]], xlim=xlim, ylim=ylim, maxcell=maxcell, range=range, main=names(hmsc.maps)[i+1], mar=mar, col=viridis(99), axes=FALSE)
+}
+dev.off()
+```
+```{r, fig.width=7, fig.height=10}
+maxcell=10000000
+xlim=c(1000000,3000000)
+ylim=c(-2400000,1600000)
+png(paste0(sci.dir,"Circumpolar_richness_zoom.png"), width=2400, height=2400, res=300)
+par(mfrow=c(1,2),bg=NA)
+for(i in 19){
+  range <- range(minmax(c(hmsc.maps[[i]],hmsc.maps[[i+1]])))
+  plot(hmsc.maps.richness, xlim=xlim, ylim=ylim, maxcell=maxcell, mar=mar, col=viridis(99), axes=FALSE)
+}
+dev.off()
+```

@@ -1,0 +1,59 @@
+---
+title: "hmsc - cells - p/a & abundance - many model comparison"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+Model diagnostics for hmsc
+
+Basic model analysis for many different input variable scenarios.
+Then move on to comparing spatial patterns.
+
+
+```{r, warning=FALSE, message=FALSE}
+## user settings
+usr <- "VM"
+source("0_SourceFile.R")
+
+analysis_dir   <- paste0(usr.main.dir, "3_model_analysis")
+
+res <- "2km"
+
+model_ids <- c(
+  "npp_cafe", "npp_cbpm", "npp_eppl", "npp_vpmg",
+  "fam_cafe", "fam_cbpm")#, "fam_eppl", "fam_vpmg")
+
+library(dplyr)
+library(purrr)
+library(tibble)
+
+extract_metrics <- function(nm) {
+  f <- file.path(
+    analysis_dir,
+    paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata")
+  )
+  load(f)  # loads: MF, MF.cv, models, XFormula, etc.
+  tibble(
+    model_id = nm,
+    ## ENV model (presence–absence)
+    ENV_RMSE      = mean(MF$mENV$RMSE, na.rm = TRUE),
+    ENV_AUC       = mean(MF$mENV$AUC, na.rm = TRUE),
+    ENV_TjurR2    = mean(MF$mENV$TjurR2, na.rm = TRUE),
+    ENV_RMSE_CV   = mean(MF.cv$mENV$RMSE, na.rm = TRUE),
+    ENV_AUC_CV    = mean(MF.cv$mENV$AUC, na.rm = TRUE),
+    ENV_TjurR2_CV = mean(MF.cv$mENV$TjurR2, na.rm = TRUE),
+    ## AB model (abundance)
+    AB_RMSE       = mean(MF$mAB$RMSE, na.rm = TRUE),
+    AB_RMSE_CV    = mean(MF.cv$mAB$RMSE, na.rm = TRUE)
+  )
+}
+results <- map_dfr(model_ids, extract_metrics)
+results
+
+results %>%  arrange(desc(ENV_AUC_CV))
+
+results %>%  arrange(AB_RMSE_CV)
+
+```

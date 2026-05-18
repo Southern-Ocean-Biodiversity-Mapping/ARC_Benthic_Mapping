@@ -1,0 +1,1087 @@
+---
+title: "hmsc - cells - p/a - model diagnostics"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+Model diagnostics for hmsc
+
+- presence-absence (full spatial and environment-only model)
+- total abundance (full spatial and environment-only model)
+
+
+```{r, warning=FALSE, message=FALSE}
+## fitting an hmsc using Otsos book, course scripts and : https://besjournals.onlinelibrary.wiley.com/action/downloadSupplement?doi=10.1111%2F2041-210X.13345&file=mee313345-sup-0002-AppendixS2.pdf
+
+## user settings
+usr <- "VM"
+source("0_SourceFile.R")
+bio.dir      <- paste0(usr.dropbox.dir, "data_biological/")
+model_dir   <- paste0(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic")
+dir2   <- paste0(usr.main.dir, "2_fitting_and_running_models")
+dir3   <- paste0(usr.main.dir, "3_model_analysis")
+
+load(file.path(model_dir, paste0("2km_model_cells_data.Rdata")))
+
+
+## model selection
+nm <- "npp_cafe"   # CHANGE THIS TO SWITCH MODEL SETUP
+res <- "2km"
+
+## setup
+library(Hmsc)
+library(bayesplot)
+library(corrplot)
+library(abind)
+library(kableExtra) ## pretty tables
+'%!in%' <- function(x,y)!('%in%'(x,y))
+pngs=TRUE
+
+## load custom versions
+source("Hmsc_plotBetaSimple.R")
+source("Hmsc_plotGradientSimple.R")
+```
+
+```{r}
+thin = 10
+samples = 800
+transient = ceiling(0.5*samples*thin)
+adaptNf = rep(ceiling(0.4*samples*thin),1)
+nChains = 4
+
+load(file.path(dir2, paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")))
+load(file.path(dir3, paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata")))
+```
+
+
+```{r}
+## reorder species to alphabetical
+sp.v <- order(models$mENV$spNames)
+
+## reference model for standard diagnostics
+m <- models$mENV
+```
+
+## Model specifications {.tabset}
+
+### Environment-spatial model
+
+```{r, echo=FALSE}
+message("Model summary")
+models$mFULL
+message("Model formula")
+models$mFULL$XFormula
+message("Model random levels")
+models$mFULL$ranLevels
+```
+
+### Environment-only model
+
+```{r, echo=FALSE}
+message("Model summary")
+models$mENV
+message("Model formula")
+models$mENV$XFormula
+message("Model random levels")
+models$mENV$ranLevels
+```
+
+### Space-only model
+
+```{r, echo=FALSE, eval=FALSE}
+message("Model summary")
+models$mSPACE
+message("Model formula")
+models$mSPACE$XFormula
+message("Model random levels")
+models$mSPACE$ranLevels
+```
+
+### Environmental data
+
+```{r, echo=FALSE}
+summary(models$mENV$X)
+```
+
+## Diagnostics {.tabset}
+
+### MCMC convergence {.tabset}
+
+```{r}
+## extracting the posterior distribution from the model object
+mpost <- list(
+  mENV = convertToCodaObject(models$mENV),
+  mAB  = convertToCodaObject(models$mAB)
+)
+```
+
+#### graphical overview {.tabset}
+
+```{r, results='asis', echo=FALSE, fig.height=5, fig.width=10}
+var.length <- ncol(mpost$mENV$Beta[[1]])/m$ns
+var.est.length <- ncol(mpost$mENV$Beta[[1]])
+
+for(i in sp.v){
+  v <- (1:var.length)-var.length+var.length*i
+  cat("##### ",substr(m$spNames[i],1,3))
+  cat("\n\n")
+  cat(m$spNames[i])
+  cat("\n\n")
+  mcmc.dat <- mpost$mENV$Beta[,v]
+  for(k in 1:4){colnames(mcmc.dat[[k]]) <- colnames(m$X)}
+  plot(mcmc_trace(mcmc.dat))
+  cat("\n\n")
+}
+### If good, the following is true:
+### - different chain yielding the same results
+### - chains rise and fall rapidly without apparent autocorrelation
+### - the first half looks essentially identical to the second half
+```
+
+#### quantitative overview {.tabset}  
+If good, the following is true:  
+- effective sample size not too far away from sample size  
+- potential scale reduction factors close to 1, indicating the multiple chains give consistent results  
+
+##### effective size
+```{r, echo=FALSE}
+## we want high effective sample sizes (close to sample size)
+es.dat <- effectiveSize(mpost$mENV$Beta)
+es.dat2 <- matrix(es.dat, ncol=var.length, byrow=TRUE)
+colnames(es.dat2) <- colnames(m$X)
+rownames(es.dat2) <- m$spNames
+kable(es.dat2[sp.v,]) ## ordered by names
+```
+
+##### potential scale reduction factor {.tabset}
+```{r, echo=FALSE}
+## the closer to 1 the better
+gd.dat <- gelman.diag(mpost$mENV$Beta)$psrf
+gd.dat.pe <- matrix(gd.dat[,1], ncol=var.length, byrow=TRUE)
+gd.dat.uci <- matrix(gd.dat[,2], ncol=var.length, byrow=TRUE)
+colnames(gd.dat.pe) <- colnames(m$X)
+rownames(gd.dat.pe) <- m$spNames
+colnames(gd.dat.uci) <- colnames(m$X)
+rownames(gd.dat.uci) <- m$spNames
+```
+
+###### Point estimate
+```{r, echo=FALSE}
+kable(gd.dat.pe[sp.v,]) ## ordered by names
+```
+
+###### Upper C.I.
+```{r, echo=FALSE}
+kable(gd.dat.uci[sp.v,]) ## ordered by names
+```
+
+### parameter estimates {.tabset}
+
+#### parameter significance {.tabset}
+
+These are the species' environmental responses. In red any positive relationships, in blue any negative ones.
+
+```{r, echo=FALSE}
+## 
+postBeta = getPostEstimate(m, parName="Beta")
+## original code, but hmsc version isn't flexible enough for the plotting:
+# plotBeta(m, post=postBeta, param="Support", spNamesNumbers=c(TRUE,FALSE), mar=c(10,3,4,2), SpVector=match(1:hM$ns, as.numeric(as.factor(colnames(hM$Y)))))
+## load custom version
+source("~/Hmsc_plotBetaSimple.R")
+```
+
+##### Response direction
+```{r, fig.height=15, fig.width=10, echo=FALSE}
+if(pngs){png("HMSC_pa_EnvOnly_ParameterSignificance.png", width=3600, height=4000, res=300)}
+plotBetaSimple(m, post=postBeta, mar=c(8, 30, 2, 1), param="Support", spSort="reverse", main="Response direction")
+if(pngs){dev.off()}
+```
+
+##### Mean response
+```{r, fig.height=15, fig.width=10, echo=FALSE}
+if(pngs){png("HMSC_pa_EnvOnly_ParameterResponse.png", width=3600, height=4000, res=300)}
+plotBetaSimple(m, post=postBeta, mar=c(8, 30, 2, 1), param="Mean", spSort="reverse", main="Mean response estimate")
+if(pngs){dev.off()}
+```
+
+#### values {.tabset}
+
+```{r, echo=FALSE}
+s1 <- summary(mpost$mENV$Beta)
+# s1
+
+## Mean (& sort alphabetically)
+s1.dat <- s1[[1]]
+dat <- data.frame(matrix(ncol=var.length, nrow=nrow(s1.dat)/var.length))[sp.v,]
+rownames(dat) <- m$spNames[sp.v]
+
+for(i in 1:var.length){
+  sel <- seq(i,nrow(s1.dat), by=var.length)
+ dat[,i] <- s1.dat[sel,1]
+}
+names(dat) <- m$covNames
+#dat
+
+## SD
+dat.sd <- data.frame(matrix(ncol=var.length, nrow=nrow(s1.dat)/var.length))[sp.v,]
+rownames(dat.sd) <- m$spNames[sp.v]
+
+for(i in 1:var.length){
+  sel <- seq(i,nrow(s1.dat), by=var.length)
+ dat.sd[,i] <- s1.dat[sel,2]
+}
+names(dat.sd) <- m$covNames
+#dat.sd
+```
+
+##### Mean
+
+```{r, fig.width=10, echo=FALSE}
+# ## identify which cells are significantly different from 0
+# sig.pos <- which(dat-dat.sd>0, arr.ind=TRUE)
+# sig.neg <- which(dat+dat.sd<0, arr.ind=TRUE)
+# 
+# highlight_cells <- function(dat, sig.pos, sig.neg) {
+#   dat_highlighted <- dat
+#   
+#   # Apply green highlight for positive significant cells
+#   for (i in 1:nrow(sig.pos)) {
+#     dat_highlighted[sig.pos[i, 1], sig.pos[i, 2]] <- cell_spec(dat[sig.pos[i, 1], sig.pos[i, 2]], color = "white", background = "green")
+#   }
+#   
+#   # Apply red highlight for negative significant cells
+#   for (i in 1:nrow(sig.neg)) {
+#     dat_highlighted[sig.neg[i, 1], sig.neg[i, 2]] <- cell_spec(dat[sig.neg[i, 1], sig.neg[i, 2]], color = "white", background = "red")
+#   }
+#   
+#   dat_highlighted %>%
+#     kbl(escape = FALSE) %>%
+#     kable_paper(full_width = F)
+# }
+# 
+# highlighted_table <- highlight_cells(round(dat,3), sig.pos, sig.neg)
+# highlighted_table
+kable(round(dat,3))
+```
+
+##### SD
+
+```{r, fig.width=10, echo=FALSE}
+# highlight_cells_sd <- function(dat_sd, sig.pos, sig.neg) {
+#   dat_sd_highlighted <- dat_sd
+#   
+#   # Apply green highlight for positive significant cells
+#   for (i in 1:nrow(sig.pos)) {
+#     dat_sd_highlighted[sig.pos[i, 1], sig.pos[i, 2]] <- cell_spec(dat_sd[sig.pos[i, 1], sig.pos[i, 2]], color = "white", background = "green")
+#   }
+#   
+#   # Apply red highlight for negative significant cells
+#   for (i in 1:nrow(sig.neg)) {
+#     dat_sd_highlighted[sig.neg[i, 1], sig.neg[i, 2]] <- cell_spec(dat_sd[sig.neg[i, 1], sig.neg[i, 2]], color = "white", background = "red")
+#   }
+#   
+#   dat_sd_highlighted %>%
+#     kbl(escape = FALSE) %>%
+#     kable_paper(full_width = F)
+# }
+# 
+# highlighted_table_sd <- highlight_cells_sd(round(dat.sd,3), sig.pos, sig.neg)
+# highlighted_table_sd
+kable(round(dat.sd,3))
+```
+
+
+```{r, echo=FALSE}
+#### graphical representation
+x <- s1$statistics[seq(var.length,var.est.length,by=var.length),1]
+y <- s1$statistics[seq(1,var.est.length,by=var.length),1]
+plot(x, y, xlab="Cover_points_scorable" ,ylab="Intercept")
+## standard effors are tiny, so not shown here
+# x.sd <- s1$statistics[seq(12,996,by=12),3]
+# y.sd <- s1$statistics[seq(1,996,by=12),3]
+# arrows(x-x.sd, y, x+x.sd, y, length=0.05, angle=90, code=3)
+```
+
+```{r, eval=FALSE, echo=FALSE, fig.height=10}
+mean.df <- data.frame(matrix(ncol=var.length, nrow=m$ns))
+#sd.df <- data.frame(matrix(ncol=var.length, nrow=m$ns))
+for(i in 1:var.length){
+  mean.df[,i] <- s1$statistics[seq(i,var.est.length,by=var.length),1]
+#  sd.df[,1] <- s1$statistics[seq(i,996,by=12),3]
+}
+
+par(mfrow=c(3,3))
+plot(mean.df[,1], xlab="Index" ,ylab="Intercept", main="Scorable images", col="white")
+for(i in 1:nrow(mean.df)){
+  abline(mean.df[i,1],mean.df[i,var.length]*108) # slope per image rather than per scorable point
+}
+for(i in 2:(var.length-1)){
+plot(mean.df[,1], xlab="Index" ,ylab="Intercept", main=colnames(m$X)[i], col="white")
+for(j in 1:nrow(mean.df)){
+  abline(mean.df[j,1],mean.df[j,i])
+}
+}
+```
+
+```{r, fig.height=10, echo=FALSE, eval=FALSE}
+mean.df <- data.frame(matrix(ncol=var.length, nrow=m$ns))
+sd.df <- data.frame(matrix(ncol=var.length, nrow=m$ns))
+for(i in 1:var.length){
+  mean.df[,i] <- s1$statistics[seq(i,var.est.length,by=var.length),1]
+  sd.df[,i] <- s1$statistics[seq(i,var.est.length,by=var.length),3]
+}
+
+par(mfrow=c(3,3))
+# plot(range(mean.df[,12]), xlim=c(0,1), xlab="Index" ,ylab="Intercept", main="Scorable images", col="white")
+# for(j in 1:nrow(mean.df)){
+#   if((sqrt(mean.df[j,1]^2)-sd.df[j,i])<=0){ # if coef plus/minus sd includes 0
+#     cols <- "grey"
+#   } else cols="black"
+#   abline(0,mean.df[j,1], col=cols)
+# }
+for(i in 2:var.length){
+plot(range(mean.df[,i]), xlim=c(0,1) ,xlab="Index" ,ylab="Intercept", main=colnames(models$mENV$X)[i], col="white")
+for(j in 1:nrow(mean.df)){
+  if((sqrt(mean.df[j,i]^2)-sd.df[j,i])<=0){ # if coef plus/minus sd includes 0
+    cols <- "grey"
+  } else cols="black"
+  abline(0,mean.df[j,i], col=cols)
+}}
+```
+
+#### species associations
+
+```{r, fig.height=10, fig.width=10, echo=FALSE}
+OmegaCor = computeAssociations(m)
+supportLevel = 0.95
+if(pngs){png("HMSC_pa_EnvOnly_SpeciesAssociations.png", width=3600, height=4000, res=300)}
+for (r in 1:m$nr){
+  plotOrder = corrMatOrder(OmegaCor[[r]]$mean,order="AOE")
+  toPlot = ((OmegaCor[[r]]$support>supportLevel) +
+              (OmegaCor[[r]]$support<(1-supportLevel))>0)*OmegaCor[[r]]$mean
+  par(xpd=T)
+  colnames(toPlot)=rownames(toPlot)=gsub("_"," ",x=colnames(toPlot))
+  corrplot(toPlot[plotOrder,plotOrder], method = "color",
+           col=colorRampPalette(c("blue","white","red"))(200),
+           title="",type="lower",tl.col="black",tl.cex=.4, mar=c(0,0,6,0))
+}
+if(pngs){dev.off()}
+```
+
+#### species' environmental responses {.tabset}
+
+```{r, echo=FALSE}
+
+## scaling parameters:
+scale.params <- readRDS(file.path(model_dir, paste0("scaling_params_cover_", res, ".rds")))
+## scaled and unscaled predictor variables
+dat <- readRDS(file.path(model_dir, paste0("cover_modelling_inputs_", res, ".rds")))
+
+scale.means <- scale.params$means
+scale.sd <- scale.params$sds
+
+# X = 1 * scale.sd[24] + scale.means[24]
+# 1 * scale.sd[24] + scale.means[24]
+# 0 * scale.sd[24] + scale.means[24]
+# -1 * scale.sd[24] + scale.means[24]
+# -2 * scale.sd[24] + scale.means[24]
+# -3 * scale.sd[24] + scale.means[24]
+# -4 * scale.sd[24] + scale.means[24]
+
+## positions for the following depths
+d.vals <- seq(0,-2000, by= -500)
+d.vals.sc <- NA
+d.vals.sc[1] <- (d.vals[1]-scale.means[["depth"]])/scale.sd["depth"]
+d.vals.sc[2] <- (d.vals[2]-scale.means[["depth"]])/scale.sd["depth"]
+d.vals.sc[3] <- (d.vals[3]-scale.means[["depth"]])/scale.sd["depth"]
+d.vals.sc[4] <- (d.vals[4]-scale.means[["depth"]])/scale.sd["depth"]
+d.vals.sc[5] <- (d.vals[5]-scale.means[["depth"]])/scale.sd["depth"]
+# d.vals.sc[6] <- (d.vals[6]-scale.means[24])/scale.sd[24]
+# d.vals.sc[7] <- (d.vals[7]-scale.means[24])/scale.sd[24]
+# d.vals.sc[8] <- (d.vals[8]-scale.means[24])/scale.sd[24]
+
+## positions for the following slopes
+s.vals <- c(0.1,0.3,1,3,10,20)
+ls.vals <- log(s.vals)
+ls.vals.sc <- NA
+ls.vals.sc[1] <- (ls.vals[1]-scale.means[["logslope"]])/scale.sd[["logslope"]]
+ls.vals.sc[2] <- (ls.vals[2]-scale.means[["logslope"]])/scale.sd[["logslope"]]
+ls.vals.sc[3] <- (ls.vals[3]-scale.means[["logslope"]])/scale.sd[["logslope"]]
+ls.vals.sc[4] <- (ls.vals[4]-scale.means[["logslope"]])/scale.sd[["logslope"]]
+ls.vals.sc[5] <- (ls.vals[5]-scale.means[["logslope"]])/scale.sd[["logslope"]]
+ls.vals.sc[6] <- (ls.vals[6]-scale.means[["logslope"]])/scale.sd[["logslope"]]
+# Reverse the scaling
+ls.vals.unscaled <- ls.vals.sc * scale.sd[["logslope"]] + scale.means[["logslope"]]
+# Reverse the log transformation
+s.vals.original <- exp(ls.vals.unscaled)
+
+## positions for the following NPPs
+if(grepl("npp_",nm)){
+npp.vals <- seq(0,900, by= 200)
+npp.vals.sc <- NA
+npp.sel <- paste0(gsub("npp_","",nm),"_mean")
+npp.vals.sc[1] <- (npp.vals[1]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
+npp.vals.sc[2] <- (npp.vals[2]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
+npp.vals.sc[3] <- (npp.vals[3]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
+npp.vals.sc[4] <- (npp.vals[4]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
+npp.vals.sc[5] <- (npp.vals[5]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
+}
+
+## positions for the following current speeds
+curr.vals <- seq(0,0.3, by= 0.1)
+curr.vals.sc <- NA
+curr.vals.sc[1] <- (curr.vals[1]-scale.means[["seafloorcurrents_mean"]])/scale.sd[["seafloorcurrents_mean"]]
+curr.vals.sc[2] <- (curr.vals[2]-scale.means[["seafloorcurrents_mean"]])/scale.sd[["seafloorcurrents_mean"]]
+curr.vals.sc[3] <- (curr.vals[3]-scale.means[["seafloorcurrents_mean"]])/scale.sd[["seafloorcurrents_mean"]]
+curr.vals.sc[4] <- (curr.vals[4]-scale.means[["seafloorcurrents_mean"]])/scale.sd[["seafloorcurrents_mean"]]
+
+## positions for the following fluxes
+if(grepl("fam_",nm)){
+f.vals <- c(10,100,1000,10000,100000)
+lf.vals <- log(f.vals)
+lf.vals.sc <- NA
+flux.sel <- paste0("log.flux.mean.",gsub("fam_","",nm))
+lf.vals.sc[1] <- (lf.vals[1]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
+lf.vals.sc[2] <- (lf.vals[2]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
+lf.vals.sc[3] <- (lf.vals[3]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
+lf.vals.sc[4] <- (lf.vals[4]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
+lf.vals.sc[5] <- (lf.vals[5]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
+# Reverse the scaling
+lf.vals.unscaled <- lf.vals.sc * scale.sd[[flux.sel]] + scale.means[[flux.sel]]
+# Reverse the log transformation
+options(scipen=999)
+f.vals.original <- exp(lf.vals.unscaled)
+}
+```
+
+
+```{r, echo=FALSE}
+# The plotGradient function produces plots of predicted values along the gradient.
+# • measure = “S” plots species richness
+# • measure = “Y” plots the response of a species given by index
+# • measure = “T” plots community-weighed mean values of traits given by index
+
+if(grepl("npp_",nm)){
+  focal_prod_var <- paste0(gsub("npp_","",nm),"_mean")
+  ## npp
+Gradient.n = constructGradient(models$mENV, focalVariable=focal_prod_var)
+predY.n = predict(models$mENV, XData=Gradient.n$XDataNew, studyDesign=Gradient.n$studyDesignNew, ranLevels=Gradient.n$rLNew, expected=TRUE)
+  }
+if(grepl("fam_",nm)){
+  focal_prod_var <- paste0("log.flux.mean.",gsub("fam_","",nm))
+  ## flux
+Gradient.f = constructGradient(models$mENV, focalVariable=focal_prod_var)
+predY.f = predict(models$mENV, XData=Gradient.f$XDataNew, studyDesign=Gradient.f$studyDesignNew, ranLevels=Gradient.f$rLNew, expected=TRUE)
+  }
+
+## depth
+Gradient.d = constructGradient(models$mENV, focalVariable="depth")
+predY.d = predict(models$mENV, XData=Gradient.d$XDataNew, studyDesign=Gradient.d$studyDesignNew, ranLevels=Gradient.d$rLNew, expected=TRUE)
+
+## slope
+Gradient.s = constructGradient(models$mENV, focalVariable="logslope")
+predY.s = predict(models$mENV, XData=Gradient.s$XDataNew, studyDesign=Gradient.s$studyDesignNew, ranLevels=Gradient.s$rLNew, expected=TRUE)
+
+## current speed
+Gradient.c = constructGradient(models$mENV, focalVariable="seafloorcurrents_mean")
+predY.c = predict(models$mENV, XData=Gradient.c$XDataNew, studyDesign=Gradient.c$studyDesignNew, ranLevels=Gradient.c$rLNew, expected=TRUE)
+```
+
+##### Depth
+
+```{r, echo=FALSE}
+if(pngs){png("HMSC_pa_EnvOnly_RichnessDepth.png", width=2400, height=1200, res=300)}
+plotGradientSimple(models$mENV, Gradient.d, pred=predY.d, measure="S", las=1, showData = TRUE, x_ticks = d.vals.sc, x_labels = d.vals, showPosteriorSupport = FALSE)#, main='Species richness (measure="S")'
+if(pngs){dev.off()}
+```
+
+##### Slope
+
+```{r, echo=FALSE}
+if(pngs){png("HMSC_pa_EnvOnly_RichnessSlope.png", width=2400, height=1200, res=300)}
+plotGradientSimple(models$mENV, Gradient.s, pred=predY.s, measure="S", las=1, showData=TRUE, x_ticks=ls.vals.sc, x_labels=s.vals.original, xlabel="slope", showPosteriorSupport = FALSE)
+if(pngs){dev.off()}
+```
+
+##### NPP
+
+```{r, echo=FALSE}
+if(grepl("npp_",nm)){
+  if(pngs){png("HMSC_pa_EnvOnly_RichnessNPP.png", width=2400, height=1200, res=300)}
+plotGradientSimple(models$mENV, Gradient.n, pred=predY.n, measure="S", las=1, showData=TRUE, x_ticks=npp.vals.sc, x_labels=npp.vals, xlabel="npp mean", showPosteriorSupport = FALSE)
+if(pngs){dev.off()}
+}
+```
+
+##### Current speed
+
+```{r, echo=FALSE}
+if(pngs){png("HMSC_pa_EnvOnly_RichnessCurrent.png", width=2400, height=1200, res=300)}
+plotGradientSimple(models$mENV, Gradient.c, pred=predY.c, measure="S", las=1, showData = TRUE, x_ticks=curr.vals.sc, x_labels=curr.vals, xlabel="seafloor current speed mean", showPosteriorSupport = FALSE)
+if(pngs){dev.off()}
+```
+
+##### Flux
+
+```{r, echo=FALSE}
+if(grepl("fam_",nm)){
+if(pngs){png("HMSC_pa_EnvOnly_RichnessFlux.png", width=2400, height=1200, res=300)}
+plotGradientSimple(models$mENV, Gradient.f, pred=predY.f, measure="S", las=1, showData = TRUE, x_ticks=lf.vals.sc, x_labels=f.vals.original, xlabel="particle flux", showPosteriorSupport = FALSE) #, main='Species richness (measure="S")'
+if(pngs){dev.off()}
+}
+```
+
+##### Individual species
+
+```{r, echo=FALSE, fig.height=10, fig.width=15}
+x <- seq(4,var.length, by=4)
+line=1
+if(pngs){png("HMSC_pa_EnvOnly_SpeciesResponses.png", width=3000, height=2400, res=300)}
+par(mfrow=c(4,5), mar=c(3,4,0,0), oma=c(3,0,0,0))
+for(i in 1:var.length){
+plotGradientSimple(m, Gradient.d, pred=predY.d, measure="Y", index=i, las=1, showData=TRUE, main="", showPosteriorSupport=FALSE, ylab=m$spNames[i], xlab="", x_ticks=d.vals.sc, x_labels=d.vals)
+  # mtext(m$spNames[i], side=2, line=line, outer=TRUE, adj=0.8)
+  if(i%in%x) mtext("depth", side=1, line=line, outer=TRUE, adj=0.1)
+plotGradientSimple(m, Gradient.s, pred=predY.s, measure="Y", index=i, las=1, showData=TRUE, main="", showPosteriorSupport=FALSE, ylab="", xlab="", x_ticks=ls.vals.sc, x_labels=s.vals.original)
+  if(i%in%x) mtext("slope", side=1, line=line, outer=TRUE, adj=0.3)
+if(grepl("npp_",nm)){
+plotGradientSimple(m, Gradient.n, pred=predY.n, measure="Y", index=i, las=1, showData=TRUE, main="", showPosteriorSupport=FALSE, ylab="", xlab="", x_ticks=npp.vals.sc, x_labels=npp.vals)
+  if(i%in%x) mtext("npp mean", side=1, line=line, outer=TRUE)
+}
+plotGradientSimple(m, Gradient.c, pred=predY.c, measure="Y", index=i, las=1, showData=TRUE, main="", showPosteriorSupport=FALSE, ylab="", xlab="", x_ticks=curr.vals.sc, x_labels=curr.vals)
+  if(i%in%x) mtext("seafloor current speed mean", side=1, line=line, outer=TRUE, adj=0.75)
+if(grepl("fam_",nm)){
+plotGradientSimple(m, Gradient.f, pred=predY.f, measure="Y", index=i, las=1, showData=TRUE, main="", showPosteriorSupport=FALSE, ylab="", xlab="", x_ticks=lf.vals.sc, x_labels=f.vals.original)
+  if(i%in%x) mtext("particle flux", side=1, line=line, outer=TRUE, adj=0.95)
+}
+}
+if(pngs){dev.off()}
+```
+
+### assess explanatory power {.tabset}
+
+#### Model Fit
+
+From the Hmsc vignette:  
+All measures of model fit are based on comparing the posterior predictive distribution (predY)) to the observed values (hM$Y). The predicted distribution is first summarized to a single matrix of predicted values by taking the posterior mean (for normal and probit models) or posterior median (for Poisson models). All measures of model fit are given as vectors with one value for each species.  
+
+The kinds of measures of model fit depend on the type of response variable.  
+- For all types of response variables, root-mean-square error (RMSE) between predicted and observed values is computed.  
+- For normal models, R2 is computed as squared pearson correlation between observed and predicted values, times the sign of the correlation.  
+- For probit models, Tjur R2 and AUC are computed.  
+- For Poisson models, a pseudo-R2 is computed as squared spearman correlation between observed and predicted values, times the sign of the correlation (SR2).  
+- For Poisson models, the observed and predicted data are also truncated to occurrences (presence-absences), for which the same measures are given as for the probit models (O.RMSE, O.AUC and O.TjurR2).  
+- For Poisson models, the observed and predicted data are also subsetted to conditional on presence, for which the root-mean-square error and pseudo-R2 based on squared spearman correlation are computed (C.RMSE, C.SR2).  
+
+The measures O.RMSE, O.AUC, O.TjurR2, C.RMSE and C.SR2 can be computed only if the option expected=FALSE has been used when making the predictions If the model includes a mixture of response variable types, the resulting measures of model fit contain NA’s for those response variables for which they cannot be computed.  
+
+##### RMSE
+
+```{r, fig.width=10, fig.height=8, echo=FALSE}
+sel <- order(MF$mENV$RMSE)
+
+if(pngs){png("HMSC_pa_ModelFit_RMSE.png", width=2400, height=2400, res=300)}
+par(mfrow=c(2,2))
+## env-only CV
+plot(MF$mENV$RMSE[sel], pch=16, main="Environment-only model vs Crossvalidation", ylim=c(0.1,0.5), ylab="RMSE")
+points(MF.cv$mENV$RMSE[sel], pch=16, col="red")
+legend("topleft", pch=16, col=c("black","red"), legend=c(paste0("Env-only (mean RMSE = ",round(mean(MF$mENV$RMSE),2),")"), paste0("CV         (mean RMSE = ",round(mean(MF.cv$mENV$RMSE),2),")")))
+
+## full CV
+plot(MF$mFULL$RMSE[sel], pch=16, main="Environment-spatial model vs Crossvalidation", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
+points(MF.cv$mFULL$RMSE[sel], pch=16, col="red")
+legend("topleft", pch=16, col=c("blue","red"), legend=c(paste0("Env-spatial (mean RMSE = ",round(mean(MF$mFULL$RMSE),2),")"), paste0("CV            (mean RMSE = ",round(mean(MF.cv$mFULL$RMSE),2),")")))
+
+
+## full vs env-only
+plot(MF$mFULL$RMSE[sel], pch=16, main="Environment-only vs Environment-spatial", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
+points(MF$mENV$RMSE[sel], pch=16, col="black")
+legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("Env-only    (mean RMSE = ",round(mean(MF$mENV$RMSE),2),")"),paste0("Env-spatial (mean RMSE = ",round(mean(MF$mFULL$RMSE),2),")")))
+
+## full CV vs env-only CV
+plot(MF.cv$mFULL$RMSE[sel], pch=16, main="Environment-only CV vs Environment-spatial CV", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
+points(MF.cv$mENV$RMSE[sel], pch=16, col="black")
+legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("CV Env-only    (mean RMSE = ",round(mean(MF.cv$mENV$RMSE),2),")"), paste0("CV Env-spatial (mean RMSE = ",round(mean(MF.cv$mFULL$RMSE),2),")")))
+if(pngs){dev.off()}
+```
+
+
+##### AUC
+
+```{r, fig.width=10, fig.height=8, echo=FALSE}
+sel <- order(MF[[2]]$AUC)
+
+if(pngs){png("HMSC_pa_ModelFit_AUC.png", width=2400, height=2400, res=300)}
+par(mfrow=c(2,2))
+## env-only CV
+plot(MF[[2]]$AUC[sel], pch=16, main="Environment-only model vs Crossvalidation", ylim=c(0.1,1), ylab="AUC")
+points(MF.cv[[2]]$AUC[sel], pch=16, col="red")
+legend("bottomright", pch=16, col=c("black","red"), legend=c(paste0("Env-only (mean AUC = ",round(mean(MF[[2]]$AUC),2),")"), paste0("CV         (mean AUC = ",round(mean(MF.cv[[2]]$AUC),2),")")))
+
+## full CV
+plot(MF$mFULL$AUC[sel], pch=16, main="Environment-spatial model vs Crossvalidation", ylim=c(0.1,1), col="blue", ylab="AUC")
+points(MF.cv$mFULL$AUC[sel], pch=16, col="red")
+legend("bottomright", pch=16, col=c("blue","red"), legend=c(paste0("Env-spatial (mean AUC = ",round(mean(MF$mFULL$AUC),2),")"), paste0("CV            (mean AUC = ",round(mean(MF.cv$mFULL$AUC),2),")")))
+
+
+## full vs env-only
+plot(MF$mFULL$AUC[sel], pch=16, main="Environment-only vs Environment-spatial", ylim=c(0.1,1), col="blue", ylab="AUC")
+points(MF[[2]]$AUC[sel], pch=16, col="black")
+legend("bottomright", pch=16, col=c("black","blue"), legend=c(paste0("Env-only    (mean AUC = ",round(mean(MF[[2]]$AUC),2),")"),paste0("Env-spatial (mean AUC = ",round(mean(MF$mFULL$AUC),2),")")))
+ 
+## full CV vs env-only CV
+plot(MF.cv$mFULL$AUC[sel], pch=16, main="Environment-only CV vs Environment-spatial CV", ylim=c(0.1,1), col="blue", ylab="AUC")
+points(MF.cv[[2]]$AUC[sel], pch=16, col="black")
+legend("bottomright", pch=16, col=c("black","blue"), legend=c(paste0("CV Env-only    (mean AUC = ",round(mean(MF.cv[[2]]$AUC),2),")"),paste0("CV Env-spatial (mean AUC = ",round(mean(MF.cv$mFULL$AUC),2),")")))
+if(pngs){dev.off()}
+```
+
+##### TjurR2
+
+Tjur R2 compares the average fitted probability of the two response outcomes. The difference between the average fitted probability for success and the average fitted probability for the failure.
+
+```{r, fig.width=10, fig.height=8, echo=FALSE}
+sel <- order(MF[[2]]$TjurR2)
+
+if(pngs){png("HMSC_pa_ModelFit_TjurR2.png", width=2400, height=2400, res=300)}
+par(mfrow=c(2,2))
+## env-only CV
+plot(MF[[2]]$TjurR2[sel], pch=16, main="Environment-only model vs Crossvalidation", ylim=c(0,1), ylab="Tjur R^2")
+points(MF.cv[[2]]$TjurR2[sel], pch=16, col="red")
+legend("topleft", pch=16, col=c("black","red"), legend=c(paste0("Env-only (mean TjurR2 = ",round(mean(MF[[2]]$TjurR2),2),")"), paste0("CV         (mean TjurR2 = ",round(mean(MF.cv[[2]]$TjurR2),2),")")))
+
+## full CV
+plot(MF$mFULL$TjurR2[sel], pch=16, main="Environment-spatial model vs Crossvalidation", ylim=c(0,1), ylab="Tjur R^2", col="blue")
+points(MF.cv$mFULL$TjurR2[sel], pch=16, col="red")
+legend("topleft", pch=16, col=c("blue","red"), legend=c(paste0("Env-spatial (mean TjurR2 = ",round(mean(MF$mFULL$TjurR2),2),")"), paste0("CV            (mean TjurR2 = ",round(mean(MF.cv$mFULL$TjurR2),2),")")))
+
+
+## full vs env-only
+plot(MF$mFULL$TjurR2[sel], pch=16, main="Environment-only vs Environment-spatial", ylim=c(0,1), ylab="Tjur R^2", col="blue")
+points(MF[[2]]$TjurR2[sel], pch=16, col="black")
+legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("Env-only     (mean TjurR2 = ",round(mean(MF[[2]]$TjurR2),2),")"),paste0("Env-spatial (mean TjurR2 = ",round(mean(MF$mFULL$TjurR2),2),")")))
+ 
+## full CV vs env-only CV
+plot(MF.cv$mFULL$TjurR2[sel], pch=16, main="Environment-only CV vs Environment-spatial CV", ylim=c(0,1), ylab="Tjur R^2", col="blue")
+points(MF.cv[[2]]$TjurR2[sel], pch=16, col="black")
+legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("CV Env-only    (mean TjurR2 = ",round(mean(MF.cv[[2]]$TjurR2),2),")"),paste0("CV Env-spatial (mean TjurR2 = ",round(mean(MF.cv$mFULL$TjurR2),2),")")))
+if(pngs){dev.off()}
+```
+
+##### Values
+
+```{r}
+MF
+```
+
+#### Predicted vs Observed {.tabset}
+
+```{r, echo=FALSE}
+preds.cv.median = as.data.frame(apply(preds.cv$mFULL, 1:2, median))
+preds.cv.eo.median = as.data.frame(apply(preds.cv[[2]], 1:2, median))
+
+## which sites are soft (sand etc or mobiles) vs hard (rock etc or sessiles) dominated
+cov <- cover_cells[,-1]
+sel.hard <- c(which(names(cov)%in%c("Physical - Substrate - Consolidated (hard) - Boulders",
+                                    "Physical - Substrate - Consolidated (hard) - Cobbles",
+                                    "Physical - Substrate - Consolidated (hard) - Rock")),
+              grep("Hydro",names(cov)),
+              grep("Bryo",names(cov)),
+              grep("Octo",names(cov)),
+              grep("Spong",names(cov)),
+              grep("Suspension",names(cov)))
+sel.soft <- c(which(names(cov)%in%c("Physical - Substrate - Unconsolidated (soft) - Sand / mud (<2mm)",
+                                    "Physical - Substrate - Unconsolidated (soft) - Pebble / gravel")),
+              grep("Echino",names(cov)),
+              grep("Ascid",names(cov)),
+              grep("Crust",names(cov)))
+
+sub.hard <- which(rowSums(cov[,sel.hard])/rowSums(cov)>=0.2)
+sub.soft <- which(rowSums(cov[,sel.soft])/rowSums(cov)>=0.9)
+
+## which sites have high sampling... GOOD, THIS IS FAIRLY RANDOMLY DISTRIBUTED
+#sampling.high <- which(models$mFULL$XData$cover_points_scorable>=1000)
+#points(pred.ab.eo.cv[sampling.high], obs.ab[sampling.high], pch=16, cex=0.2, col="red")
+
+```
+
+##### **Total richness at each site (454 data-points)**
+
+Not along a perfect 1:1 line except for in the full spatial model. Reasons?  
+It seems like soft substrate is OVERPREDICTED, while hard substrate is UNDERPREDICTED.  
+High vs low sampling is randomly distributed, so has no effect.  
+
+```{r, fig.height=8, fig.width=8, echo=FALSE}
+pred.ab <- rowSums(MF.preds$fm.median)
+pred.ab.eo <- rowSums(MF.preds$eo.median)
+pred.ab.cv <- rowSums(preds.cv.median)
+pred.ab.eo.cv <- rowSums(preds.cv.eo.median)
+pred.ab.eo.cv.hard <- rowSums(preds.cv.eo.median)
+
+obs.ab <- rowSums(models$mFULL$Y)
+
+if(pngs){png("HMSC_pa_PredVsObs_Richness.png", width=2400, height=2400, res=300)}
+par(mfrow=c(2,2))
+
+plot(pred.ab, obs.ab, pch=16, cex=0.3, main="Environment-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,45), ylim=c(0,45))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF$mFULL$RMSE),2),
+                                "\nAUC = ",round(mean(MF$mFULL$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF$mFULL$TjurR2),2)), bty="n", cex=0.5)
+
+plot(pred.ab.cv, obs.ab, pch=16, cex=0.3, main="CV of Env-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,45), ylim=c(0,45))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv$mFULL$RMSE),2),
+                                "\nAUC = ",round(mean(MF.cv$mFULL$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF.cv$mFULL$TjurR2),2)), bty="n", cex=0.5)
+
+plot(pred.ab.eo, obs.ab, pch=16, cex=0.3, main="Environment-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,45), ylim=c(0,45))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF[[2]]$RMSE),2),
+                                "\nAUC = ",round(mean(MF[[2]]$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF[[2]]$TjurR2),2)), bty="n", cex=0.5)
+
+plot(pred.ab.eo.cv, obs.ab, pch=16, cex=0.3, main="CV of Env-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,45), ylim=c(0,45))
+# points(pred.ab.eo.cv[sampling.high], obs.ab[sampling.high], pch=16, cex=0.2, col="red")
+# points(pred.ab.eo.cv[sub.hard], obs.ab[sub.hard], pch=16, cex=0.3, col="red")
+# points(pred.ab.eo.cv[sub.soft], obs.ab[sub.soft], pch=16, cex=0.3, col="blue")
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv[[2]]$RMSE),2),
+                                "\nAUC = ",round(mean(MF.cv[[2]]$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF.cv[[2]]$TjurR2),2)), bty="n", cex=0.5)
+if(pngs){dev.off()}
+```
+
+##### **Each species' presence averaged across all sites (78 data-points)**
+
+```{r, fig.height=8, fig.width=8, echo=FALSE}
+pred.ab <- colSums(MF.preds$fm.median)
+pred.ab.cv <- colSums(preds.cv.median)
+pred.ab.eo <- colSums(MF.preds$eo.median)
+pred.ab.eo.cv <- colSums(preds.cv.eo.median)
+obs.ab <- colSums(models$mFULL$Y)
+
+if(pngs){png("HMSC_pa_PredVsObs_AvgPresence.png", width=2400, height=2400, res=300)}
+par(mfrow=c(2,2))
+##
+plot(pred.ab, obs.ab, pch=16, cex=0.2, main="Environment-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,255), ylim=c(0,255))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF$mFULL$RMSE),2),
+                                "\nAUC = ",round(mean(MF$mFULL$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF$mFULL$TjurR2),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.cv, obs.ab, pch=16, cex=0.2, main="CV of Env-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,255), ylim=c(0,255))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv$mFULL$RMSE),2),
+                                "\nAUC = ",round(mean(MF.cv$mFULL$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF.cv$mFULL$TjurR2),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.eo, obs.ab, pch=16, cex=0.2, main="Environment-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,255), ylim=c(0,255))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF[[2]]$RMSE),2),
+                                "\nAUC = ",round(mean(MF[[2]]$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF[[2]]$TjurR2),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.eo.cv, obs.ab, pch=16, cex=0.2, main="CV of Env-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,255), ylim=c(0,255))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv[[2]]$RMSE),2),
+                                "\nAUC = ",round(mean(MF.cv[[2]]$AUC),2),
+                                "\nTjurR2 = ",round(mean(MF.cv[[2]]$TjurR2),2)), bty="n", cex=0.5)
+if(pngs){dev.off()}
+```
+
+
+##### **Sponge richness at each site**
+
+```{r, fig.height=8, fig.width=8, echo=FALSE}
+pred.sel <- grep("Sponge",colnames(MF.preds$eo.median))
+obs.sel <- grep("Sponge",colnames(models$mFULL$Y))
+
+pred.ab <- rowSums(MF.preds$fm.median[,pred.sel])
+pred.ab.cv <- rowSums(preds.cv.median[,pred.sel])
+pred.ab.eo <- rowSums(MF.preds$eo.median[,pred.sel])
+pred.ab.eo.cv <- rowSums(preds.cv.eo.median[,pred.sel])
+obs.ab <- rowSums(models$mFULL$Y[,obs.sel])
+
+par(mfrow=c(2,2))
+##
+plot(pred.ab, obs.ab, pch=16, cex=0.2, main="Environment-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,15), ylim=c(0,15))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF$mFULL$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF$mFULL$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF$mFULL$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.cv, obs.ab, pch=16, cex=0.2, main="CV of Env-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,15), ylim=c(0,15))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv$mFULL$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF.cv$mFULL$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF.cv$mFULL$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.eo, obs.ab, pch=16, cex=0.2, main="Environment-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,15), ylim=c(0,15))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF[[2]]$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF[[2]]$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF[[2]]$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.eo.cv, obs.ab, pch=16, cex=0.2, main="CV of Env-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,15), ylim=c(0,15))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv[[2]]$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF.cv[[2]]$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF.cv[[2]]$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+```
+
+##### **Octocoral richness at each site**
+
+```{r, fig.height=8, fig.width=8, echo=FALSE}
+pred.sel <- grep("Octocoral",colnames(MF.preds$eo.median))
+obs.sel <- grep("Octocoral",colnames(models$mENV$Y))
+
+pred.ab <- rowSums(MF.preds$fm.median[,pred.sel])
+pred.ab.cv <- rowSums(preds.cv.median[,pred.sel])
+pred.ab.eo <- rowSums(MF.preds$eo.median[,pred.sel])
+pred.ab.eo.cv <- rowSums(preds.cv.eo.median[,pred.sel])
+obs.ab <- rowSums(models$mFULL$Y[,obs.sel])
+
+par(mfrow=c(2,2))
+##
+plot(pred.ab, obs.ab, pch=16, cex=0.2, main="Environment-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,10), ylim=c(0,10))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF$mFULL$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF$mFULL$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF$mFULL$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.cv, obs.ab, pch=16, cex=0.2, main="CV of Environment-spatial model",
+       xlab="predicted", ylab="observed", xlim=c(0,10), ylim=c(0,10))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv$mFULL$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF.cv$mFULL$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF.cv$mFULL$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.eo, obs.ab, pch=16, cex=0.2, main="Environment-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,10), ylim=c(0,10))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF[[2]]$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF[[2]]$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF[[2]]$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+##
+plot(pred.ab.eo.cv, obs.ab, pch=16, cex=0.2, main="CV of Env-only model",
+       xlab="predicted", ylab="observed", xlim=c(0,10), ylim=c(0,10))
+abline(0,1, lty=2, col="grey")
+legend("right", legend=paste0("RMSE = ",round(mean(MF.cv[[2]]$RMSE[pred.sel]),2),
+                                "\nAUC = ",round(mean(MF.cv[[2]]$AUC[pred.sel]),2),
+                                "\nTjurR2 = ",round(mean(MF.cv[[2]]$TjurR2[pred.sel]),2)), bty="n", cex=0.5)
+```
+
+##### **Each species at each site**
+
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+par(mfrow=c(1,2))
+##
+plot(c(as.matrix(MF.preds$fm.median)), jitter(c(models$mFULL$Y)), pch=16, cex=0.2, main="Environment-spatial model",
+       xlab="predicted", ylab="jitter(observed)")
+legend("right", legend=paste0("RMSE = ",  round(mean(MF$mFULL$RMSE),2),
+                              "\nAUC = ", round(mean(MF$mFULL$AUC),2),
+                              "\nTjR2 = ",round(mean(MF$mFULL$TjurR2),2)), bty="n")
+##
+plot(c(as.matrix(MF.preds$eo.median)), jitter(c(models$mFULL$Y)), pch=16, cex=0.2, main="Environment-only model",
+       xlab="predicted", ylab="jitter(observed)")
+legend("right", legend=paste0("RMSE = ",  round(mean(MF[[2]]$RMSE),2),
+                              "\nAUC = ", round(mean(MF[[2]]$AUC),2),
+                              "\nTjR2 = ",round(mean(MF[[2]]$TjurR2),2)), bty="n")
+```
+
+##### **Individually each species at each site, Env-spatial vs Env-only model**
+
+```{r, fig.height=10, fig.width=10, echo=FALSE}
+sel <- order(MF[[2]]$RMSE)
+par(mfrow=c(3,2), mar=c(4,4,2,1))
+for(j in 1:ncol(MF.preds$eo.median)){
+  i <- sel[j]
+  plot(c(as.matrix(MF.preds$fm.median[,i])), jitter(c(models$mFULL$Y[,i])), main=paste0(m$spNames[i]," mean"),
+       xlab="predicted", ylab="jitter(observed)")
+  legend("right", legend=paste0("RMSE = ",round(MF$mFULL$RMSE[i],2),
+                                "\nAUC = ",round(MF$mFULL$AUC[i],2),
+                                "\nTjR2 = ",round(MF$mFULL$TjurR2[i],2)), bty="n")
+  
+    plot(c(as.matrix(MF.preds$eo.median[,i])), jitter(c(models$mFULL$Y[,i])), main=paste0(m$spNames[i]," mean"),
+       xlab="predicted", ylab="jitter(observed)")
+  legend("right", legend=paste0("RMSE = ",round(MF[[2]]$RMSE[i],2),
+                                "\nAUC = ",round(MF[[2]]$AUC[i],2),
+                                "\nTjR2 = ",round(MF[[2]]$TjurR2[i],2)), bty="n")
+}
+```
+
+
+
+#### Variance explained - Environment-spatial model
+```{r, warning=FALSE, fig.width=10, echo=FALSE}
+## what proportion of variance is explained by the different models and their parameters
+groupnames = c("bathymetry", "waterproperties","food","effort")
+group = c(1,1,1,1,1,1,2,2,2,2,3,3,3,4)
+VP <- list(NA,NA,NA)
+names(VP) <- c("mFULL", "mENV", "mAB")
+for(i in 2:3){
+  VP[[i]] = computeVariancePartitioning(models[[i]],group=group, groupnames=groupnames)
+}
+#VP
+#plotVariancePartitioning(models$mFULL, VP=VP$mFULL, las=2)
+```
+
+```{r, fig.height=15, fig.width=10, echo=FALSE, eval=FALSE}
+# ## preparing the data like in the plotVariancePartitioning function
+# ## but re-arrange data alphabetically
+# sel <- order(colnames(VP$mFULL$vals))
+# dat <- VP$mFULL
+# hM <- models$mFULL
+# ng = dim(dat$vals)[1]
+# ##
+# leg = dat$groupnames
+# for (r in 1:hM$nr) {
+#     leg = c(leg, paste("Random: ", hM$rLNames[r], sep = ""))
+# }
+# means = round(100 * rowMeans(dat$vals), 1)
+# for (i in 1:ng) {
+#     leg[i] = paste(leg[i], " (mean = ", toString(means[i]), 
+#         ")", sep = "")
+# }
+# 
+# par(mfrow=c(1,4), mar=c(4,2,1,1))
+# plot.new()
+# barplot(dat$vals[,rev(sel)], horiz=TRUE, col=heat.colors(ng), las=1, legend=leg, main="variance partitioning")
+# barplot(MF$mFULL$TjurR2[rev(sel)], horiz=TRUE, las=1, xlim=c(0,1), main="TjurR2")
+# abline(v=0.2, lty=2)
+# abline(v=0.4, lty=2)
+# abline(v=0.6, lty=2)
+# abline(v=0.8, lty=2)
+# abline(v=1, lty=2)
+# barplot(MF$mFULL$AUC[rev(sel)], horiz=TRUE, las=1, xlim=c(0,1), main="AUC")
+# abline(v=0.2, lty=2)
+# abline(v=0.4, lty=2)
+# abline(v=0.6, lty=2)
+# abline(v=0.8, lty=2)
+# abline(v=1, lty=2)
+```
+
+
+```{r, fig.height=15, fig.width=10, echo=FALSE}
+## preparing the data like in the plotVariancePartitioning function
+## but re-arrange data alphabetically
+sel <- order(colnames(VP$mFULL$vals))
+dat <- VP$mFULL
+hM <- models$mFULL
+ng = dim(dat$vals)[1]
+colnames(dat$vals) <- m$spNames
+##
+leg = dat$groupnames
+for (r in 1:hM$nr) {
+    leg = c(leg, paste("Random: ", hM$rLNames[r], sep = ""))
+}
+means = round(100 * rowMeans(dat$vals), 1)
+for (i in 1:ng) {
+    leg[i] = paste(leg[i], " (mean = ", toString(means[i]), 
+        ")", sep = "")
+}
+
+
+if(pngs){png("HMSC_pa_EnvSpatial_VarianceExplained.png", width=3600, height=4000, res=300)}
+par(mfrow=c(1,4), mar=c(10,2,1,1), oma=c(0,15,0,0))
+plot.new()
+#barplot(dat$vals[,rev(sel)], horiz=TRUE, col=heat.colors(ng), las=1, legend=leg, main="variance partitioning")
+barplot(dat$vals[,rev(sel)], horiz=TRUE, col=heat.colors(ng), las=1, legend=leg, main="variance partitioning", args.legend=list(x=1, y=-6, bty = "n"))
+barplot(MF$mFULL$AUC[rev(sel)], horiz=TRUE, las=1, xlim=c(0,1), main="AUC Model vs CV", legend=c("Model","CV"), args.legend=list(x=0.6, y=-6, bty = "n", fill=c("black","grey50")))
+barplot(MF.cv$mFULL$AUC[rev(sel)], horiz=TRUE, add=TRUE, col="grey50")
+abline(v=0.2, lty=2)
+abline(v=0.4, lty=2)
+abline(v=0.6, lty=2)
+abline(v=0.8, lty=2)
+abline(v=1, lty=2)
+barplot(MF$mFULL$TjurR2[rev(sel)], horiz=TRUE, las=1, xlim=c(0,1), main="TjurR2 Model vs CV")
+barplot(MF.cv$mFULL$TjurR2[rev(sel)], horiz=TRUE, add=TRUE, col="grey50")
+abline(v=0.2, lty=2)
+abline(v=0.4, lty=2)
+abline(v=0.6, lty=2)
+abline(v=0.8, lty=2)
+abline(v=1, lty=2)
+if(pngs){dev.off()}
+
+# barplot(MF$mFULL$AUC[rev(sel)]-MF.cv $mFULL$AUC[rev(sel)], horiz=TRUE, las=1, xlim=c(0,1), main="AUC CV difference")
+# abline(v=0.2, lty=2)
+# abline(v=0.4, lty=2)
+# abline(v=0.6, lty=2)
+# abline(v=0.8, lty=2)
+# abline(v=1, lty=2)
+```
+
+#### Variance explained - environment only model
+
+```{r, fig.height=15, fig.width=10, echo=FALSE}
+dat <- VP[[2]]
+hM <- models$mENV
+ng = dim(dat$vals)[1]
+colnames(dat$vals) <- m$spNames
+
+##
+means = round(100 * rowMeans(dat$vals), 1)
+leg = names(means)
+for (i in 1:ng) {
+    leg[i] = paste(leg[i], " (mean = ", toString(means[i]), 
+        ")", sep = "")
+}
+
+if(pngs){png("HMSC_pa_EnvOnly_VarianceExplained.png", width=3600, height=4000, res=300)}
+par(mfrow=c(1,4), mar=c(10,2,1,1), oma=c(0,15,0,0))
+plot.new()
+#barplot(dat$vals[,rev(sel)], horiz=TRUE, col=heat.colors(ng), las=1, legend=leg, main="variance partitioning")
+barplot(dat$vals[,rev(sel)], horiz=TRUE, col=heat.colors(ng+1), las=1, legend=leg, main="variance partitioning", args.legend=list(x=1, y=-6, bty = "n"))
+barplot(MF[[2]]$AUC[rev(sel)], horiz=TRUE, las=1, xlim=c(0,1), main="AUC env model vs CV", legend=c("Model","CV"), args.legend=list(x=0.6, y=-6, bty = "n", fill=c("black","grey50")))
+barplot(MF.cv[[2]]$AUC[rev(sel)], horiz=TRUE, add=TRUE, col="grey50")
+abline(v=0.2, lty=2)
+abline(v=0.4, lty=2)
+abline(v=0.6, lty=2)
+abline(v=0.8, lty=2)
+abline(v=1, lty=2)
+barplot(MF[[2]]$TjurR2[rev(sel)], horiz=TRUE, las=1, xlim=c(0,1), main="TjurR2 env model vs CV")
+barplot(MF.cv[[2]]$TjurR2[rev(sel)], horiz=TRUE, add=TRUE, col="grey50")
+abline(v=0.2, lty=2)
+abline(v=0.4, lty=2)
+abline(v=0.6, lty=2)
+abline(v=0.8, lty=2)
+abline(v=1, lty=2)
+#plotBetaSimple(m, post=postBeta, mar=c(14, 0, 4.5, 1), param="Mean", spSort="reverse", main="Mean response estimate", ynames=FALSE)
+if(pngs){dev.off()}
+```
+
+#### Scale of the random effect
+
+```{r}
+## estimated scale of the spatial random effect (SOMETHING WEIRD HERE)
+#round(summary(mpost$mFULL$Alpha[[1]], quantiles=c(0.025,0.5,0.975))[[2]],2)
+```
+
+### cross-validation {.tabset}
+
+```{r, fig.width=5, fig.height=5}
+dat <- VP$mFULL
+par(mfrow=c(2,2))
+diff.AUC <- MF$mFULL$AUC[rev(sel)]-MF.cv$mFULL$AUC[rev(sel)]
+diff.TR2 <- MF$mFULL$TjurR2[rev(sel)]-MF.cv$mFULL$TjurR2[rev(sel)]
+plot(diff.AUC, MF$mFULL$TjurR2[rev(sel)], ylab="TjurR2")
+plot(diff.AUC, dat$vals[5,], ylab="cellID importance")
+plot(diff.AUC, dat$vals[6,], ylab="surveyID importance")
+plot(diff.AUC, dat$vals[4,], ylab="effort importance")
+```
