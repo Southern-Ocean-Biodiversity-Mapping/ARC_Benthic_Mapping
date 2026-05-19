@@ -133,8 +133,7 @@ for (nm in model_ids) {
   message("Running prediction for model: ", nm)
   message("====================================")
   
-  model_file <- file.path("/pvol/2_fitting_and_running_models/",
-    paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")
+  model_file <- file.path(model.dir, paste0("2_fitting_and_running_models/", res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")
   )
   load(model_file)
   pa <- models$mENV
