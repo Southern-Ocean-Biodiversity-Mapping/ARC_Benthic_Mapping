@@ -2,6 +2,7 @@
 ##### SELECT MODEL SETUP
 ##############################################################################################################
 library(terra)
+library(Hmsc)
 usr <- "VM"
 source("0_SourceFile.R")
 
@@ -11,12 +12,22 @@ pred_dir   <- paste0(usr.main.dir, "4_model_prediction/pred_files/")
 
 res <- "2km"
 
-
 thin     <- 10
 samples  <- 800
 nChains  <- 4
 
 modelspec <- "_envonly"
+
+se <- function(x) {
+  sd(x) / sqrt(length(x))
+}
+p5 <- function(x, z=1.96) {
+  mean(x) - z * sd(x) / sqrt(length(x))
+}
+p95 <- function(x, z=1.96) {
+  mean(x) + z * sd(x) / sqrt(length(x))
+}
+# '%!in%' <- function(x,y)!('%in%'(x,y))
 
 # nm <- "fam_cafe"   # <<<<<< CHANGE THIS PER RUN
 # model_file <- file.path(
@@ -42,25 +53,34 @@ model_ids <- c(
 
 #############################################################
 ###### prepare data (RUN ONCE)
-
-# Load prediction dataframe (already scaled)
-pred_df <- readRDS(file.path(env_dir, paste0("Circumpolar_EnvData_", res, "_shelf_mask_scaled_dataframe.rds")))
-
-## Identify valid shelf cells
-r.stack <- rast(file.path(env_dir, paste0("Circumpolar_EnvData_", res, "_shelf_mask_unscaled_variables.tif")))
-r2 <- r.stack$depth
-sel.not.na <- which(!is.na(r2[]))
-
-## add sampling effort (Set constant value)
-pred_df$cover_points_scorable <- 540
-
-## Extract coordinates
-xy.grid.raw <- pred_df[, c("proj_coord_x", "proj_coord_y")]
+# # Load prediction dataframe (already scaled)
+# pred_df <- readRDS(file.path(env_dir, paste0("Circumpolar_EnvData_", res, "_shelf_mask_scaled_dataframe.rds")))
+# 
+# ## Identify valid shelf cells
+# r.stack <- rast(file.path(env_dir, paste0("Circumpolar_EnvData_", res, "_shelf_mask_unscaled_variables.tif")))
+# r2 <- r.stack$depth
+# sel.not.na <- which(!is.na(r2[]))
+# 
+# ## add sampling effort (Set constant value)
+# pred_df$cover_points_scorable <- 540
+# 
+# ##
+# grid <- pred_df
+# sel <- which(complete.cases(grid))
+# 
+# ## Extract coordinates
+# xy.grid.raw <- pred_df[, c("proj_coord_x", "proj_coord_y")]
+# 
+# ## prepare data to predict on
+# XData.grid <- grid[sel, ]
+# xy.grid    <- xy.grid.raw[sel, ]
 
 # ## Save for reuse
 # save(sel, sel.not.na, file = file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_sel.Rdata")))
 # save(XData.grid, xy.grid, file = file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_grid.Rdata")))
-# rm(pred_df, grid, xy.grid.raw)
+
+load(file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_sel.Rdata")))
+load(file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_grid.Rdata")))
 
 
 #############################################################
@@ -98,52 +118,52 @@ cell.sel.df <- which(!is.na(cells_with_data), arr.ind = TRUE)
 ## RUN ALL MODELS
 #############################################################
 #############################################################
-## parallel processing: PER CELL that contains values
-library(doParallel)
-library(foreach)
-parallel::detectCores()
-#UseCores = parallel::detectCores() - 1
-UseCores = 4
-c1<-makeCluster(UseCores, outfile="", type="FORK") ## "FORK" is faster than "PSOCK", but only works on linux/mac
-registerDoParallel(c1)
-getDoParWorkers()
-
 for (nm in model_ids) {
+  ## parallel processing: PER CELL that contains values
+  library(doParallel)
+  library(foreach)
+  parallel::detectCores()
+  #UseCores = parallel::detectCores() - 1
+  UseCores = 4
+  c1<-makeCluster(UseCores, outfile="", type="FORK") ## "FORK" is faster than "PSOCK", but only works on linux/mac
+  registerDoParallel(c1)
+  getDoParWorkers()
   
   message("====================================")
   message("Running prediction for model: ", nm)
   message("====================================")
   
-  model_file <- file.path(
-    "/pvol/2_fitting_and_running_models/",
-    paste0(res, "_model_cells_", nm,
-           "_chains_", nChains,
-           "_thin_", thin,
-           "_samples_", samples,
-           ".Rdata"
-    )
+  model_file <- file.path("/pvol/2_fitting_and_running_models/",
+    paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")
   )
   load(model_file)
   pa <- models$mENV
   ab <- models$mAB
   rm(models)
   
-  predictor_names <- colnames(pa$XData)
-  grid <- pred_df[, predictor_names, drop = FALSE]
-  sel <- which(complete.cases(grid))
-  XData.grid <- grid[sel, ]
-  xy.grid    <- xy.grid.raw[sel, ]
+  # predictor_names <- colnames(pa$XData)
+  # grid <- pred_df[, predictor_names, drop = FALSE]
+  # sel <- which(complete.cases(grid))
+  # XData.grid <- grid[sel, ]
+  # xy.grid    <- xy.grid.raw[sel, ]
 
   #iterations <- 60
   
+  message("setup complete, parallel loops over prediction areas now")
+  
   ptm = proc.time()
   foreach(j=1:length(cell.sel.v), .packages = c("Hmsc")) %dopar%{ #3:length(xmin)
+  # for(j in 1:length(cell.sel.v)){
     i <- cell.sel.df[j,2]
     k <- cell.sel.df[j,1]
     ## select cells in tile
     sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
                         xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
-    print(i)
+    if (length(sel.loop) == 0) {
+      return(NULL)
+    }
+    
+    if (j %% 50 == 0) message("Tile ", j)
     ## subset predictors + coordinates
     XData.grid.loop <- XData.grid[sel.loop,]
     xy.grid.loop <- xy.grid[sel.loop,]
@@ -188,15 +208,53 @@ for (nm in model_ids) {
          predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.5, predY.pa.95,
          sel.loop, XData.grid.loop, xy.grid.loop,
          file=paste0(dat.name,modelspec,run.name,".Rdata"))
-    rm(predY.loop.pa, predY.loop.ab, 
+    rm(predY.loop.pa, predY.loop.ab, predY.loop.pa.array, predY.loop.ab.array,
        predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.5, predY.ab.95,
        predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.5, predY.pa.95)
   }
   computational.time = proc.time() - ptm
   message("Finished model: ", nm)
+  parallel::stopCluster(cl = c1)
 }
 
-parallel::stopCluster(cl = c1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
