@@ -55,7 +55,6 @@ model_ids <- c(
 ###### prepare data (RUN ONCE)
 # # Load prediction dataframe (already scaled)
 # pred_df <- readRDS(file.path(env_dir, paste0("Circumpolar_EnvData_", res, "_shelf_mask_scaled_dataframe.rds")))
-# 
 # ## Identify valid shelf cells
 # r.stack <- rast(file.path(env_dir, paste0("Circumpolar_EnvData_", res, "_shelf_mask_unscaled_variables.tif")))
 # r2 <- r.stack$depth
@@ -66,6 +65,7 @@ model_ids <- c(
 # 
 # ##
 # grid <- pred_df
+# cell_id <- grid$cell_id
 # sel <- which(complete.cases(grid))
 # 
 # ## Extract coordinates
@@ -74,14 +74,17 @@ model_ids <- c(
 # ## prepare data to predict on
 # XData.grid <- grid[sel, ]
 # xy.grid    <- xy.grid.raw[sel, ]
-
+# 
 # ## Save for reuse
 # save(sel, sel.not.na, file = file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_sel.Rdata")))
 # save(XData.grid, xy.grid, file = file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_grid.Rdata")))
+# save(cell_id, file = file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_cell_ids.Rdata")))
 
 load(file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_sel.Rdata")))
 load(file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_model_cell_grid.Rdata")))
+load(file.path(model_dir, paste0("4_model_prediction/hmsc_", res, "_cell_ids.Rdata")))
 
+pred_df <- readRDS(file.path(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic/prediction_grid_lookup.rds"))
 
 #############################################################
 ## TILE SETUP (KEEP 100 km STRUCTURE)
@@ -118,7 +121,7 @@ cell.sel.df <- which(!is.na(cells_with_data), arr.ind = TRUE)
 ## RUN ALL MODELS
 #############################################################
 #############################################################
-for (nm in model_ids[1:8]) {
+for(nm in model_ids[2:8]) {
   ## parallel processing: PER CELL that contains values
   library(doParallel)
   library(foreach)
@@ -134,7 +137,7 @@ for (nm in model_ids[1:8]) {
   message("====================================")
   
   model_file <- file.path(model_dir, "2_fitting_and_running_models/",
-    paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")
+                          paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")
   )
   load(model_file)
   pa <- models$mENV
@@ -146,24 +149,24 @@ for (nm in model_ids[1:8]) {
   # sel <- which(complete.cases(grid))
   # XData.grid <- grid[sel, ]
   # xy.grid    <- xy.grid.raw[sel, ]
-
+  
   #iterations <- 60
   
   message("setup complete, parallel loops over prediction areas now")
   
   ptm = proc.time()
   foreach(j=1:length(cell.sel.v), .packages = c("Hmsc")) %dopar%{ #3:length(xmin)
-  # for(j in 1:length(cell.sel.v)){
+    # for(j in 1:length(cell.sel.v)){
     i <- cell.sel.df[j,2]
     k <- cell.sel.df[j,1]
     ## select cells in tile
     sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
                         xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
-    if (length(sel.loop) == 0) {
-      return(NULL)
-    }
-    
+    if (length(sel.loop) == 0) {return(NULL)}
     if (j %% 50 == 0) message("Tile ", j)
+    global_row <- sel[sel.loop]               # index in pred_df
+    cell_id.loop <- pred_df$cell_id[global_row]
+    
     ## subset predictors + coordinates
     XData.grid.loop <- XData.grid[sel.loop,]
     xy.grid.loop <- xy.grid[sel.loop,]
@@ -186,13 +189,13 @@ for (nm in model_ids[1:8]) {
     predY.loop.pa.array = simplify2array(predY.loop.pa)
     predY.loop.ab.array = simplify2array(predY.loop.ab)
     
-    ## Ensure array always 3D: [cells x species x samples]
-    if (length(dim(predY.loop.pa.array)) == 2) {
-      predY.loop.pa.array <- array(predY.loop.pa.array, dim = c(1, dim(predY.loop.pa.array)))
-    }
-    if (length(dim(predY.loop.ab.array)) == 2) {
-      predY.loop.ab.array <- array(predY.loop.ab.array, dim = c(1, dim(predY.loop.ab.array)))
-    }
+    #############################################################
+    ## FORCE CONSISTENT DIMENSIONS
+    #############################################################
+    ## AB: handle all cases
+    if (is.null(dim(predY.loop.ab.array))) 
+      # vector → single cell, single variable
+      predY.loop.ab.array <- array(predY.loop.ab.array, dim = c(1, 1, length(predY.loop.ab.array)))
     
     ## Get posterior mean/median/uncertainty
     predY.pa.mean   <- apply(predY.loop.pa.array, 1:2, mean)
@@ -206,14 +209,14 @@ for (nm in model_ids[1:8]) {
     predY.ab.se <- apply(predY.loop.ab.array, 1:2, se)
     predY.ab.5  <- apply(predY.loop.ab.array, 1:2, p5)
     predY.ab.95 <- apply(predY.loop.ab.array, 1:2, p95)
-
+    
     ## save-string for 100km cell tiles
     dat.name <- paste0(pred_dir, res,"_model_cells_",nm, "_chains_",as.character(nChains),"_thin_", as.character(thin),"_samples_", as.character(samples),"_pred_")
     run.name <- sprintf("%06d",cell.sel.v[j])
     
     save(predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.5, predY.ab.95,
          predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.5, predY.pa.95,
-         sel.loop, XData.grid.loop, xy.grid.loop,
+         global_row, cell_id.loop, sel.loop, XData.grid.loop, xy.grid.loop,
          file=paste0(dat.name,modelspec,run.name,".Rdata"))
     rm(predY.loop.pa, predY.loop.ab, predY.loop.pa.array, predY.loop.ab.array,
        predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.5, predY.ab.95,
