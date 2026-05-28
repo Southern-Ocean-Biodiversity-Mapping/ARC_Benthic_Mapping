@@ -1,6 +1,10 @@
 ##############################################################################################################
-##### SELECT MODEL SETUP
+###### MODEL PREDICTIONS ONTO ANTARCTIC SHELF
+###### All data accessed and written from/to the dropbox
 ##############################################################################################################
+
+##############################################################################################################
+##### SELECT MODEL SETUP
 library(terra)
 library(Hmsc)
 usr <- "VM"
@@ -121,7 +125,7 @@ cell.sel.df <- which(!is.na(cells_with_data), arr.ind = TRUE)
 ## RUN ALL MODELS
 #############################################################
 #############################################################
-for(nm in model_ids[2:8]) {
+for(nm in model_ids) {
   ## parallel processing: PER CELL that contains values
   library(doParallel)
   library(foreach)
@@ -137,8 +141,7 @@ for(nm in model_ids[2:8]) {
   message("====================================")
   
   model_file <- file.path(model_dir, "2_fitting_and_running_models/",
-                          paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")
-  )
+                          paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata"))
   load(model_file)
   pa <- models$mENV
   ab <- models$mAB
@@ -161,7 +164,7 @@ for(nm in model_ids[2:8]) {
     k <- cell.sel.df[j,1]
     ## select cells in tile
     sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
-                        xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
+                      xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
     if (length(sel.loop) == 0) {return(NULL)}
     if (j %% 50 == 0) message("Tile ", j)
     global_row <- sel[sel.loop]               # index in pred_df
