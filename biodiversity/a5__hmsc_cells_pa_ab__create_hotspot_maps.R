@@ -180,7 +180,7 @@ for (nm in model_ids) {
   message("Processing model: ", nm)
   
   # Directory containing predictions for this model
-  model_dir <- file.path(pred_base_dir, nm)
+  model_dir <- file.path(pred_base_dir, paste0("hmsc_with_",nm))
   
   ############################################################
   # 2.1 LOAD SPECIES-LEVEL PREDICTIONS
@@ -269,7 +269,7 @@ for (nm in names(model_outputs)) {
   message("Saving outputs for model: ", nm)
   
   # Create output directory
-  out_dir <- file.path(src_base, nm, "hotspots")
+  out_dir <- file.path(src_base, paste0("hmsc_with_", nm), "hotspots")
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   
   obj <- model_outputs[[nm]]
@@ -314,7 +314,7 @@ comb_consensus <- sum(comb_stack, na.rm = TRUE)
 # 5) SAVE CONSENSUS MAPS
 ############################
 
-cons_dir <- file.path(src_base, "consensus")
+cons_dir <- file.path(src_base, "hmsc_model_consensus")
 dir.create(cons_dir, showWarnings = FALSE)
 
 writeRaster(rich_consensus,
