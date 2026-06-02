@@ -1,3 +1,5 @@
+## a4__hmsc_cells_pa_ab__assemble_biodiversity_maps.R
+
 #############################################################
 ##### HMSC TILE → RASTER ASSEMBLY (UPDATED PIPELINE)
 #############################################################
