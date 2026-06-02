@@ -130,7 +130,7 @@ for (nm in model_ids) {
   #############################################################
   ##### BUILD RASTERS — PRESENCE/ABSENCE
   #############################################################
-  out_dir <- file.path(map_dir, nm)
+  out_dir <- file.path(map_dir, paste0("hmsc_with_", nm))
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   
   # order everything by raster cell index

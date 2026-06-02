@@ -27,7 +27,7 @@ tools.dir <- file.path(usr.dropbox.dir, "SouthernOceanBiodiversityMapping/Useful
 # Using the local copied version for faster raster IO
 pred_base_dir <- file.path(usr.main.dir, "4_model_prediction/copy_of_predictive_maps/circum_antarctic")
 # Directory containing predictive maps for the selected model
-model_dir <- file.path(pred_base_dir, model_id)
+model_dir <- file.path(pred_base_dir, paste0("hmsc_with_",model_id))
 # Load environmental raster stack for plotting context / extent / CRS
 r.stack <- rast(file.path(env.derived, paste0("Circumpolar_EnvData_", res, "_shelf_mask_unscaled_variables.tif")))
 r2 <- r.stack$depth
