@@ -1,0 +1,496 @@
+---
+title: "check and display biodiversity maps"
+output: html_document
+date: "2026-06-03"
+---
+
+```{r setup, include=FALSE}
+############################################################
+# CHECK AND DISPLAY HMSC HOTSPOT OUTPUTS
+# ----------------------------------------------------------
+# This script:
+#
+# 2) Loads hotspot-analysis outputs for one model
+# 3) Loads species-level predictive maps for display
+# 4) Verifies raster geometry consistency
+# 5) Prints summary statistics
+# 6) Checks hotspot-stack logic
+# 7) Displays key continuous, percentile, hotspot, domain,
+#    species-level, and polygon outputs
+#
+############################################################
+
+############################
+# 1) SETUP
+############################
+library(terra)
+library(viridis)
+
+usr <- "VM"
+source(file.path("..", "0_SourceFile.R"))
+
+res <- "2km"
+# Select model to inspect
+nm <- "npp_cafe"
+# Selected species index for species-level display
+species_index <- 19
+```
+
+
+```{r}
+# Root directories
+src_base <- file.path(usr.dropbox.dir,
+  "data_products/predictive_maps/circum_antarctic")
+dst_base <- file.path(usr.main.dir,
+  "4_model_prediction/copy_of_predictive_maps/circum_antarctic")
+
+# Environmental raster directory
+env.derived <- file.path(usr.dropbox.dir,
+  "data_environmental/derived")
+
+# Model directory
+model_root <- file.path(src_base, paste0("hmsc_with_", nm))
+
+# Output subdirectories
+cont_dir   <- file.path(model_root, "continuous")
+pct_dir    <- file.path(model_root, "percentiles")
+hot_dir    <- file.path(model_root, "hotspots")
+domain_dir <- file.path(model_root, "domains")
+poly_dir   <- file.path(model_root, "polygons")
+
+# Plot settings
+mar <- c(1, 1, 1, 0)
+
+# Regional plotting windows
+AP.xlim <- c(-2800000, -1800000)
+AP.ylim <- c(1350000, 2350000)
+
+RS.xlim <- c(-800000, 500000)
+RS.ylim <- c(-2350000, -1250000)
+
+EA.xlim <- c(0, 2500000)
+EA.ylim <- c(-2400000, -1000000)
+
+zoom.xlim <- c(-500000, 500000)
+zoom.ylim <- c(-2300000, -1300000)
+
+############################
+# 2) USE LOCAL COPY OF PREDICTIVE MAPS
+############################
+pred_base_dir <- dst_base
+model_dir <- file.path(pred_base_dir, paste0("hmsc_with_", nm))
+```
+
+```{r}
+############################
+# 4) LOAD RASTERS
+############################
+# Environmental raster stack for plotting context
+r.stack <- rast(file.path(env.derived,
+  paste0("Circumpolar_EnvData_", res, "_shelf_mask_unscaled_variables.tif")))
+r2 <- r.stack$depth
+
+# Continuous outputs
+richness_mean <- rast(file.path(cont_dir, "richness_mean.tif"))
+richness_median <- rast(file.path(cont_dir, "richness_median.tif"))
+richness_bootstrap_median <- rast(file.path(cont_dir, "richness_bootstrap_median.tif"))
+richness_bootstrap_sd <- rast(file.path(cont_dir, "richness_bootstrap_sd.tif"))
+
+abundance_mean <- rast(file.path(cont_dir, "abundance_mean.tif"))
+abundance_median <- rast(file.path(cont_dir, "abundance_median.tif"))
+abundance_median_100 <- rast(file.path(cont_dir, "abundance_median_100.tif"))
+abundance_se <- rast(file.path(cont_dir, "abundance_se.tif"))
+
+richness_per_abundance <- rast(file.path(cont_dir, "richness_per_abundance.tif"))
+abundance_per_richness <- rast(file.path(cont_dir, "abundance_per_richness.tif"))
+
+# Percentiles
+richness_pct <- rast(file.path(pct_dir, "richness_percentiles.tif"))
+abundance_pct <- rast(file.path(pct_dir, "abundance_percentiles.tif"))
+biodiversity_pct <- rast(file.path(pct_dir, "biodiversity_percentiles.tif"))
+
+richness_only_pct <- rast(file.path(pct_dir, "richness_only_percentile_difference.tif"))
+abundance_only_pct <- rast(file.path(pct_dir, "abundance_only_percentile_difference.tif"))
+
+richness_per_abundance_pct <- rast(file.path(pct_dir, "richness_per_abundance_percentiles.tif"))
+abundance_per_richness_pct <- rast(file.path(pct_dir, "abundance_per_richness_percentiles.tif"))
+
+# Hotspot stacks
+richness_hot <- rast(file.path(hot_dir, "richness_hotspots.tif"))
+abundance_hot <- rast(file.path(hot_dir, "abundance_hotspots.tif"))
+biodiversity_hot <- rast(file.path(hot_dir, "biodiversity_hotspots.tif"))
+
+# Richness-only and abundance-only class contrasts
+richness_only_class <- rast(file.path(hot_dir, "richness_only_hotspots.tif"))
+abundance_only_class <- rast(file.path(hot_dir, "abundance_only_hotspots.tif"))
+
+# Domain percentile outputs
+domain_richness_pct <- rast(file.path(domain_dir, "domain_richness_percentiles.tif"))
+domain_abundance_pct <- rast(file.path(domain_dir, "domain_abundance_percentiles.tif"))
+domain_biodiversity_pct <- rast(file.path(domain_dir, "domain_biodiversity_percentiles.tif"))
+
+# Domain hotspot outputs
+domain_richness_hot_top10 <- rast(file.path(domain_dir, "domain_richness_hotspot_top10.tif"))
+domain_richness_hot_class <- rast(file.path(domain_dir, "domain_richness_hotspot_class.tif"))
+
+domain_abundance_hot_top10 <- rast(file.path(domain_dir, "domain_abundance_hotspot_top10.tif"))
+domain_abundance_hot_class <- rast(file.path(domain_dir, "domain_abundance_hotspot_class.tif"))
+
+domain_biodiversity_hot_top10 <- rast(file.path(domain_dir, "domain_biodiversity_hotspot_top10.tif"))
+domain_biodiversity_hot_class <- rast(file.path(domain_dir, "domain_biodiversity_hotspot_class.tif"))
+
+# Species-level predictive maps for display
+pa_files <- list.files(model_dir,
+  pattern = "^PA_.*\\.tif$", full.names = TRUE)
+
+pa_mean   <- rast(pa_files, lyrs = 1)
+pa_median <- rast(pa_files, lyrs = 2)
+pa_se     <- rast(pa_files, lyrs = 3)
+
+if (species_index > nlyr(pa_median)) {
+  stop("species_index exceeds the number of available species layers.")
+}
+
+
+############################
+# 5) CHECK GEOMETRY CONSISTENCY
+############################
+check_geometry <- function(x, ref, nm) {
+  data.frame(
+    object = nm,
+    same_nrow = nrow(x) == nrow(ref),
+    same_ncol = ncol(x) == ncol(ref),
+    same_res = all(res(x) == res(ref)),
+    same_ext = all(ext(x) == ext(ref)),
+    same_crs = crs(x) == crs(ref),
+    stringsAsFactors = FALSE
+  )
+}
+ref <- richness_median
+geom_check <- rbind(
+  check_geometry(richness_bootstrap_median, ref, "richness_bootstrap_median"),
+  check_geometry(richness_bootstrap_sd, ref, "richness_bootstrap_sd"),
+  check_geometry(abundance_median, ref, "abundance_median"),
+  check_geometry(abundance_median_100, ref, "abundance_median_100"),
+  check_geometry(abundance_se, ref, "abundance_se"),
+  check_geometry(richness_pct, ref, "richness_pct"),
+  check_geometry(abundance_pct, ref, "abundance_pct"),
+  check_geometry(biodiversity_pct, ref, "biodiversity_pct"),
+  check_geometry(richness_hot[[5]], ref, "richness_hot_intensity"),
+  check_geometry(abundance_hot[[5]], ref, "abundance_hot_intensity"),
+  check_geometry(biodiversity_hot[[5]], ref, "biodiversity_hot_intensity"),
+  check_geometry(richness_only_class, ref, "richness_only_class"),
+  check_geometry(abundance_only_class, ref, "abundance_only_class"),
+  check_geometry(pa_median[[species_index]], ref, "selected_species_median"),
+  check_geometry(pa_se[[species_index]], ref, "selected_species_se")
+)
+print(geom_check)
+```
+
+
+```{r}
+############################
+# 6) SUMMARY STATISTICS
+############################
+raster_summary <- function(x, nm) {
+  vals <- values(x)
+  data.frame(
+    object = nm,
+    n_non_na = sum(!is.na(vals)),
+    min = min(vals, na.rm = TRUE),
+    max = max(vals, na.rm = TRUE),
+    mean = mean(vals, na.rm = TRUE),
+    sd = sd(vals, na.rm = TRUE),
+    stringsAsFactors = FALSE
+  )
+}
+
+summary_table <- rbind(
+  raster_summary(richness_mean, "richness_mean"),
+  raster_summary(richness_median, "richness_median"),
+  raster_summary(richness_bootstrap_median, "richness_bootstrap_median"),
+  raster_summary(richness_bootstrap_sd, "richness_bootstrap_sd"),
+  raster_summary(abundance_mean, "abundance_mean"),
+  raster_summary(abundance_median, "abundance_median"),
+  raster_summary(abundance_median_100, "abundance_median_100"),
+  raster_summary(abundance_se, "abundance_se"),
+  raster_summary(richness_per_abundance, "richness_per_abundance"),
+  raster_summary(abundance_per_richness, "abundance_per_richness"),
+  raster_summary(richness_pct, "richness_pct"),
+  raster_summary(abundance_pct, "abundance_pct"),
+  raster_summary(biodiversity_pct, "biodiversity_pct"),
+  raster_summary(richness_only_pct, "richness_only_pct"),
+  raster_summary(abundance_only_pct, "abundance_only_pct"),
+  raster_summary(richness_hot[[5]], "richness_hot_intensity"),
+  raster_summary(abundance_hot[[5]], "abundance_hot_intensity"),
+  raster_summary(biodiversity_hot[[5]], "biodiversity_hot_intensity"),
+  raster_summary(richness_only_class, "richness_only_class"),
+  raster_summary(abundance_only_class, "abundance_only_class"),
+  raster_summary(pa_median[[species_index]], "selected_species_median"),
+  raster_summary(pa_se[[species_index]], "selected_species_se")
+)
+print(summary_table)
+# write.csv(summary_table,
+#   file = file.path(model_root, paste0("qa_summary_", nm, ".csv")), row.names = FALSE)
+```
+
+
+```{r}
+############################
+# 8) COMPARE RICHNESS MEDIANS
+############################
+
+# Relationship between summed richness median and bootstrap median
+par(mfrow = c(1, 1))
+plot(
+  values(richness_median),
+  values(richness_bootstrap_median),
+  pch = 16, cex = 0.3,
+  xlab = "Richness median",
+  ylab = "Richness bootstrap median",
+  main = paste("Richness comparison:", nm)
+)
+abline(0, 1, col = "red", lwd = 2)
+cor_val <- cor(
+  values(richness_median),
+  values(richness_bootstrap_median),
+  use = "complete.obs"
+)
+message("Correlation between richness_median and richness_bootstrap_median: ",
+        round(cor_val, 4))
+```
+
+
+```{r}
+############################
+# 9) PLOT KEY OUTPUTS
+############################
+# Zoom window used for quick visual checks
+xlim <- zoom.xlim
+ylim <- zoom.ylim
+maxcell <- 10000000
+
+# Continuous outputs
+par(mfrow = c(2, 3), mar = c(2, 2, 2, 4))
+plot(richness_median,           xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness median")
+plot(richness_bootstrap_median, xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness bootstrap median")
+plot(richness_bootstrap_sd,     xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness bootstrap SD")
+plot(abundance_median_100,      xlim=xlim, ylim=ylim, maxcell=maxcell, main="Abundance median 100")
+plot(abundance_se,              xlim=xlim, ylim=ylim, maxcell=maxcell, main="Abundance SE", range=c(0, 100))
+
+# Additional continuous variables
+par(mfrow = c(1, 2), mar = c(2, 2, 2, 4))
+plot(richness_per_abundance, xlim=xlim, ylim=ylim, mexcell=maxcell, main="morphospecies per %-cover", range=c(0, 6))
+plot(abundance_per_richness, xlim=xlim, ylim=ylim, mexcell=maxcell, main="%-cover per morphospecies", range=c(0, 6))
+
+# Percentiles
+par(mfrow = c(2, 3), mar = c(2, 2, 2, 4))
+plot(richness_pct,               xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness percentiles")
+plot(abundance_pct,              xlim=xlim, ylim=ylim, maxcell=maxcell, main="Abundance percentiles")
+plot(biodiversity_pct,           xlim=xlim, ylim=ylim, maxcell=maxcell, main="Biodiversity percentiles")
+plot(richness_only_pct,          xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness-only percentile diff")
+plot(abundance_only_pct,         xlim=xlim, ylim=ylim, maxcell=maxcell, main="Abundance-only percentile diff")
+plot(richness_per_abundance_pct, xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness / abundance percentiles")
+
+# Hotspot classes
+par(mfrow = c(2, 3), mar = c(2, 2, 2, 4))
+plot(richness_hot[[5]],     xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness class")
+plot(abundance_hot[[5]],    xlim=xlim, ylim=ylim, maxcell=maxcell, main="Abundance class")
+plot(biodiversity_hot[[5]], xlim=xlim, ylim=ylim, maxcell=maxcell, main="Biodiversity class")
+plot(richness_only_class,   xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness-only hotspots")
+plot(abundance_only_class,  xlim=xlim, ylim=ylim, maxcell=maxcell, main="Abundance-only hotspots")
+
+# Hotspot top-10 layers
+par(mfrow = c(1, 3), mar = c(2, 2, 2, 4))
+plot(richness_hot[[2]],     xlim=xlim, ylim=ylim, maxcell=maxcell, main="Richness top 10%")
+plot(abundance_hot[[2]],    xlim=xlim, ylim=ylim, maxcell=maxcell, main="Abundance top 10%")
+plot(biodiversity_hot[[2]], xlim=xlim, ylim=ylim, maxcell=maxcell, main="Biodiversity top 10%")
+```
+
+
+```{r}
+############################
+# 10) SPECIES-LEVEL DISPLAY
+############################
+
+# Presence-absence overview
+par(mfrow = c(1, 1), mar = c(2, 2, 2, 4))
+plot(richness_median, col = viridis(99), main = "Predicted richness (median)")
+
+# Selected species
+par(mfrow = c(1, 2), oma = c(2, 0, 2, 3))
+plot(pa_median[[species_index]],
+  main = names(pa_median)[species_index],
+  mar = mar,
+  legend = FALSE,
+  col = viridis(99)
+)
+
+plot(pa_se[[species_index]],
+  main = paste0(names(pa_median)[species_index], "_se"),
+  mar = mar,
+  col = viridis(99)
+)
+
+# Display all species sequentially if needed
+# par(mfrow = c(1, 2), oma = c(2, 0, 2, 3))
+# for (i in seq_len(nlyr(pa_median))) {
+#   plot(pa_median[[i]],
+#     main = names(pa_median)[i],
+#     mar = mar,
+#     legend = FALSE,
+#     col = viridis(99)
+#   )
+#
+#   plot(pa_se[[i]],
+#     main = paste0(names(pa_median)[i], "_se"),
+#     mar = mar,
+#     col = viridis(99)
+#   )
+# }
+
+# East Antarctica zoom for one selected species
+par(mfrow = c(2, 1), bg = NA)
+plot(pa_median[[species_index]],
+  xlim = EA.xlim,
+  ylim = EA.ylim,
+  maxcell = 10000000,
+  main = names(pa_median)[species_index],
+  mar = mar,
+  legend = FALSE,
+  col = viridis(99)
+)
+
+plot(pa_se[[species_index]],
+  xlim = EA.xlim,
+  ylim = EA.ylim,
+  maxcell = 10000000,
+  main = paste0(names(pa_median)[species_index], "_se"),
+  mar = mar,
+  col = viridis(99)
+)
+```
+
+
+```{r}
+############################
+# 11) REGIONAL SNAPSHOTS
+############################
+
+# Antarctic Peninsula
+par(mfrow = c(1, 1))
+plot(richness_median,
+  xlim = AP.xlim,
+  ylim = AP.ylim,
+  maxcell = 10000000,
+  col = viridis(99),
+  main = "Richness median - Antarctic Peninsula"
+)
+
+# Ross Sea
+par(mfrow = c(1, 1))
+plot(richness_median,
+  xlim = RS.xlim,
+  ylim = RS.ylim,
+  maxcell = 10000000,
+  col = viridis(99),
+  main = "Richness median - Ross Sea"
+)
+
+# East Antarctica richness zoom
+par(mfrow = c(1, 1), bg = NA)
+plot(richness_median,
+  xlim = c(1000000, 3000000),
+  ylim = c(-2400000, 1600000),
+  maxcell = 10000000,
+  col = viridis(99),
+  axes = FALSE,
+  main = "Richness median - East Antarctica"
+)
+
+# Optional export
+# png(file.path(getwd(), "Circumpolar_richness_zoom.png"),
+#   width = 2400, height = 2400, res = 300
+# )
+#
+# par(mfrow = c(1, 1), bg = NA)
+# plot(richness_median,
+#   xlim = c(1000000, 3000000),
+#   ylim = c(-2400000, 1600000),
+#   maxcell = 10000000,
+#   col = viridis(99),
+#   axes = FALSE
+# )
+#
+# dev.off()
+```
+
+
+```{r}
+############################
+# 12) PLOT DOMAIN OUTPUTS
+############################
+
+message("Domain layer names:")
+print(names(domain_richness_pct))
+
+par(mfrow = c(2, 3), mar = c(2, 2, 2, 4))
+for (i in 1:nlyr(domain_richness_pct)) {
+  plot(domain_richness_pct[[i]], main = names(domain_richness_pct)[i])
+}
+
+par(mfrow = c(2, 3), mar = c(2, 2, 2, 4))
+for (i in 1:nlyr(domain_biodiversity_hot_class)) {
+  plot(domain_biodiversity_hot_class[[i]], main = names(domain_biodiversity_hot_class)[i])
+}
+
+par(mfrow = c(2, 3), mar = c(2, 2, 2, 4))
+for (i in 1:nlyr(domain_biodiversity_hot_top10)) {
+  plot(domain_biodiversity_hot_top10[[i]], main = names(domain_biodiversity_hot_top10)[i])
+}
+```
+
+
+```{r}
+############################
+# 13) OPTIONAL POLYGON CHECK
+############################
+
+poly_files <- c(
+  file.path(poly_dir, "richness_top10_hotspots.gpkg"),
+  file.path(poly_dir, "abundance_top10_hotspots.gpkg"),
+  file.path(poly_dir, "biodiversity_top10_hotspots.gpkg")
+)
+
+poly_check <- data.frame(
+  file = basename(poly_files),
+  exists = file.exists(poly_files),
+  stringsAsFactors = FALSE
+)
+
+print(poly_check)
+
+if (file.exists(file.path(poly_dir, "biodiversity_top10_hotspots.gpkg"))) {
+  biodiv_poly <- vect(file.path(poly_dir, "biodiversity_top10_hotspots.gpkg"))
+  print(biodiv_poly)
+
+  par(mfrow = c(1, 1))
+  plot(biodiversity_hot[[5]], main = "Biodiversity hotspot class with polygon overlay")
+  plot(biodiv_poly, add = TRUE, border = "red", lwd = 1)
+}
+
+
+############################
+# 14) QUICK CHECKS I RECOMMEND
+############################
+
+message("Recommended checks:")
+message("1) richness_median and richness_bootstrap_median should be strongly correlated")
+message("2) richness_bootstrap_sd should be > 0 in much of the shelf but not dominated by extreme spikes")
+message("3) abundance_median_100 should not exceed 100")
+message("4) percentile rasters should span roughly 1 to 100")
+message("5) hotspot stacks should be nested: top1 within top5, top5 within top10, top10 within top25")
+message("6) hotspot intensity should equal the sum of top25, top10, top5 and top1")
+message("7) domain layers should only contain values inside each planning domain")
+```
+
