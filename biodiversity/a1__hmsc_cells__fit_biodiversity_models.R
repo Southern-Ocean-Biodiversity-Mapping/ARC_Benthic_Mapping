@@ -211,7 +211,7 @@ if (use_spatial) {
 build_formula <- function(vars_fixed, vars_swap) {
   as.formula(paste("~", paste(c(vars_fixed, vars_swap), collapse = " + ")))
 }
-## generate 8 formulas
+## generate 12 formulas
 formulas <- list()
 ## NPP models (mean + sd)
 for (i in seq_len(nrow(npp_pairs))) {
@@ -230,14 +230,22 @@ for (i in seq_len(nrow(fam_pairs))) {
     c(fam_pairs$flux[i], fam_pairs$sed[i])
   )
 }
-
+## NPP and Flux / sediment models
+for (i in 1:4) {
+  key <- paste0("npp_and_fam_", gsub("log.flux.mean.", "", fam_pairs$flux[i]))
+  
+  formulas[[key]] <- build_formula(
+    model_vars_fixed,
+    c(npp_pairs$mean[i], npp_pairs$sd[i], fam_pairs$flux[i], fam_pairs$sed[i])
+  )
+}
 ##################################################
 ##### RUN ANALYSIS AND SAVE OUTPUTS (~5min per non-spatial model)
 ##################################################
 all_models <- list()
 all_times  <- list()
 
-for (nm in names(formulas)[5:8]) {
+for (nm in names(formulas)[9:12]) {
   
   message("====================================")
   message("Building models for formula: ", nm)
@@ -339,7 +347,7 @@ for (nm in names(formulas)[5:8]) {
   )
   
   out_file <- file.path(
-    "/pvol/2_fitting_and_running_models/",
+    output_dir, "2_fitting_and_running_models",
     paste0(filename.string, ".Rdata")
   )
   
@@ -369,7 +377,7 @@ for (nm in names(formulas)[5:8]) {
   message("====================================")
   
   model_file <- file.path(
-    "/pvol/2_fitting_and_running_models/",
+    output_dir, "2_fitting_and_running_models/",
     paste0(
       res, "_model_cells_", nm,
       "_chains_", nChains,
@@ -437,7 +445,7 @@ for (nm in names(formulas)[5:8]) {
   ##### SAVE RESULTS
   ##################################################
   
-  out_file <- file.path("/pvol/3_model_analysis/", paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata"))
+  out_file <- file.path(output_dir,"3_model_analysis/", paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata"))
   
   save(nm, XFormula, MF, MF.cv, preds, preds.cv, partition, runtime, cv_time, file = out_file)
   
