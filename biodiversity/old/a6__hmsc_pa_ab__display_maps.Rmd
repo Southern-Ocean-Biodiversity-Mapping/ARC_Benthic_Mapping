@@ -1,0 +1,259 @@
+---
+title: "display biodiversity maps"
+output: html_document
+---
+
+```{r}
+# Load packages
+library(terra)
+library(viridis)
+# Convenience operator
+'%!in%' <- function(x, y) !('%in%'(x, y))
+# Load shared directory definitions
+
+usr <- "VM"
+source(file.path("..", "0_SourceFile.R"))
+
+# Resolution label used in environmental and predictive-map filenames
+res <- "2km"
+# Select one model to display in this report
+model_id <- "fam_cafe"
+
+# Environmental raster directory
+env.derived <- file.path(usr.dropbox.dir, "data_environmental/derived")
+# Optional tools directory (only needed later for SOmap plotting)
+tools.dir <- file.path(usr.dropbox.dir, "SouthernOceanBiodiversityMapping/Useful_Functions_Tools")
+# Predictive-map root directory
+# Using the local copied version for faster raster IO
+pred_base_dir <- file.path(usr.main.dir, "4_model_prediction/copy_of_predictive_maps/circum_antarctic")
+# Directory containing predictive maps for the selected model
+model_dir <- file.path(pred_base_dir, paste0("hmsc_with_",model_id))
+# Load environmental raster stack for plotting context / extent / CRS
+r.stack <- rast(file.path(env.derived, paste0("Circumpolar_EnvData_", res, "_shelf_mask_unscaled_variables.tif")))
+r2 <- r.stack$depth
+```
+
+
+```{r}
+# MCMC settings retained for file naming context only
+thin <- 10
+samples <- 800
+nChains <- 4
+
+# Selected species index for species-level map panels
+# Change this number to inspect a different morphospecies
+species_index <- 19
+```
+
+
+```{r}
+# List all species presence/absence raster files for the selected model
+pa_files <- list.files(
+  model_dir,
+  pattern = "^PA_.*\\.tif$",
+  full.names = TRUE
+)
+
+# Load only the layers needed for this report:
+# layer 1 = mean
+# layer 2 = median
+# layer 3 = standard error
+pa_mean   <- rast(pa_files, lyrs = 1)
+pa_median <- rast(pa_files, lyrs = 2)
+pa_se     <- rast(pa_files, lyrs = 3)
+
+# Calculate richness as the sum of species occurrence probabilities
+# Here the median predictions are used for richness display
+hmsc.maps.richness <- sum(pa_median, na.rm = TRUE)
+
+# Load total abundance raster and extract useful layers
+abundance_file <- file.path(model_dir, "total_abundance.tif")
+abundance_maps <- rast(abundance_file)
+
+abundance_mean   <- abundance_maps[[1]]
+abundance_median <- abundance_maps[[2]]
+abundance_se     <- abundance_maps[[3]]
+```
+
+## p/a maps {.tabset}
+
+### p/a - overview
+
+```{r, fig.width=10, fig.height=10}
+# Plot predicted richness (sum of species median occurrence probabilities)
+plot(hmsc.maps.richness, col = viridis(99))
+```
+
+### p/a - individual species
+
+```{r, fig.width=13, fig.height=7}
+# Display one species at a time:
+# left panel = median probability of presence
+# right panel = standard error of the prediction
+par(mfrow = c(1, 2), oma = c(2, 0, 2, 3))
+mar <- c(1, 1, 1, 0)
+
+for (i in seq_len(nlyr(pa_median))) {
+  plot(pa_median[[i]],
+       main = names(pa_median)[i],
+       mar = mar,
+       legend = FALSE,
+       col = viridis(99))
+  
+  plot(pa_se[[i]],
+       main = paste0(names(pa_median)[i], "_se"),
+       mar = mar,
+       col = viridis(99))
+}
+```
+
+
+### p/a uncertainty hotspots
+
+requires more thinking about how to detect the hotspots  
+essentially need to look at where a standardised prediction error is the smallest, because larger predictions will have larger errors... And for p/a data small and large probabilities will have small errors, so can't simply divide occurrence by the error...  
+
+```{r, eval=FALSE, echo=FALSE, fig.width=13, fig.height=7}
+# Example uncertainty exploration for one selected species
+par(mfrow = c(1, 2), oma = c(2, 0, 2, 3))
+mar <- c(1, 1, 1, 0)
+
+m <- pa_median[[species_index]]
+s <- pa_se[[species_index]]
+
+# A simple proportional uncertainty metric
+uncertainty_map <- m / s
+plot(m, main = names(pa_median)[species_index], mar = mar, legend = FALSE, col = viridis(99))
+plot(uncertainty_map, main = "proportional uncertainty", mar = mar, col = viridis(99))
+
+# Alternative scaling of uncertainty
+par(mfrow = c(1, 1), oma = c(2, 0, 2, 3))
+uncertainty_map2 <- m / (s^2)
+
+plot(uncertainty_map2,
+     main = "proportional uncertainty",
+     mar = mar,
+     col = viridis(99))
+
+# Example hotspot-style thresholds for probability and uncertainty
+# These remain exploratory and are not part of the main pipeline
+unc.map2 <- uncertainty_map
+unc.map2[!is.na(uncertainty_map[])] <- 0
+sel.uncert.top1 <- selectHighest(uncertainty_map, 50000)
+unc.map2[sel.uncert.top1] <- 1
+
+prob.map2 <- m
+prob.map2[!is.na(m[])] <- 0
+sel.prob.top1 <- selectHighest(m, 50000)
+prob.map2[sel.prob.top1] <- 1
+
+par(mfrow = c(1, 1))
+plot(unc.map2, main = "top certainty cells")
+plot(prob.map2, main = "top probability-of-presence cells")
+```
+
+
+```{r, eval=FALSE, echo=FALSE, fig.width=13, fig.height=7}
+# Repeat the exploratory uncertainty analysis for a different species
+# Change species_index here if a different morphospecies is of interest
+m <- pa_median[[species_index]]
+s <- pa_se[[species_index]]
+
+par(mfrow = c(1, 2), oma = c(2, 0, 2, 3))
+mar <- c(1, 1, 1, 0)
+
+uncertainty_map <- m / s
+plot(m, main = names(pa_median)[species_index], mar = mar, legend = FALSE, col = viridis(99))
+
+plot(uncertainty_map, main = "proportional uncertainty", mar = mar, col = viridis(99))
+
+par(mfrow = c(1, 1), oma = c(2, 0, 2, 3))
+uncertainty_map <- m / (s^2)
+plot(uncertainty_map, main = "proportional uncertainty", mar = mar, col = viridis(99))
+
+# Identify cells with high occurrence probability and low uncertainty
+unc.map2 <- s
+unc.map2[!is.na(s[])] <- 0
+sel.uncert.top1 <- selectHighest(s, 200000, low = TRUE)
+unc.map2[sel.uncert.top1] <- 1
+
+prob.map2 <- m
+prob.map2[!is.na(m[])] <- 0
+sel.prob.top1 <- selectHighest(m, 200000)
+prob.map2[sel.prob.top1] <- 1
+
+par(mfrow = c(1, 1))
+plot(unc.map2, main = "highest-certainty cells")
+plot(prob.map2, main = "highest-probability cells")
+plot(unc.map2 + prob.map2, main = "overlap")
+```
+
+### p/a - regional snapshots
+
+#### Antarctic Peninsula
+
+```{r, fig.height=8, fig.width=10}
+maxcell=10000000
+xlim=c(-2800000,-1800000)
+ylim=c(1350000,2350000)
+plot(hmsc.maps.richness, xlim=xlim, ylim=ylim, maxcell=maxcell, col=viridis(99))
+```
+
+#### Ross Sea
+
+```{r, fig.height=8, fig.width=10}
+maxcell=10000000
+xlim=c(-800000,500000)
+ylim=c(-2350000,-1250000)
+plot(hmsc.maps.richness, xlim=xlim, ylim=ylim, maxcell=maxcell, col=viridis(99))
+```
+
+### p/a - East Antarctica - individual species
+
+```{r, eval=FALSE}
+# Load custom Southern Ocean mapping utilities if needed
+source(file.path(tools.dir, "SOmap_functions_JJ.R"))
+
+# JJ_SOmap expects a RasterLayer object, so convert from terra if needed
+library(raster)
+JJ_SOmap(env.var.raster = raster(pa_median[[species_index]]),
+  ramp.col = viridis(99), border = FALSE, graticules = TRUE, label = "probability of presence"
+)
+```
+
+
+```{r, fig.width=7, fig.height=10}
+# East Antarctica zoom for one selected species:
+# top panel = median probability of presence
+# bottom panel = standard error
+maxcell <- 10000000
+xlim <- c(0, 2500000)
+ylim <- c(-2400000, -1000000)
+
+par(mfrow = c(2, 1), bg = NA)
+
+for (i in species_index) {
+  plot(pa_median[[i]], xlim = xlim, ylim = ylim, maxcell = maxcell, main = names(pa_median)[i], mar = mar,
+       legend = FALSE, col = viridis(99))
+  
+  plot(pa_se[[i]], xlim = xlim, ylim = ylim, maxcell = maxcell, main = paste0(names(pa_median)[i], "_se"),
+       mar = mar, col = viridis(99))
+}
+```
+
+```{r, fig.width=7, fig.height=10}
+# Export a richness zoom for East Antarctica
+maxcell <- 10000000
+xlim <- c(1000000, 3000000)
+ylim <- c(-2400000, 1600000)
+
+png(file.path(getwd(), "Circumpolar_richness_zoom.png"),
+    width = 2400, height = 2400, res = 300)
+
+par(mfrow = c(1, 1), bg = NA)
+
+plot(hmsc.maps.richness, xlim = xlim, ylim = ylim, maxcell = maxcell, mar = mar,
+     col = viridis(99), axes = FALSE)
+
+dev.off()
+```

@@ -1,3 +1,4 @@
+## 0_SourceFile.R
 
 if(usr == "VM"){
   usr.main.dir <- "/pvol/"
@@ -11,6 +12,7 @@ if(usr =="SJ"){
 
 if(usr == "JJ"){
   usr.main.dir <- "C:/Users/jjansen/UTAS Research Dropbox/Jan Jansen/Data/"
+  usr.dropbox.dir <- usr.main.dir
 }
 
 ## polar stereographic projection for Antarctica:
