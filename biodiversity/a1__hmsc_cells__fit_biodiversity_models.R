@@ -11,20 +11,16 @@ library(terra)
 ###########################
 ##### SETTINGS ###########
 ###########################
-
 usr <- "VM"
 source("0_SourceFile.R")
-
 output_dir   <- paste0(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic")
-
-
+local_dir <- usr.main.dir
 res <- "2km"
 
 ##############################################################################################################
 ###########################
 ##### LOAD NEW DATA ######
 ###########################
-
 dat <- readRDS(file.path(output_dir, paste0("cover_modelling_inputs_", res, ".rds")))
 
 # Extract key components
@@ -236,7 +232,7 @@ for (i in 1:4) {
   
   formulas[[key]] <- build_formula(
     model_vars_fixed,
-    c(npp_pairs$mean[i], npp_pairs$sd[i], fam_pairs$flux[i], fam_pairs$sed[i])
+    c(npp_pairs$mean[i], fam_pairs$flux[i], fam_pairs$sed[i])
   )
 }
 ##################################################
@@ -362,22 +358,22 @@ for (nm in names(formulas)[9:12]) {
   all_times[[nm]]  <- runtime
   
   message("Saved: ", out_file)
-# }
+}
 
 ##############################################################################################################
 ##### MODEL FIT & CV
 ##############################################################################################################
 
-# model_ids <- names(formulas)
-# 
-# for (nm in model_ids) {
+model_ids <- names(formulas)
+
+for (nm in model_ids[9:12]) {
   
   message("====================================")
   message("Evaluating model: ", nm)
   message("====================================")
   
   model_file <- file.path(
-    output_dir, "2_fitting_and_running_models/",
+    local_dir, "2_fitting_and_running_models/",
     paste0(
       res, "_model_cells_", nm,
       "_chains_", nChains,
@@ -414,7 +410,7 @@ for (nm in names(formulas)[9:12]) {
   )
   
   library(doParallel)
-  UseCores <- 32
+  UseCores <- 16
   cl <- makeCluster(UseCores, type = "FORK") ## "FORK" is faster than "PSOCK", but only works on linux/mac
   registerDoParallel(cl)
   
@@ -445,7 +441,7 @@ for (nm in names(formulas)[9:12]) {
   ##### SAVE RESULTS
   ##################################################
   
-  out_file <- file.path(output_dir,"3_model_analysis/", paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata"))
+  out_file <- file.path(local_dir,"3_model_analysis/", paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata"))
   
   save(nm, XFormula, MF, MF.cv, preds, preds.cv, partition, runtime, cv_time, file = out_file)
   
