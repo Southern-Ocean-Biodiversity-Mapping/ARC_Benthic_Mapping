@@ -343,7 +343,7 @@ for (nm in names(formulas)[9:12]) {
   )
   
   out_file <- file.path(
-    output_dir, "2_fitting_and_running_models",
+    local_dir, "2_fitting_and_running_models",
     paste0(filename.string, ".Rdata")
   )
   

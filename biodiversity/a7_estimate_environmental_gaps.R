@@ -32,9 +32,9 @@
 # Select user profile defined in 0_SourceFile.R
 # Valid options depend on that source file.
 # Examples:
-# usr <- "VM"
+usr <- "VM"
 # usr <- "SJ"
-usr <- "JJ"
+#usr <- "JJ"
 
 # Load user-specific root directories and projection settings
 source("0_SourceFile.R")
@@ -82,59 +82,30 @@ if (!dir.exists(gap_output_dir)) {
   dir.create(gap_output_dir, recursive = TRUE)
 }
 
-
 ############################
 # 3) DEFINE INPUT FILES
 ############################
 
 # Sampling metadata and modelling inputs
-sampling_file <- file.path(
-  sampling_dir,
-  paste0("cover_modelling_inputs_", res, ".rds")
-)
+sampling_file <- file.path(sampling_dir,
+  paste0("cover_modelling_inputs_", res, ".rds"))
 
 # Scaled environmental raster stack used for environmental comparisons
-scaled_raster_file <- file.path(
-  env.derived,
-  paste0("Circumpolar_EnvData_", res, "_shelf_mask_scaled.tif")
-)
+scaled_raster_file <- file.path(env.derived,
+  paste0("Circumpolar_EnvData_", res, "_shelf_mask_scaled.tif"))
 
 # Cached raster-value table used by hypervolume workflows
-env_values_file <- file.path(
-  env.derived,
-  paste0("Circumpolar_EnvData_", res, "_env_values_scaled.RData")
-)
-
+env_values_file <- file.path(env.derived,
+  paste0("Circumpolar_EnvData_", res, "_env_values_scaled.RData"))
 
 ############################
-# 4) CHECK INPUT FILES
-############################
-
-if (!file.exists(sampling_file)) {
-  stop("Sampling input file not found:\n  ", sampling_file)
-}
-
-if (!file.exists(scaled_raster_file)) {
-  stop("Scaled environmental raster not found:\n  ", scaled_raster_file)
-}
-
-
-############################
-# 5) LOAD SAMPLING METADATA
+# 4) LOAD SAMPLING METADATA
 ############################
 
 # The modelling input object is expected to contain a component
 # named `cell_metrics`, which stores one row per sampled cell and
 # includes survey identifiers and projected coordinates.
 dat <- readRDS(sampling_file)
-
-if (!("cell_metrics" %in% names(dat))) {
-  stop(
-    "The sampling object does not contain a `cell_metrics` element.\n",
-    "Expected object structure: dat$cell_metrics"
-  )
-}
-
 img.metadata <- dat$cell_metrics
 
 # Check that required fields are present
@@ -158,75 +129,20 @@ img.metadata$proj_coord_y <- as.numeric(img.metadata$proj_coord_y)
 
 
 ############################
-# 6) LOAD ENVIRONMENTAL RASTER STACK
+# 5) LOAD ENVIRONMENTAL RASTER STACK AND VALUE TABLE
 ############################
-
 # The scaled environmental raster stack is used here because
 # variables are already harmonised for multivariate analysis.
 r.stack <- terra::rast(scaled_raster_file)
 
-# Basic validation
-if (terra::nlyr(r.stack) == 0) {
-  stop("The environmental raster stack contains zero layers:\n  ", scaled_raster_file)
-}
-
-if (!("depth" %in% names(r.stack))) {
-  stop(
-    "Expected a layer named `depth` in the scaled environmental raster stack.\n",
-    "Please verify the raster layer names in:\n  ", scaled_raster_file
-  )
-}
-
-
-############################
-# 7) PREPARE OR LOAD RASTER VALUE TABLE
-############################
-
 # `env_values` stores all raster cell values as a data.frame and
 # `na.sel` stores row indices where at least one predictor is missing.
 # These objects are reused throughout the Environmental Gaps script.
-
-if (file.exists(env_values_file)) {
-  
-  load(env_values_file)
-  
-  # Validate loaded objects
-  if (!exists("env_values") || !exists("na.sel")) {
-    stop(
-      "The cached environment-values file exists but does not contain ",
-      "`env_values` and `na.sel`:\n  ", env_values_file
-    )
-  }
-  
-} else {
-  
-  # Extract raster values for all cells
-  env_values.raw <- as.data.frame(terra::values(r.stack))
-  
-  # Identify rows where one or more layers are missing
-  na.sel <- which(is.na(rowSums(env_values.raw)))
-  
-  # Store the table used by downstream scripts
-  env_values <- env_values.raw
-  
-  # Save for reuse
-  save(env_values, na.sel, file = env_values_file)
-}
-
-# Final consistency check
-if (!is.data.frame(env_values)) {
-  stop("`env_values` is not a data.frame after loading/creation.")
-}
-
-if (!is.numeric(na.sel)) {
-  stop("`na.sel` is not numeric after loading/creation.")
-}
-
+load(env_values_file)
 
 ############################
-# 8) PREPARE COORDINATE TABLES
+# 6) PREPARE COORDINATE TABLES
 ############################
-
 # Full coordinate table used to identify raster cells sampled by all surveys
 all.coords <- img.metadata[, c("proj_coord_x", "proj_coord_y")]
 
@@ -236,18 +152,8 @@ all.coords <- img.metadata[, c("proj_coord_x", "proj_coord_y")]
 colnames(all.coords) <- c("x", "y")
 
 
-############################
-# 9) OPTIONAL: REPORT BASIC INPUT SUMMARY
-############################
-
-message("Sampling metadata loaded: ", nrow(img.metadata), " sampled cells.")
-message("Unique surveys: ", length(unique(img.metadata$survey)))
-message("Environmental raster layers loaded: ", terra::nlyr(r.stack))
-message("Raster-value table available with ", nrow(env_values), " rows.")
-
-
 ############################################################
-# 10) DEFINE SURVEY GROUPS AND IDENTIFY SAMPLED RASTER CELLS
+# 7) DEFINE SURVEY GROUPS (IF APPLICABLE) AND IDENTIFY SAMPLED RASTER CELLS
 #
 # Purpose
 # -------
@@ -274,7 +180,7 @@ message("Raster-value table available with ", nrow(env_values), " rows.")
 ############################################################
 
 ############################
-# 10.1) OPTIONAL: DEFINE SURVEY GROUPS
+# 7.1) OPTIONAL: DEFINE SURVEY GROUPS
 ############################
 # Define survey groups explicitly using survey identifiers present in `img.metadata$surveyID`.
 west_surveys <- c("Antarctica_Peninsula_2015_JR15005", "Antarctica_Peninsula_2011_JR262", "Antarctica_Peninsula_2002_PS61",
@@ -290,7 +196,7 @@ east_surveys <- c("Antarctica_East_2014_NBP1402", "Antarctica_RossSea_2008_TAN08
 all_survey_ids <- unique(img.metadata$surveyID)
 
 ############################
-# 10.2) EXTRACT PROJECTED COORDINATES
+# 7.2) EXTRACT PROJECTED COORDINATES
 ############################
 # Coordinate table for all sampled records
 all.coords <- as.data.frame(img.metadata[, c("proj_coord_x", "proj_coord_y")])
@@ -307,7 +213,7 @@ colnames(W.coords) <- c("x", "y")
 
 
 ############################
-# 10.4) IDENTIFY UNIQUE SAMPLED CELLS FOR EACH SURVEY
+# 7.4) IDENTIFY UNIQUE SAMPLED CELLS FOR EACH SURVEY
 ############################
 cells <- img.metadata$cell_id
 
@@ -325,30 +231,30 @@ for (i in seq_along(survey_ids)) {
 
 
 ############################
-# calculate hypervolumes for all surveys
+# 8) calculate hypervolumes for all surveys
 ############################
-model_vars_fixed <- c("depth","depth2","logslope","tpi","distance2canyons","distance2canyons2",
+model_vars_fixed <- c("depth","slope","tpi","distance2canyons",
                 "seafloortemperature","seafloorcurrents_mean","seafloorcurrents_residual","seafloorsalinity")
 model_vars_swap_npp_mean <- c("cafe_mean", "cbpm_mean", "eppl_mean", "vpmg_mean")
-model_vars_swap_npp_sd   <- c("cafe_sd", "cbpm_sd", "eppl_sd", "vpmg_sd")
 model_vars_swap_fam_flx <- c("log.flux.mean.cafe", "log.flux.mean.cbpm", "log.flux.mean.eppl", "log.flux.mean.vpmg")
 model_vars_swap_fam_sed <- c("sed.mean.cafe", "sed.mean.cbpm", "sed.mean.eppl", "sed.mean.vpmg")
 ## build pairs
-npp_pairs <- data.frame(mean = model_vars_swap_npp_mean, sd   = model_vars_swap_npp_sd, stringsAsFactors = FALSE)
-fam_pairs <- data.frame(flux = model_vars_swap_fam_flx, sed  = model_vars_swap_fam_sed, stringsAsFactors = FALSE)
+npp_fam <- data.frame(npp = model_vars_swap_npp_mean, flux = model_vars_swap_fam_flx, sed  = model_vars_swap_fam_sed, stringsAsFactors = FALSE)
+##
+model.names <- c("CafeNPPandFAM","CbpmNPPandFAM","EpplNPPandFAM","VpmgNPPandFAM")
 ##
 env_stack <- list()
 env_values_raw <- list()
 env_stack_fixed <- r.stack[[names(r.stack)%in%model_vars_fixed]]
 env_values_fixed <- data.frame(values(env_stack_fixed))
 for(i in 1:4){
-  sel <- c(model_vars_swap_npp_mean[i], model_vars_swap_npp_sd[i], model_vars_swap_fam_flx[i], model_vars_swap_fam_sed[i])
-  env_stack_loop <- r.stack[[names(r.stack)%in%sel]]
+  ## select raster layers
+  env_stack_loop <- r.stack[[names(r.stack)%in%npp_fam[i,]]]
+  ## extract values
   env_values_raw[[i]] <- cbind(env_values_fixed, data.frame(values(env_stack_loop)))
+  ## prepare raster stack
   env_stack[[i]] <- c(env_stack_fixed, env_stack_loop)
 }
-# 
-# na.sel <- which(is.na(rowSums(env_values_raw[[1]])))
 # # na.sel <- unique(c(which(is.na(r.stack$seafloortemperature[])),which(is.na(r.stack$depth[]))))
 # for(i in 1:nlyr(env.stack)){
 #   print(i)
@@ -359,68 +265,92 @@ for(i in 1:4){
 # #save(env_values, na.sel, file=paste0(env.dir,"Circumpolar_EnvData_2km_env_values.Rdata"))
 # load(paste0(env.dir,"Circumpolar_EnvData_2km_env_values.Rdata"))
 
-
-## all environmental variables (takes ~5min)
-Ant_dat <- data.frame(extract(env_stack[[1]],cells))
-na.sel <- which(is.na(rowSums(Ant_dat)))
-if(any(is.na(rowSums(Ant_dat)))){
-  Ant_dat <- Ant_dat[-na.sel,]
+## ~1h per loop
+for(i in 1:4){
+  print(i)
+  #### prep and save environmental variables
+  Ant_dat <- data.frame(extract(env_stack[[i]],cells))
+  na.sel <- which(is.na(rowSums(Ant_dat)))
+  if(any(is.na(rowSums(Ant_dat)))){
+    Ant_dat <- Ant_dat[-na.sel,]
+  }
+  env.na.sel <- which(is.na(rowSums(env_values_raw[[i]])))
+  env_values_red <- env_values_raw[[i]][-env.na.sel,]
+  print("env-prep done")
+  save(env_values_red, env.na.sel, file=file.path(env.derived,paste0("Circumpolar_EnvData_2km_env_values_scaled_forGaps_",model.names[i],".Rdata")))
+  
+  ####  calculate hypervolume, takes ~1h
+  ## option SVM is not good, way to narrow volume
+  file.basename <- file.path(gap_output_dir, paste0("Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_ExceptDepth2DistanceToCanyons_",model.names[i]))
+  hv_comb.all <- hypervolume(Ant_dat, name='comb', verbose=FALSE, quantile.requested = 0.95)
+  print("hypervolume calculated")
+  ## 
+  ptm <- proc.time()
+  comb_inout.all <- hypervolume_inclusion_test(hv_comb.all, env_values_red, verbose=FALSE)#, reduction.factor = 0.1)
+  print(runtime <- proc.time() - ptm)
+  save(hv_comb.all, comb_inout.all, env.na.sel, file=paste0(file.basename,".Rdata"))
+  print("inclusion test finished")
+  
+  #### save tif files
+  r.gaps.all <- rast(r.stack$depth)
+  r.gaps.all[-env.na.sel] <- 0
+  values(r.gaps.all)[-env.na.sel][which(comb_inout.all)] <- 1
+  writeRaster(r.gaps.all, filename=paste0(file.basename,".tif"), overwrite=TRUE)
 }
-hv_comb.all <- hypervolume(Ant_dat, name='comb', verbose=FALSE, quantile.requested = 0.95)
-comb_inout.all <- hypervolume_inclusion_test(hv_comb.all, env_values_raw[[1]][-na.sel,], verbose=FALSE)
-#save(hv_comb.all, comb_inout.all, file=paste0(gap_output_dir, "Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_CafeNPPandFAM.Rdata"))
-load(paste0(gap_output_dir,"Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_CafeNPPandFAM.Rdata"))
-r.gaps.all <- env.stack$depth
-values(r.gaps.all)[-na.sel] <- 0
-values(r.gaps.all)[-na.sel][which(comb_inout.all)] <- 1
-plot(r.gaps.all)
+
+############################
+# environmental conditions inside/outside
+############################
 
 
-##################################
-#### ASSESS OUTPUTS
 
-r.gaps.all090   <- rast(paste0(DP.dir,"Circumpolar_Analysis_GapHypervolume_2km_All21SurveysCombined_AllVariablesExceptDepth2Canyons_Quantile090.tif")           )
-r.gaps.all099 <- rast(paste0(DP.dir,"Circumpolar_Analysis_GapHypervolume_2km_All21SurveysCombined_AllVariablesExceptDepth2Canyons_Quantile099.tif"))
-r.gaps.all100 <- rast(paste0(DP.dir,"Circumpolar_Analysis_GapHypervolume_2km_All21SurveysCombined_AllVariablesExceptDepth2Canyons_Quantile100.tif"))
 
-## environment inside vs outside
-r.stack.subset <- subset(r.stack, c(1,29,31,3,7,30,25,22,23,24,15,27,28))
-env.inside <-  mask(r.stack.subset, r.gaps.all099, maskvalues = 0)
-env.outside <- mask(r.stack.subset, r.gaps.all099, maskvalues = 1)
-
-vals.inside <- as.data.frame(values(env.inside))
-vals.outside <- as.data.frame(values(env.outside))
-
-vals.inside$group <- "inside"
-vals.outside$group <- "outside"
-vals.all <- rbind(vals.inside, vals.outside)
-
-## density plots
-# library(ggplot2)
-# library(reshape2)
-# melted <- melt(vals.all, id.vars = "group")
-# ggplot(melted, aes(x = value, fill = group)) +
-#   geom_density(alpha = 0.5) +
-#   facet_wrap(~variable, scales = "free") +
-#   theme_minimal()
-
-##
-par(mfrow=c(2,3))
-plot(r.gaps.all090, xlim=c(-500000,500000), ylim=c(-2000000,-1300000), main="gaps090")
-plot(r.gaps.all099, xlim=c(-500000,500000), ylim=c(-2000000,-1300000), main="gaps099")
-plot(r.gaps.all100, xlim=c(-500000,500000), ylim=c(-2000000,-1300000), main="gaps100")
-plot(r.gaps.all090, xlim=c(-200000,100000), ylim=c(-1800000,-1500000), main="gaps090")
-plot(r.gaps.all099, xlim=c(-200000,100000), ylim=c(-1800000,-1500000), main="gaps099")
-plot(r.gaps.all100, xlim=c(-200000,100000), ylim=c(-1800000,-1500000), main="gaps100")
-points(-50000,-1600000, col="red", pch=16)
-points(-130000,-1700000, col="blue", pch=16)
-
-## checking for two locations:
-location_coords <- data.frame(x=c(-50000,-130000), y=c(-1600000,-1700000))
-location_env <- terra::extract(r.stack.subset, location_coords)
-# Calculate z-scores or percentiles
-z_scores <- sapply(names(location_env)[-1], function(var) {
-  (location_env[[var]] - mean(vals.inside[[var]], na.rm = TRUE)) / sd(vals.inside[[var]], na.rm = TRUE)
-})
-z_scores
+# 
+# ##################################
+# #### ASSESS OUTPUTS
+# 
+# r.gaps.all090   <- rast(paste0(DP.dir,"Circumpolar_Analysis_GapHypervolume_2km_All21SurveysCombined_AllVariablesExceptDepth2Canyons_Quantile090.tif")           )
+# r.gaps.all099 <- rast(paste0(DP.dir,"Circumpolar_Analysis_GapHypervolume_2km_All21SurveysCombined_AllVariablesExceptDepth2Canyons_Quantile099.tif"))
+# r.gaps.all100 <- rast(paste0(DP.dir,"Circumpolar_Analysis_GapHypervolume_2km_All21SurveysCombined_AllVariablesExceptDepth2Canyons_Quantile100.tif"))
+# 
+# ## environment inside vs outside
+# r.stack.subset <- subset(r.stack, c(1,29,31,3,7,30,25,22,23,24,15,27,28))
+# env.inside <-  mask(r.stack.subset, r.gaps.all099, maskvalues = 0)
+# env.outside <- mask(r.stack.subset, r.gaps.all099, maskvalues = 1)
+# 
+# vals.inside <- as.data.frame(values(env.inside))
+# vals.outside <- as.data.frame(values(env.outside))
+# 
+# vals.inside$group <- "inside"
+# vals.outside$group <- "outside"
+# vals.all <- rbind(vals.inside, vals.outside)
+# 
+# ## density plots
+# # library(ggplot2)
+# # library(reshape2)
+# # melted <- melt(vals.all, id.vars = "group")
+# # ggplot(melted, aes(x = value, fill = group)) +
+# #   geom_density(alpha = 0.5) +
+# #   facet_wrap(~variable, scales = "free") +
+# #   theme_minimal()
+# 
+# ##
+# par(mfrow=c(2,3))
+# plot(r.gaps.all090, xlim=c(-500000,500000), ylim=c(-2000000,-1300000), main="gaps090")
+# plot(r.gaps.all099, xlim=c(-500000,500000), ylim=c(-2000000,-1300000), main="gaps099")
+# plot(r.gaps.all100, xlim=c(-500000,500000), ylim=c(-2000000,-1300000), main="gaps100")
+# plot(r.gaps.all090, xlim=c(-200000,100000), ylim=c(-1800000,-1500000), main="gaps090")
+# plot(r.gaps.all099, xlim=c(-200000,100000), ylim=c(-1800000,-1500000), main="gaps099")
+# plot(r.gaps.all100, xlim=c(-200000,100000), ylim=c(-1800000,-1500000), main="gaps100")
+# points(-50000,-1600000, col="red", pch=16)
+# points(-130000,-1700000, col="blue", pch=16)
+# 
+# ## checking for two locations:
+# location_coords <- data.frame(x=c(-50000,-130000), y=c(-1600000,-1700000))
+# location_env <- terra::extract(r.stack.subset, location_coords)
+# # Calculate z-scores or percentiles
+# z_scores <- sapply(names(location_env)[-1], function(var) {
+#   (location_env[[var]] - mean(vals.inside[[var]], na.rm = TRUE)) / sd(vals.inside[[var]], na.rm = TRUE)
+# })
+# z_scores
 
