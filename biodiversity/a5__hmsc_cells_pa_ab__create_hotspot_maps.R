@@ -38,7 +38,8 @@ res <- "2km"
 # Model identifiers
 model_ids <- c(
   "npp_cafe", "npp_cbpm", "npp_eppl", "npp_vpmg",
-  "fam_cafe", "fam_cbpm", "fam_eppl", "fam_vpmg"
+  "fam_cafe", "fam_cbpm", "fam_eppl", "fam_vpmg",
+  "npp_and_fam_cafe","npp_and_fam_cbpm","npp_and_fam_eppl","npp_and_fam_vpmg"
 )
 
 # Source dropbox folder with original files
@@ -184,44 +185,45 @@ empty_named_raster <- function(template, layer_name) {
 # # structure for each model.
 # ############################################################
 # dir.create(dst_base, recursive = TRUE, showWarnings = FALSE)
-#
+# 
 # all_files <- list.files(
 #   src_base,
 #   recursive = TRUE,
 #   full.names = TRUE,
 #   include.dirs = FALSE
 # )
-#
+# 
 # all_files <- all_files[grepl("\\.tif$", all_files, ignore.case = TRUE)]
-#
+# all_files <- all_files[grepl("npp_and_", all_files, ignore.case = TRUE)]
+# 
 # rel_paths <- substring(all_files, nchar(src_base) + 2)
 # dst_files <- file.path(dst_base, rel_paths)
-#
+# 
 # dst_dirs <- unique(dirname(dst_files))
 # invisible(lapply(dst_dirs, dir.create, recursive = TRUE, showWarnings = FALSE))
-#
+# 
 # ok <- file.copy(from = all_files, to = dst_files, overwrite = FALSE, copy.mode = TRUE)
 # message(sprintf("Copied %d of %d files", sum(ok), length(ok)))
-#
+# 
 # if (any(!ok)) {
 #   message("The following files were not copied:")
 #   print(all_files[!ok])
 # }
-#
+# 
 # src_files <- list.files(src_base, pattern = "\\.tif$", recursive = TRUE, full.names = TRUE)
 # dst_files <- list.files(dst_base, pattern = "\\.tif$", recursive = TRUE, full.names = TRUE)
-#
+# 
 # src_rel <- substring(src_files, nchar(src_base) + 2)
 # dst_rel <- substring(dst_files, nchar(dst_base) + 2)
-#
+# 
 # m <- match(src_rel, dst_rel)
 # keep <- !is.na(m)
-#
+# 
 # src_mtime <- file.info(src_files[keep])$mtime
 # for (i in seq_along(src_mtime)) {
 #   Sys.setFileTime(dst_files[m[keep][i]], src_mtime[i])
 # }
-#
+# 
 # message(sprintf("Updated timestamps for %d files", sum(keep)))
 
 ############################################################
@@ -321,7 +323,7 @@ domain_template_raster <- NULL
 ############################
 # 5) PROCESS EACH MODEL
 ############################
-for (nm in model_ids) {
+for (nm in model_ids[9:12]) {
   t0 <- Sys.time()
   
   message("======================================")

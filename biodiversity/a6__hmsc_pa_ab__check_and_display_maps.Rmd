@@ -31,7 +31,7 @@ source(file.path("..", "0_SourceFile.R"))
 
 res <- "2km"
 # Select model to inspect
-nm <- "npp_cafe"
+nm <- "npp_and_fam_cafe"
 # Selected species index for species-level display
 species_index <- 19
 ```

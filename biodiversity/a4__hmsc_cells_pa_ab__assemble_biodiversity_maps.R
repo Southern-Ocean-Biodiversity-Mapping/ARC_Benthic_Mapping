@@ -24,7 +24,8 @@ modelspec <- "_envonly"
 
 model_ids <- c(
   "npp_cafe","npp_cbpm","npp_eppl","npp_vpmg",
-  "fam_cafe","fam_cbpm","fam_eppl","fam_vpmg"
+  "fam_cafe","fam_cbpm","fam_eppl","fam_vpmg",
+  "npp_and_fam_cafe","npp_and_fam_cbpm","npp_and_fam_eppl","npp_and_fam_vpmg"
 )
 
 #############################################################
@@ -44,7 +45,7 @@ load(file.path(model_dir,paste0("4_model_prediction/hmsc_", res, "_model_cell_gr
 ##### MAIN LOOP OVER MODELS
 #############################################################
 
-for (nm in model_ids) {
+for (nm in model_ids[9:12]) {
   message("==========================================")
   message("Assembling biodiversity maps for: ", nm)
   message("==========================================")
