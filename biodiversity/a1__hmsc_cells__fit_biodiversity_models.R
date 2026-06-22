@@ -32,8 +32,9 @@ resp_counts <- dat$responses$counts |> select(-cell_id)
 ###########################
 ##### CLEAN DATA #########
 ###########################
+# Remove rows with NAs for relevant predictors
+df <- df[, !names(df) %in% c("arag_sd","o2_mean","o2_sd","IBCSO_v2_2km_geomorph")]
 
-# Remove rows with NA predictors
 complete_rows <- complete.cases(df)
 df <- df[complete_rows, ]
 resp_pa <- resp_pa[complete_rows, ]
@@ -241,7 +242,7 @@ for (i in 1:4) {
 all_models <- list()
 all_times  <- list()
 
-for (nm in names(formulas)[9:12]) {
+for (nm in names(formulas)[1:12]) {
   
   message("====================================")
   message("Building models for formula: ", nm)
@@ -366,7 +367,7 @@ for (nm in names(formulas)[9:12]) {
 
 model_ids <- names(formulas)
 
-for (nm in model_ids[9:12]) {
+for (nm in model_ids[1:12]) {
   
   message("====================================")
   message("Evaluating model: ", nm)
