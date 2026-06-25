@@ -1,0 +1,241 @@
+---
+title: |
+  | The circumpolar distribution of Antarctic seafloor biodiversity hotspots
+subtitle: |
+  | Supplementary Information
+  | Predicted probability of occurrence for major taxonomic groups and 83 individual Antarctic benthic morphospecies
+author: "Jansen et al."
+output:
+  pdf_document:
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE,
+                      dev='png', fig.height=10, fig.width=10, dpi=300,
+                      fig.path='display_predictive_maps_figures/') 
+
+############################################################
+# USER OPTIONS
+############################################################
+usr <- "JJ"
+
+# Toggle writing figures to file
+pngs <- FALSE
+pdfs <- FALSE
+
+# Spatial resolution
+res <- "2km"
+
+# Select the model folder to display in this report
+# Examples:
+#   "fam_cafe", "fam_cbpm", "fam_eppl", "fam_vpmg",
+#   "npp_cafe", "npp_cbpm", "npp_eppl", "npp_vpmg"
+model_id <- "npp_and_fam_cafe"
+
+# Plot export settings
+png.height <- 2400
+png.width  <- 2400
+png.res    <- 300
+pdf.height <- 8
+pdf.width  <- 8
+
+############################################################
+# LOAD SHARED PROJECT SETUP FILES
+############################################################
+# Look for 0_SourceFile.R and 0_Functions.R either in the current folder or one level above.
+source_file <- if (file.exists("0_SourceFile.R")) {"0_SourceFile.R"
+} else if (file.exists(file.path("..", "0_SourceFile.R"))) {file.path("..", "0_SourceFile.R")}
+
+functions_file <- if (file.exists("0_Functions.R")) {"0_Functions.R"
+} else if (file.exists(file.path("..", "0_Functions.R"))) {file.path("..", "0_Functions.R")}
+
+source(source_file)
+source(functions_file)
+
+############################################################
+# PACKAGES
+############################################################
+library(terra)
+library(SOmap)
+library(viridis)
+library(knitr)
+library(RColorBrewer)
+
+############################################################
+# DIRECTORY DEFINITIONS
+############################################################
+# Environmental rasters
+env.derived <- file.path(usr.dropbox.dir,
+  "data_environmental/derived")
+
+# Predictive-map root directory
+pred.dir <- file.path(usr.dropbox.dir,
+  "data_products/predictive_maps/circum_antarctic")
+
+# Model-specific directory containing species maps and total abundance
+pred.model.dir <- file.path(pred.dir, paste0("hmsc_with_", model_id))
+
+# Directory for individual morphospecies figures
+export.dir <- file.path(usr.dropbox.dir,
+  "data_products/publication_figures/JansenEtAl", model_id, "taxa/")
+
+#base.str <- "2km_model_cells_hmsc_"
+
+# Load all PA raster files for the selected model
+pa.files <- list.files(pred.model.dir, pattern = "^PA_.*\\.tif$", full.names = TRUE)
+if (length(pa.files) == 0) {stop("No PA_*.tif files found in: ", pred.model.dir)}
+
+# Load only the layers needed in this document:
+# 1 = mean, 2 = median, 3 = standard error
+hmsc.maps.pa.env.mean   <- rast(pa.files, lyrs = 1)
+hmsc.maps.pa.env.median <- rast(pa.files, lyrs = 2)
+hmsc.maps.pa.env.se     <- rast(pa.files, lyrs = 3)
+hmsc.maps.pa.env.05     <- rast(pa.files, lyrs = 4)
+hmsc.maps.pa.env.95     <- rast(pa.files, lyrs = 5)
+
+############################################################
+# LOAD VARIABLES AND SETTINGS
+############################################################
+setup1_file <- if (file.exists("b2_setup1_JansenEtAl2026.R")) {"b2_setup1_JansenEtAl2026.R"
+} else if (file.exists(file.path("biodiversity", "b2_setup1_JansenEtAl2026.R"))) {file.path("biodiversity", "b2_setup1_JansenEtAl2026.R")}
+
+source(setup1_file)
+```
+
+## Individual P/A maps {.tabset}
+
+```{r, echo=FALSE, results='asis'}
+## clean up names
+sp.names <- gsub("Biota - ","",names(hmsc.maps.pa.env.median))
+sp.names <- gsub("_median","",sp.names)
+sp.names <- gsub("Bryozoa_Cnidaria","Bryozoa Cnidaria",sp.names)
+sp.names <- gsub("Bryozoa_Cnidaria_Sponge","Bryozoa Cnidaria Sponge",sp.names)
+sp.names <- gsub("_"," - ",sp.names)
+sp.names <- gsub("."," ",sp.names, fixed=TRUE)
+
+## filenames
+f.names <- paste0("Circumpolar_pa_median_",names(hmsc.maps.pa.env.median),".png")
+if(pngs){
+  for(i in 1:nlyr(hmsc.maps.pa.env.median)){
+    ra <- hmsc.maps.pa.env.median[[i]]
+    ## extract, zoom and shift inset maps
+    crop_and_shift(ra)
+     #### plot everything
+    png(file.path(export.dir,f.names[i]), width=png.width, height=png.height, res=png.res)
+    par(plot.par)
+    plot(ra, main=sp.names[i], col=cols.c.power, axes=FALSE, plg=plg.c, range=range.pa, loc.main=loc.main, xlim=xlim, ylim=ylim, maxcell=maxcell)
+    text(x=l.x2, y=l.y2, labels="Probability of presence")
+    add.plotsandlines(inset.cols=cols.c.power, plot.points=FALSE, range=range.pa)
+    dev.off()
+  }
+}
+
+f.names.se <- paste0("Circumpolar_pa_se_",names(hmsc.maps.pa.env.se),".png")
+if(pngs){
+  for(i in 1:nlyr(hmsc.maps.pa.env.se)){
+    ra <- hmsc.maps.pa.env.se[[i]]
+    max.se <- minmax(ra)[2]
+    if(max.se>1){max.se <- 1}
+    if(max.se<0.01){max.se <- 0.01}
+    range.se <- c(0, max.se)
+    ## extract, zoom and shift inset maps
+    crop_and_shift(ra)
+     #### plot everything
+    png(file.path(export.dir,f.names.se[i]), width=png.width, height=png.height, res=png.res)
+    par(plot.par)
+    plot(ra, col=rev(cols.grey), axes=FALSE, plg=plg.c, loc.main=loc.main, range=range.se)
+    text(x=l.x2, y=l.y2, labels="Standard error")
+    add.plotsandlines(inset.cols=rev(cols.grey), plot.points=FALSE, range=range.se)
+    dev.off()
+  }
+}
+
+hmsc.maps.pa.env.025 <- hmsc.maps.pa.env.05[[grep("_5$", names(hmsc.maps.pa.env.05))]]
+f.names.025 <- paste0("Circumpolar_pa_025_",names(hmsc.maps.pa.env.025),".png")
+## remove the "_5" in the names
+f.names.025 <- gsub("_5", "", f.names.025)
+if(pngs){
+  for(i in 1:nlyr(hmsc.maps.pa.env.025)){
+    ra <- hmsc.maps.pa.env.025[[i]]
+    # max.025 <- minmax(ra)[2]
+    # if(max.025>1){max.025 <- 1}
+    # if(max.025<0.01){max.025 <- 0.01}
+    # range.025 <- c(0, max.025)
+    ## extract, zoom and shift inset maps
+    crop_and_shift(ra)
+     #### plot everything
+    png(file.path(export.dir,f.names.025[i]), width=png.width, height=png.height, res=png.res)
+    par(plot.par)
+    plot(ra, col=rev(cols.grey), axes=FALSE, plg=plg.c, loc.main=loc.main, range=range.pa)
+    text(x=l.x2, y=l.y2, labels="Lower credible interval (2.5%)")
+    add.plotsandlines(inset.cols=rev(cols.grey), plot.points=FALSE, range=range.pa)
+    dev.off()
+  }
+}
+
+hmsc.maps.pa.env.975 <- hmsc.maps.pa.env.95[[grep("_95$", names(hmsc.maps.pa.env.95))]]
+f.names.975 <- paste0("Circumpolar_pa_975_",names(hmsc.maps.pa.env.975),".png")
+## remove the "_95" in the names
+f.names.975 <- gsub("_95", "", f.names.975)
+if(pngs){
+  for(i in 1:nlyr(hmsc.maps.pa.env.975)){
+    ra <- hmsc.maps.pa.env.975[[i]]
+    # max.025 <- minmax(ra)[2]
+    # if(max.025>1){max.025 <- 1}
+    # if(max.025<0.01){max.025 <- 0.01}
+    # range.025 <- c(0, max.025)
+    ## extract, zoom and shift inset maps
+    crop_and_shift(ra)
+     #### plot everything
+    png(file.path(export.dir,f.names.975[i]), width=png.width, height=png.height, res=png.res)
+    par(plot.par)
+    plot(ra, col=rev(cols.grey), axes=FALSE, plg=plg.c, loc.main=loc.main, range=range.pa)
+    text(x=l.x2, y=l.y2, labels="Upper credible interval (97.5%)")
+    add.plotsandlines(inset.cols=rev(cols.grey), plot.points=FALSE, range=range.pa)
+    dev.off()
+  }
+}
+
+#   
+# ## Create tabs and embed images
+# for (i in 1:nlyr(hmsc.maps.pa.env.median)) {
+#   cat(paste0("### ", i, "\n"))
+#   cat(paste0("<img src='", f.names[i], "' alt='", gsub(".png", "", f.names[i]), "'>\n\n"))
+# }
+```
+
+```{r, echo=FALSE, results='asis'}
+## sorting plots by higher taxonomic groups
+group.names <- c("Ascidians", "Bryozoa", "Cnidaria", "Echinoderms", "Porifera", "Other")
+group.ids <- list(
+  c(1:7), # Ascidians
+  c(8:18), # Bryozoa
+  c(19:33), # Cnidaria
+  c(37:50), # Echinoderms
+  c(65:79), # Porifera
+  c(34:36,51:64,80:82) # Other
+)
+
+## Create tabs and embed images
+for(k in 1:2){#length(group.names)){
+  cat(paste0("### ", group.names[k], " {.tabset}\n"))
+  for(i in 1:3){#length(group.ids[[k]])){
+
+   j <- group.ids[[k]][i]
+    chunk <- paste0(
+      "#### ", i, "\n\n",
+      "```{r, echo=FALSE, fig.align='center'}\n",
+      "knitr::include_graphics('", f.names[j], "')\n",
+      "knitr::include_graphics('", f.names.025[j], "')\n",
+      "knitr::include_graphics('", f.names.975[j], "')\n",
+      "```\n\n"
+    )
+    cat(knitr::asis_output(chunk))
+  }
+}
+
+
+
+```
+
