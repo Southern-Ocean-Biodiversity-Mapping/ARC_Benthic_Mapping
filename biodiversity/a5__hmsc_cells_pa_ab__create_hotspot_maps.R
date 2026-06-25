@@ -178,12 +178,12 @@ empty_named_raster <- function(template, layer_name) {
 # 3) CHECK LOCAL COPY OF PREDICTIVE MAPS
 ############################
 
-# # COPY PREDICTIVE MAPS TO LOCAL DISK
-# # ----------------------------------------------------------
-# # Copy all predictive map files from the synced storage
-# # location to a local directory, preserving the folder
-# # structure for each model.
-# ############################################################
+# COPY PREDICTIVE MAPS TO LOCAL DISK
+# ----------------------------------------------------------
+# Copy all predictive map files from the synced storage
+# location to a local directory, preserving the folder
+# structure for each model.
+############################################################
 # dir.create(dst_base, recursive = TRUE, showWarnings = FALSE)
 # 
 # all_files <- list.files(
@@ -194,7 +194,7 @@ empty_named_raster <- function(template, layer_name) {
 # )
 # 
 # all_files <- all_files[grepl("\\.tif$", all_files, ignore.case = TRUE)]
-# all_files <- all_files[grepl("npp_and_", all_files, ignore.case = TRUE)]
+# all_files <- all_files[which(grepl("npp_and_fam_cbpm/continuous", all_files, ignore.case = TRUE))]
 # 
 # rel_paths <- substring(all_files, nchar(src_base) + 2)
 # dst_files <- file.path(dst_base, rel_paths)
@@ -202,7 +202,7 @@ empty_named_raster <- function(template, layer_name) {
 # dst_dirs <- unique(dirname(dst_files))
 # invisible(lapply(dst_dirs, dir.create, recursive = TRUE, showWarnings = FALSE))
 # 
-# ok <- file.copy(from = all_files, to = dst_files, overwrite = FALSE, copy.mode = TRUE)
+# ok <- file.copy(from = all_files, to = dst_files, overwrite = TRUE, copy.mode = TRUE)
 # message(sprintf("Copied %d of %d files", sum(ok), length(ok)))
 # 
 # if (any(!ok)) {
@@ -323,7 +323,7 @@ domain_template_raster <- NULL
 ############################
 # 5) PROCESS EACH MODEL
 ############################
-for (nm in model_ids[9:12]) {
+for (nm in model_ids) {
   t0 <- Sys.time()
   
   message("======================================")
@@ -476,6 +476,27 @@ for (nm in model_ids[9:12]) {
 
   richness_only_class  <- positive_difference(richness_hot$intensity, abundance_hot$intensity)
   abundance_only_class <- positive_difference(abundance_hot$intensity, richness_hot$intensity)
+  
+  richness_per_abundance_hot <- calc_hotspot_products(richness_per_abundance)
+  abundance_per_richness_hot <- calc_hotspot_products(abundance_per_richness)
+  
+  ############################################################
+  # 5.7 COMBINED HOTSPOT FILE FOR PLOTTING
+  ############################################################
+  message("Creating combined labelled hotspot file for plotting")
+  top_percentiles <- build_all_hotspots_stack(
+    richness_median = richness_median,
+    abundance_median_100 = abundance_median_100,
+    richness_per_abundance = richness_per_abundance,
+    abundance_per_richness = abundance_per_richness,
+    richness_hot_class = richness_hot[["intensity"]],
+    abundance_hot_class = abundance_hot[["intensity"]],
+    biodiversity_hot_class = biodiversity_hot[["intensity"]],
+    richness_only_class = richness_only_class,
+    abundance_only_class = abundance_only_class,
+    richness_per_abundance_class = richness_per_abundance_hot[["intensity"]],
+    abundance_per_richness_class = abundance_per_richness_hot[["intensity"]]
+  )
   
   # if (!is.null(beta_median)) {
   #   beta_hot <- calc_hotspot_products(beta_median)
@@ -734,6 +755,15 @@ for (nm in model_ids[9:12]) {
   
   writeRaster(abundance_only_class,
     filename = file.path(out_dir_hot, "abundance_only_hotspots.tif"), overwrite = TRUE)
+
+  writeRaster(richness_per_abundance_hot,
+              filename = file.path(out_dir_hot, "richness_per_abundance_hotspots.tif"), overwrite = TRUE)
+  
+  writeRaster(abundance_per_richness_hot,
+              filename = file.path(out_dir_hot, "abundance_per_richness_hotspots.tif"), overwrite = TRUE)
+  
+  writeRaster(top_percentiles,
+    filename = file.path(out_dir_hot, "all_hotspots_file.tif"), overwrite = TRUE)
   
   # if (!is.null(beta_median)) {
   #   writeRaster(beta_class,
@@ -831,14 +861,15 @@ for (nm in model_ids[9:12]) {
     richness_per_abundance_pct, abundance_per_richness_pct,
     richness_hot, abundance_hot, biodiversity_hot,
     richness_only_class, abundance_only_class,
+    richness_per_abundance_hot, abundance_per_richness_hot, top_percentiles,
     domain_richness_pct, domain_abundance_pct, domain_biodiversity_pct,
-    domain_richness_hot_top25, domain_richness_hot_top10, domain_richness_hot_top5, domain_richness_hot_top1, domain_richness_class,
-    domain_abundance_hot_top25, domain_abundance_hot_top10, domain_abundance_hot_top5, domain_abundance_hot_top1, domain_abundance_class,
-    domain_biodiversity_hot_top25, domain_biodiversity_hot_top10, domain_biodiversity_hot_top5, domain_biodiversity_hot_top1, domain_biodiversity_class,
+    domain_richness_hot_top25, domain_richness_hot_top10, domain_richness_hot_top5, domain_richness_hot_top1,
+    domain_abundance_hot_top25, domain_abundance_hot_top10, domain_abundance_hot_top5, domain_abundance_hot_top1,
+    domain_biodiversity_hot_top25, domain_biodiversity_hot_top10, domain_biodiversity_hot_top5, domain_biodiversity_hot_top1,
     domain_richness_pct_list, domain_abundance_pct_list, domain_biodiversity_pct_list,
-    domain_richness_hot_top25_list, domain_richness_hot_top10_list, domain_richness_hot_top5_list, domain_richness_hot_top1_list, domain_richness_class_list,
-    domain_abundance_hot_top25_list, domain_abundance_hot_top10_list, domain_abundance_hot_top5_list, domain_abundance_hot_top1_list, domain_abundance_class_list,
-    domain_biodiversity_hot_top25_list, domain_biodiversity_hot_top10_list, domain_biodiversity_hot_top5_list, domain_biodiversity_hot_top1_list, domain_biodiversity_class_list,
+    domain_richness_hot_top25_list, domain_richness_hot_top10_list, domain_richness_hot_top5_list, domain_richness_hot_top1_list,
+    domain_abundance_hot_top25_list, domain_abundance_hot_top10_list, domain_abundance_hot_top5_list, domain_abundance_hot_top1_list,
+    domain_biodiversity_hot_top25_list, domain_biodiversity_hot_top10_list, domain_biodiversity_hot_top5_list, domain_biodiversity_hot_top1_list,
     richness_top10_poly, abundance_top10_poly, biodiversity_top10_poly
   )
   
@@ -858,6 +889,132 @@ for (nm in model_ids[9:12]) {
 
 
 
+############################################################
+# TEMPORARY LOOP: CREATE all_hotspots_file.tif ONLY
+############################################################
+
+for (nm in model_ids) {
+  
+  message("======================================")
+  message("Creating all_hotspots_file for model: ", nm)
+  message("======================================")
+  
+  model_out_dir <- file.path(src_base, paste0("hmsc_with_", nm))
+  cont_dir <- file.path(model_out_dir, "continuous")
+  hot_dir  <- file.path(model_out_dir, "hotspots")
+  
+  required_files <- c(
+    file.path(cont_dir, "richness_median.tif"),
+    file.path(cont_dir, "abundance_median_100.tif"),
+    file.path(cont_dir, "richness_per_abundance.tif"),
+    file.path(cont_dir, "abundance_per_richness.tif"),
+    file.path(hot_dir, "richness_hotspots.tif"),
+    file.path(hot_dir, "abundance_hotspots.tif"),
+    file.path(hot_dir, "biodiversity_hotspots.tif"),
+    file.path(hot_dir, "richness_only_hotspots.tif"),
+    file.path(hot_dir, "abundance_only_hotspots.tif"),
+    file.path(hot_dir, "richness_per_abundance_hotspots.tif"),
+    file.path(hot_dir, "abundance_per_richness_hotspots.tif")
+  )
+  
+  missing_files <- required_files[!file.exists(required_files)]
+  
+  if (length(missing_files) > 0) {
+    warning(
+      "Skipping ", nm, ". Missing files:\n",
+      paste(missing_files, collapse = "\n")
+    )
+    next
+  }
+  
+  richness_median <- rast(file.path(cont_dir, "richness_median.tif"))
+  abundance_median_100 <- rast(file.path(cont_dir, "abundance_median_100.tif"))
+  richness_per_abundance <- rast(file.path(cont_dir, "richness_per_abundance.tif"))
+  abundance_per_richness <- rast(file.path(cont_dir, "abundance_per_richness.tif"))
+  
+  richness_hot <- rast(file.path(hot_dir, "richness_hotspots.tif"))
+  abundance_hot <- rast(file.path(hot_dir, "abundance_hotspots.tif"))
+  biodiversity_hot <- rast(file.path(hot_dir, "biodiversity_hotspots.tif"))
+  richness_only_class <- rast(file.path(hot_dir, "richness_only_hotspots.tif"))
+  abundance_only_class <- rast(file.path(hot_dir, "abundance_only_hotspots.tif"))
+  richness_per_abundance_hot <- rast(file.path(hot_dir, "richness_per_abundance_hotspots.tif"))
+  abundance_per_richness_hot <- rast(file.path(hot_dir, "abundance_per_richness_hotspots.tif"))
+  
+  top_percentiles <- build_all_hotspots_stack(
+    richness_median = richness_median,
+    abundance_median_100 = abundance_median_100,
+    richness_per_abundance = richness_per_abundance,
+    abundance_per_richness = abundance_per_richness,
+    richness_hot_class = richness_hot[["intensity"]],
+    abundance_hot_class = abundance_hot[["intensity"]],
+    biodiversity_hot_class = biodiversity_hot[["intensity"]],
+    richness_only_class = richness_only_class,
+    abundance_only_class = abundance_only_class,
+    richness_per_abundance_class = richness_per_abundance_hot[["intensity"]],
+    abundance_per_richness_class = abundance_per_richness_hot[["intensity"]]
+  )
+  
+  writeRaster(
+    top_percentiles,
+    filename = file.path(hot_dir, "all_hotspots_file.tif"),
+    overwrite = TRUE
+  )
+  
+  message("Wrote: ", file.path(hot_dir, "all_hotspots_file.tif"))
+  
+  rm(
+    richness_median, abundance_median_100,
+    richness_per_abundance, abundance_per_richness,
+    richness_hot, abundance_hot, biodiversity_hot,
+    richness_only_class, abundance_only_class,
+    richness_per_abundance_hot, abundance_per_richness_hot,
+    top_percentiles
+  )
+  gc()
+}
+
+
+
+
+
+
+
+
+for (nm in model_ids) {
+  message("======================================")
+  message("Processing model: ", nm)
+  message("======================================")
+
+  out_dir <- file.path(src_base, paste0("hmsc_with_", nm))
+
+  out_dir_cont   <- file.path(out_dir, "continuous")
+  out_dir_pct    <- file.path(out_dir, "percentiles")
+  out_dir_hot    <- file.path(out_dir, "hotspots")
+  out_dir_domain <- file.path(out_dir, "domains")
+  out_dir_poly   <- file.path(out_dir, "polygons")
+
+  ############################################################
+  # 5.2 DERIVE BIODIVERSITY METRICS
+  ############################################################
+  richness_per_abundance <- rast(file.path(out_dir_cont,"richness_per_abundance.tif"))
+  print("richness read in")
+  abundance_per_richness <- rast(file.path(out_dir_cont,"abundance_per_richness.tif"))
+  print("abundance read in")  
+  richness_per_abundance_hot <- calc_hotspot_products(richness_per_abundance)
+  abundance_per_richness_hot <- calc_hotspot_products(abundance_per_richness)
+  print("hotspots calculated")
+  ############################################################
+  # 5.14 WRITE HOTSPOT OUTPUTS
+  ############################################################
+  message("Writing hotspot outputs")
+  
+  writeRaster(richness_per_abundance_hot,
+              filename = file.path(out_dir_hot, "richness_per_abundance_hotspots.tif"), overwrite = TRUE)
+  
+  writeRaster(abundance_per_richness_hot,
+              filename = file.path(out_dir_hot, "abundance_per_richness_hotspots.tif"), overwrite = TRUE)
+
+}
 
 
 
@@ -875,15 +1032,7 @@ for (nm in model_ids[9:12]) {
 
 
 
-
-
-
-
-
-
-
-
-
+##
 
 
 

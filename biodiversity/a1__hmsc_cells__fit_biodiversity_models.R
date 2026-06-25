@@ -367,7 +367,7 @@ for (nm in names(formulas)[1:12]) {
 
 model_ids <- names(formulas)
 
-for (nm in model_ids[1:12]) {
+for (nm in model_ids[9:12]) {
   
   message("====================================")
   message("Evaluating model: ", nm)

@@ -13,8 +13,8 @@ usr <- "VM"
 source("0_SourceFile.R")
 
 env_dir   <- paste0(usr.dropbox.dir, "data_environmental/derived")
-model_dir   <- paste0(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic")
-pred_dir   <- paste0(usr.main.dir, "4_model_prediction/pred_files/")
+model_dir <- paste0(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic")
+pred_dir  <- paste0(usr.main.dir, "4_model_prediction/pred_files/")
 model_dir_local <- paste0(usr.main.dir, "2_fitting_and_running_models")
 
 res <- "2km"
@@ -28,10 +28,10 @@ modelspec <- "_envonly"
 se <- function(x) {
   sd(x) / sqrt(length(x))
 }
-p5 <- function(x, z=1.96) {
+lwr95 <- function(x, z=1.96) {
   mean(x) - z * sd(x) / sqrt(length(x))
 }
-p95 <- function(x, z=1.96) {
+upr95 <- function(x, z=1.96) {
   mean(x) + z * sd(x) / sqrt(length(x))
 }
 # '%!in%' <- function(x,y)!('%in%'(x,y))
@@ -72,7 +72,7 @@ model_ids <- c(
 # pred_df$cover_points_scorable <- 540
 # 
 # ##
-# grid <- pred_df
+# grid <- pred_df[,!names(pred_df) %in% c("arag_sd","o2_mean","o2_sd","IBCSO_v2_2km_geomorph")]
 # cell_id <- grid$cell_id
 # sel <- which(complete.cases(grid))
 # 
@@ -126,10 +126,10 @@ cell.sel.v <- which(!is.na(cells_with_data))
 cell.sel.df <- which(!is.na(cells_with_data), arr.ind = TRUE)
 
 #############################################################
-## RUN ALL MODELS
+## RUN ALL MODELS FOR PA AND AB
 #############################################################
 #############################################################
-for(nm in model_ids[10]) {
+for(nm in model_ids[1:8]) { #c(12,1:8)
   ## parallel processing: PER CELL that contains values
   library(doParallel)
   library(foreach)
@@ -161,73 +161,118 @@ for(nm in model_ids[10]) {
   
   message("setup complete, parallel loops over prediction areas now")
   
+  #############################################################
+  ## IDENTIFY TILES STILL NEEDING PREDICTION
+  #############################################################
+  dat.name <- paste0(
+    pred_dir, res, "_model_cells_", nm,
+    "_chains_", as.character(nChains),
+    "_thin_", as.character(thin),
+    "_samples_", as.character(samples),
+    "_pred_"
+  )
+  
+  expected.files <- paste0(
+    dat.name,
+    modelspec,
+    sprintf("%06d", cell.sel.v),
+    ".Rdata"
+  )
+  
+  tiles.to.run <- which(!file.exists(expected.files))
+  
+  message("Total tiles: ", length(cell.sel.v))
+  message("Completed tiles: ", length(cell.sel.v) - length(tiles.to.run))
+  message("Tiles still to run: ", length(tiles.to.run))
+  
+  if (length(tiles.to.run) == 0) {
+    message("All tiles already completed for model: ", nm)
+    parallel::stopCluster(cl = c1)
+    next
+  }
+  
   ptm = proc.time()
-  foreach(j=1:length(cell.sel.v), .packages = c("Hmsc")) %dopar%{ #3:length(xmin)
-  # for(j in 1:length(cell.sel.v)){
-    i <- cell.sel.df[j,2]
-    k <- cell.sel.df[j,1]
-    ## select cells in tile
-    sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
-                      xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
-    if (length(sel.loop) == 0) {return(NULL)}
-    if (j %% 50 == 0) message("Tile ", j)
-    global_row <- sel[sel.loop]               # index in pred_df
-    cell_id.loop <- pred_df$cell_id[global_row]
+  foreach(j = tiles.to.run, .packages = c("Hmsc"), .errorhandling = "pass") %dopar% {#3:length(xmin)
     
-    ## subset predictors + coordinates
-    XData.grid.loop <- XData.grid[sel.loop,]
-    xy.grid.loop <- xy.grid[sel.loop,]
+    run.name <- sprintf("%06d", cell.sel.v[j])
+    out.file <- paste0(dat.name, modelspec, run.name, ".Rdata")
+    err.file <- paste0(dat.name, modelspec, run.name, "_ERROR.txt")
     
-    ## setup prediction - pa
-    Gradient.pa = prepareGradient(pa, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
-    predY.loop.pa <- predict(pa, Gradient=Gradient.pa, expected=TRUE) ## this gives probabilities instead of integer outcomes
-    rm(Gradient.pa)
-    # mat.names <- dimnames(predY.loop.pa[[1]])
-    # predY.loop.pa <- array(unlist(predY.loop.pa), c(nrow(xy.grid.loop), ncol(pa$Y), samples*nChains), dimnames(predY.loop.pa[[1]]))
-    
-    ## setup prediction - abund
-    Gradient.ab = prepareGradient(ab, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
-    predY.loop.ab <- predict(ab, Gradient=Gradient.ab, expected=TRUE) ## this gives probabilities instead of integer outcomes
-    rm(Gradient.ab)  
-    # mat.names <- dimnames(predY.loop.ab[[1]])
-    # predY.loop.ab <- array(unlist(predY.loop.ab), c(nrow(xy.grid.loop), ncol(ab$Y), samples*nChains), dimnames(predY.loop.ab[[1]]))
-    
-    # Convert matrices
-    predY.loop.pa.array = simplify2array(predY.loop.pa)
-    predY.loop.ab.array = simplify2array(predY.loop.ab)
-    
-    #############################################################
-    ## FORCE CONSISTENT DIMENSIONS
-    #############################################################
-    ## AB: handle all cases
-    if (is.null(dim(predY.loop.ab.array))) 
-      # vector → single cell, single variable
-      predY.loop.ab.array <- array(predY.loop.ab.array, dim = c(1, 1, length(predY.loop.ab.array)))
-    
-    ## Get posterior mean/median/uncertainty
-    predY.pa.mean   <- apply(predY.loop.pa.array, 1:2, mean)
-    predY.pa.median <- apply(predY.loop.pa.array, 1:2, median)
-    predY.ab.mean   <- apply(predY.loop.ab.array, 1:2, mean)
-    predY.ab.median <- apply(predY.loop.ab.array, 1:2, median)
-    
-    predY.pa.se <- apply(predY.loop.pa.array, 1:2, se)
-    predY.pa.5  <- apply(predY.loop.pa.array, 1:2, p5)
-    predY.pa.95 <- apply(predY.loop.pa.array, 1:2, p95)
-    predY.ab.se <- apply(predY.loop.ab.array, 1:2, se)
-    predY.ab.5  <- apply(predY.loop.ab.array, 1:2, p5)
-    predY.ab.95 <- apply(predY.loop.ab.array, 1:2, p95)
-    
-    ## save-string for 100km cell tiles
-    dat.name <- paste0(pred_dir, res,"_model_cells_",nm, "_chains_",as.character(nChains),"_thin_", as.character(thin),"_samples_", as.character(samples),"_pred_")
-    run.name <- sprintf("%06d",cell.sel.v[j])
-    
-    save(predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.5, predY.ab.95,
-         predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.5, predY.pa.95,
-         global_row, cell_id.loop, sel.loop, XData.grid.loop, xy.grid.loop,
-         file=paste0(dat.name,modelspec,run.name,".Rdata"))
-    rm(predY.loop.pa, predY.loop.ab, predY.loop.pa.array, predY.loop.ab.array,
-       predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.5, predY.ab.95,
-       predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.5, predY.pa.95)
+    if (file.exists(out.file)) {
+      message("Skipping existing tile: ", run.name)
+      return(NULL)
+    }
+
+    tryCatch({
+      # for(j in 1:length(cell.sel.v)){
+      i <- cell.sel.df[j,2]
+      k <- cell.sel.df[j,1]
+      ## select cells in tile
+      sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
+                          xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
+      if (length(sel.loop) == 0) {return(NULL)}
+      if (j %% 50 == 0) message("Tile ", j)
+      global_row <- sel[sel.loop]               # index in pred_df
+      cell_id.loop <- pred_df$cell_id[global_row]
+      
+      ## subset predictors + coordinates
+      XData.grid.loop <- XData.grid[sel.loop,]
+      xy.grid.loop <- xy.grid[sel.loop,]
+      
+      ## setup prediction - pa
+      Gradient.pa = prepareGradient(pa, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
+      predY.loop.pa <- predict(pa, Gradient=Gradient.pa, expected=TRUE) ## TRUE gives probabilities instead of integer outcomes
+      rm(Gradient.pa)
+      # mat.names <- dimnames(predY.loop.pa[[1]])
+      # predY.loop.pa <- array(unlist(predY.loop.pa), c(nrow(xy.grid.loop), ncol(pa$Y), samples*nChains), dimnames(predY.loop.pa[[1]]))
+      
+      ## setup prediction - abund
+      Gradient.ab = prepareGradient(ab, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
+      predY.loop.ab <- predict(ab, Gradient=Gradient.ab, expected=TRUE) ## this gives probabilities instead of integer outcomes
+      rm(Gradient.ab)  
+      # mat.names <- dimnames(predY.loop.ab[[1]])
+      # predY.loop.ab <- array(unlist(predY.loop.ab), c(nrow(xy.grid.loop), ncol(ab$Y), samples*nChains), dimnames(predY.loop.ab[[1]]))
+      
+      # Convert matrices
+      predY.loop.pa.array = simplify2array(predY.loop.pa)
+      predY.loop.ab.array = simplify2array(predY.loop.ab)
+      
+      #############################################################
+      ## FORCE CONSISTENT DIMENSIONS
+      #############################################################
+      ## AB: handle all cases
+      if (is.null(dim(predY.loop.ab.array))) 
+        # vector → single cell, single variable
+        predY.loop.ab.array <- array(predY.loop.ab.array, dim = c(1, 1, length(predY.loop.ab.array)))
+      
+      ## Get posterior mean/median/uncertainty
+      predY.pa.mean   <- apply(predY.loop.pa.array, 1:2, mean)
+      predY.pa.median <- apply(predY.loop.pa.array, 1:2, median)
+      predY.ab.mean   <- apply(predY.loop.ab.array, 1:2, mean)
+      predY.ab.median <- apply(predY.loop.ab.array, 1:2, median)
+      
+      predY.pa.se <- apply(predY.loop.pa.array, 1:2, se)
+      predY.pa.ci.lwr95 <- apply(predY.loop.pa.array, 1:2, lwr95)
+      predY.pa.ci.upr95 <- apply(predY.loop.pa.array, 1:2, upr95)
+      predY.ab.se       <- apply(predY.loop.ab.array, 1:2, se)
+      predY.ab.ci.lwr95 <- apply(predY.loop.ab.array, 1:2, lwr95)
+      predY.ab.ci.upr95 <- apply(predY.loop.ab.array, 1:2, upr95)
+      
+      save(predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.ci.lwr95, predY.ab.ci.upr95,
+           predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.ci.lwr95, predY.pa.ci.upr95,
+           global_row, cell_id.loop, sel.loop, XData.grid.loop, xy.grid.loop,
+           file=out.file)
+
+      rm(predY.loop.pa, predY.loop.ab, predY.loop.pa.array, predY.loop.ab.array,
+         predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.ci.lwr95, predY.ab.ci.upr95,
+         predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.ci.lwr95, predY.pa.ci.upr95)
+      
+      gc()
+      
+    }, error = function(e) {
+      writeLines(c(paste0("model: ", nm), paste0("tile_index_j: ", j), paste0("tile_file_id: ", cell.sel.v[j]), paste0("error: ", conditionMessage(e))), con = err.file)
+      return(NULL)
+    })
   }
   computational.time = proc.time() - ptm
   message("Finished model: ", nm)
@@ -239,107 +284,193 @@ for(nm in model_ids[10]) {
 # --progress
 
 
+
 #############################################################
-## RUN UNSUCCESSUL ONES AGAIN
-done <- list.files("/pvol/4_model_prediction/pred_files", pattern="npp_and_fam_vpmg")
-#extract the 6-digit numbers at end of filenames
-done_ids <- as.integer(sub(".*envonly(\\d{6})\\.Rdata$", "\\1", done))
-
-# which requested cells are NOT present in files
-missing <- setdiff(cell.sel.v, done_ids)
-
-missing.ids <- which(cell.sel.v%in%missing)
-
-nm <- model_ids[10]
-for (nm in model_ids) {
+## RUN NPP_and_FAM model for richness and broad taxa predictions
+#############################################################
+#############################################################
+for(nm in model_ids[9]) { 
+  ## parallel processing: PER CELL that contains values
+  library(doParallel)
+  library(foreach)
+  library(Hmsc)
+  parallel::detectCores()
+  #UseCores = parallel::detectCores() - 1
+  UseCores = 12
+  c1<-makeCluster(UseCores, outfile="", type="FORK") ## "FORK" is faster than "PSOCK", but only works on linux/mac
+  registerDoParallel(c1)
+  getDoParWorkers()
+  
   message("====================================")
   message("Running prediction for model: ", nm)
   message("====================================")
-
-  model_file <- file.path(model_dir_local, paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")
-  )
+  
+  model_file <- file.path(model_dir_local, paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata"))
   load(model_file)
   pa <- models$mENV
-  ab <- models$mAB
   rm(models)
-
-  message("setup complete, loops over prediction areas now")
-
+  
+  message("setup complete, parallel loops over prediction areas now")
+  
+  #############################################################
+  ## IDENTIFY TILES STILL NEEDING PREDICTION
+  #############################################################
+  dat.name <- paste0(
+    pred_dir, res, "_model_cells_", nm,
+    "_chains_", as.character(nChains),
+    "_thin_", as.character(thin),
+    "_samples_", as.character(samples),
+    "_biodiv_pred_"
+  )
+  
+  expected.files <- paste0(
+    dat.name,
+    modelspec,
+    sprintf("%06d", cell.sel.v),
+    ".Rdata"
+  )
+  
+  tiles.to.run <- which(!file.exists(expected.files))
+  
+  message("Total tiles: ", length(cell.sel.v))
+  message("Completed tiles: ", length(cell.sel.v) - length(tiles.to.run))
+  message("Tiles still to run: ", length(tiles.to.run))
+  
+  if (length(tiles.to.run) == 0) {
+    message("All tiles already completed for model: ", nm)
+    parallel::stopCluster(cl = c1)
+    next
+  }
+  
   ptm = proc.time()
-  for(j in missing.ids){
-    i <- cell.sel.df[j,2]
-    k <- cell.sel.df[j,1]
-    ## select cells in tile
-    sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
-                        xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
-    if(length(sel.loop)==0) {return(NULL)}
-
-    if (j %% 50 == 0) message("Tile ", j)
-    ## subset predictors + coordinates
-    XData.grid.loop <- XData.grid[sel.loop,]
-    xy.grid.loop <- xy.grid[sel.loop,]
-
-    ## setup prediction - pa
-    Gradient.pa = prepareGradient(pa, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
-    predY.loop.pa <- predict(pa, Gradient=Gradient.pa, expected=TRUE) ## this gives probabilities instead of integer outcomes
-    rm(Gradient.pa)
-    # mat.names <- dimnames(predY.loop.pa[[1]])
-    # predY.loop.pa <- array(unlist(predY.loop.pa), c(nrow(xy.grid.loop), ncol(pa$Y), samples*nChains), dimnames(predY.loop.pa[[1]]))
-
-    ## setup prediction - abund
-    Gradient.ab = prepareGradient(ab, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
-    predY.loop.ab <- predict(ab, Gradient=Gradient.ab, expected=TRUE) ## this gives probabilities instead of integer outcomes
-    rm(Gradient.ab)
-    # mat.names <- dimnames(predY.loop.ab[[1]])
-    # predY.loop.ab <- array(unlist(predY.loop.ab), c(nrow(xy.grid.loop), ncol(ab$Y), samples*nChains), dimnames(predY.loop.ab[[1]]))
-
-    # Convert matrices
-    predY.loop.pa.array = simplify2array(predY.loop.pa)
-    predY.loop.ab.array = simplify2array(predY.loop.ab)
-
-    if(nrow(predY.loop.pa.array)==1){
-      # Get posterior median
-      predY.pa.mean   = as.data.frame(apply(predY.loop.pa.array[1,,], 1:2, mean))
-      predY.pa.median = as.data.frame(apply(predY.loop.pa.array[1,,], 1:2, median))
-      predY.ab.mean   = mean(predY.loop.ab.array)
-      predY.ab.median = median(predY.loop.ab.array)
-     # Posterior width
-      predY.pa.se = as.data.frame(apply(predY.loop.pa.array[1,,], 1:2, se))
-      predY.pa.5  = as.data.frame(apply(predY.loop.pa.array[1,,], 1:2, p5))
-      predY.pa.95 = as.data.frame(apply(predY.loop.pa.array[1,,], 1:2, p95))
-      predY.ab.se = se(predY.loop.ab.array)
-      predY.ab.5  = p5(predY.loop.ab.array)
-      predY.ab.95 = p95(predY.loop.ab.array)
-    }else{
-      # Get posterior median
-      predY.pa.mean   = as.data.frame(apply(predY.loop.pa.array, 1:2, mean))
-      predY.pa.median = as.data.frame(apply(predY.loop.pa.array, 1:2, median))
-      predY.ab.mean   = as.data.frame(apply(predY.loop.ab.array, 1:2, mean))
-      predY.ab.median = as.data.frame(apply(predY.loop.ab.array, 1:2, median))
-      # Posterior width
-      predY.pa.se = as.data.frame(apply(predY.loop.pa.array, 1:2, se))
-      predY.pa.5  = as.data.frame(apply(predY.loop.pa.array, 1:2, p5))
-      predY.pa.95 = as.data.frame(apply(predY.loop.pa.array, 1:2, p95))
-      predY.ab.se = as.data.frame(apply(predY.loop.ab.array, 1:2, se))
-      predY.ab.5  = as.data.frame(apply(predY.loop.ab.array, 1:2, p5))
-      predY.ab.95 = as.data.frame(apply(predY.loop.ab.array, 1:2, p95))
+  foreach(j = tiles.to.run, .packages = c("Hmsc"), .errorhandling = "pass") %dopar% {#3:length(xmin)
+    
+    run.name <- sprintf("%06d", cell.sel.v[j])
+    out.file <- paste0(dat.name, modelspec, run.name, ".Rdata")
+    err.file <- paste0(dat.name, modelspec, run.name, "_ERROR.txt")
+    
+    if (file.exists(out.file)) {
+      message("Skipping existing tile: ", run.name)
+      return(NULL)
     }
+    
+    tryCatch({
+      # for(j in 1:length(cell.sel.v)){
+      i <- cell.sel.df[j,2]
+      k <- cell.sel.df[j,1]
+      ## select cells in tile
+      sel.loop <- which(xy.grid[,1]>xmin[i] & xy.grid[,1]<xmax[i] &
+                          xy.grid[,2]>ymin[k] & xy.grid[,2]<ymax[k])
+      if (length(sel.loop) == 0) {return(NULL)}
+      if (j %% 50 == 0) message("Tile ", j)
+      global_row <- sel[sel.loop]               # index in pred_df
+      cell_id.loop <- pred_df$cell_id[global_row]
+      
+      ## subset predictors + coordinates
+      XData.grid.loop <- XData.grid[sel.loop,]
+      xy.grid.loop <- xy.grid[sel.loop,]
+      
+      ## setup prediction - pa
+      Gradient.pa = prepareGradient(pa, XDataNew = XData.grid.loop, sDataNew = list(cellID = xy.grid.loop))
+      predY.loop.pa.int <- predict(pa, Gradient=Gradient.pa, expected=FALSE) ## TRUE gives probabilities instead of integer outcomes
+      rm(Gradient.pa)
 
-    ## save-string for 100km cell tiles
-    dat.name <- paste0(pred_dir, res,"_model_cells_",nm, "_chains_",as.character(nChains),"_thin_", as.character(thin),"_samples_", as.character(samples),"_pred_")
-    run.name <- sprintf("%06d",cell.sel.v[j])
+      #############################################################
+      ## BIODIVERSITY METRICS FROM JOINT POSTERIOR
+      ## Process posterior draw list directly to reduce memory use
+      #############################################################
+      n_draws <- length(predY.loop.pa.int)
+      n_sites <- nrow(predY.loop.pa.int[[1]])
+      
+      richness_samples <- matrix(NA_real_, nrow = n_sites, ncol = n_draws)
+      
+      asc_mat <- matrix(FALSE, nrow = n_sites, ncol = n_draws)
+      bry_mat <- matrix(FALSE, nrow = n_sites, ncol = n_draws)
+      oct_mat <- matrix(FALSE, nrow = n_sites, ncol = n_draws)
+      por_mat <- matrix(FALSE, nrow = n_sites, ncol = n_draws)
+      
+      for (s in seq_len(n_draws)) {
+        y <- predY.loop.pa.int[[s]]
+        richness_samples[, s] <- rowSums(y)
+        asc_mat[, s] <- rowSums(y[, 1:7,   drop = FALSE]) > 0
+        bry_mat[, s] <- rowSums(y[, 8:18,  drop = FALSE]) > 0
+        oct_mat[, s] <- rowSums(y[, 20:28, drop = FALSE]) > 0
+        por_mat[, s] <- rowSums(y[, 65:79, drop = FALSE]) > 0
+      }
+      
+      richness_mean     <- rowMeans(richness_samples)
+      richness_median   <- apply(richness_samples, 1, median)
+      richness_se       <- apply(richness_samples, 1, se)
+      richness_ci.lwr95 <- apply(richness_samples, 1, lwr95)
+      richness_ci.upr95 <- apply(richness_samples, 1, upr95)
+      
+      summarise_group <- function(x) {
+        list(
+          mean     = rowMeans(x),
+          median   = apply(x, 1, median),
+          se       = apply(x, 1, se),
+          ci.lwr95 = apply(x, 1, lwr95),
+          ci.upr95 = apply(x, 1, upr95)
+        )
+      }
+      
+      asc <- summarise_group(asc_mat)
+      bry <- summarise_group(bry_mat)
+      oct <- summarise_group(oct_mat)
+      por <- summarise_group(por_mat)
 
-    save(predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.5, predY.ab.95,
-         predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.5, predY.pa.95,
-         sel.loop, XData.grid.loop, xy.grid.loop,
-         file=paste0(dat.name,modelspec,run.name,".Rdata"))
-    rm(predY.loop.pa, predY.loop.ab, predY.loop.pa.array, predY.loop.ab.array,
-       predY.ab.mean, predY.ab.median, predY.ab.se, predY.ab.5, predY.ab.95,
-       predY.pa.mean, predY.pa.median, predY.pa.se, predY.pa.5, predY.pa.95)
+      # #############################################################
+      # ## BIODIVERSITY METRICS FROM JOINT POSTERIOR (needs expected=FALSE), slower by ???
+      # #############################################################
+      # # Convert matrices
+      # arr = simplify2array(predY.loop.pa.int)
+      # # dimensions: [sites, species, samples]
+      # ## ---- 1. SPECIES RICHNESS (ALL 83 SPECIES) ----
+      # richness_samples <- apply(arr, c(1,3), sum)   # [sites, samples]
+      # richness_mean   <- rowMeans(richness_samples)
+      # richness_median <- apply(richness_samples, 1, median)
+      # richness_se     <- apply(richness_samples, 1, se)
+      # richness_ci.lwr95      <- apply(richness_samples, 1, lwr95)
+      # richness_ci.upr95     <- apply(richness_samples, 1, upr95)
+      # 
+      # ## ---- 2. FUNCTION TO COMPUTE GROUP "ANY" ----
+      # get_group_prob <- function(arr_subset) {
+      #   any_mat <- apply(arr_subset, c(1,3), function(x) any(x == 1))  # [sites, samples]
+      #   list(
+      #     mean   = rowMeans(any_mat),
+      #     median = apply(any_mat, 1, median),
+      #     se     = apply(any_mat, 1, se),
+      #     ci.lwr95     = apply(any_mat, 1, lwr95),
+      #     ci.upr95    = apply(any_mat, 1, upr95)
+      #   )
+      # }
+      # 
+      # ## ---- 3. TAXA GROUP PROBABILITIES ----
+      # # Ascidians (1–7)
+      # asc <- get_group_prob(arr[, 1:7, , drop = FALSE])
+      # # Bryozoans (8–18)
+      # bry <- get_group_prob(arr[, 8:18, , drop = FALSE])
+      # # Octocorals (20–28)
+      # oct <- get_group_prob(arr[, 20:28, , drop = FALSE])
+      # # Porifera (65–79)
+      # por <- get_group_prob(arr[, 65:79, , drop = FALSE])
+
+      save(richness_mean, richness_median, richness_se, richness_ci.lwr95, richness_ci.upr95,
+           asc, bry, oct, por,
+           global_row, cell_id.loop, sel.loop, XData.grid.loop, xy.grid.loop,
+           file=out.file)
+      rm(predY.loop.pa.int, richness_samples,
+         asc_mat, bry_mat, oct_mat, por_mat, asc, bry, oct, por,
+         richness_mean, richness_median, richness_se, richness_ci.lwr95, richness_ci.upr95)
+      
+      gc()
+    }, error = function(e) {
+      writeLines(c(paste0("model: ", nm), paste0("tile_index_j: ", j), paste0("tile_file_id: ", cell.sel.v[j]), paste0("error: ", conditionMessage(e))), con = err.file)
+      return(NULL)
+    })
   }
   computational.time = proc.time() - ptm
   message("Finished model: ", nm)
+  parallel::stopCluster(cl = c1)
 }
-
-
 

@@ -231,3 +231,234 @@ bootstrap_richness_from_species_medians <- function(
   
   list(median = boot_median, sd = boot_sd)
 }
+
+
+# ----------------------------------------------------------
+# Function: set_hotspot_plot_levels
+# ----------------------------------------------------------
+# Sets categorical labels for hotspot-class rasters.
+#
+# Input hotspot raster should contain integer classes:
+#   0 = outside top hotspot class
+#   1 = top 25%
+#   2 = top 10%
+#   3 = top 5%
+#   4 = top 1%
+#
+# It automatically handles rasters that only have 0:2 or 0:3.
+# ----------------------------------------------------------
+set_hotspot_plot_levels <- function(hotspot,
+                                    metrics,
+                                    units,
+                                    digits = 0,
+                                    positive_sign = ">",
+                                    zero_sign = "<",
+                                    connector = " & ") {
+  
+  old_name <- names(hotspot)
+  
+  # Get classes present in the hotspot raster
+  ff <- terra::freq(hotspot)
+  vals <- sort(unique(ff$value[!is.na(ff$value)]))
+  
+  positive_classes <- sort(vals[vals > 0], decreasing = TRUE)
+  
+  if (length(positive_classes) == 0) {
+    warning("No positive hotspot classes found in: ", old_name)
+    return(hotspot)
+  }
+  
+  # Allow one sign for all metrics, or one sign per metric
+  if (length(positive_sign) == 1) {
+    positive_sign <- rep(positive_sign, length(metrics))
+  }
+  if (length(zero_sign) == 1) {
+    zero_sign <- rep(zero_sign, length(metrics))
+  }
+  
+  if (length(metrics) != length(units)) {
+    stop("metrics and units must have the same length.")
+  }
+  if (length(metrics) != length(positive_sign)) {
+    stop("positive_sign must have length 1 or the same length as metrics.")
+  }
+  if (length(metrics) != length(zero_sign)) {
+    stop("zero_sign must have length 1 or the same length as metrics.")
+  }
+  
+  # Calculate minimum metric value within each positive hotspot class
+  get_thresholds <- function(metric) {
+    zz <- terra::zonal(metric, hotspot, fun = "min", na.rm = TRUE)
+    threshold_vals <- setNames(zz[[2]], zz[[1]])
+    round(threshold_vals[as.character(positive_classes)], digits)
+  }
+  
+  thresholds <- lapply(metrics, get_thresholds)
+  
+  # Labels for positive hotspot classes, in descending class order
+  positive_labels_desc <- vapply(seq_along(positive_classes), function(i) {
+    paste(
+      mapply(
+        function(th, unit, sign) paste0(sign, " ", th[i], " ", unit),
+        thresholds,
+        units,
+        positive_sign
+      ),
+      collapse = connector
+    )
+  }, character(1))
+  
+  # Label for class 0 uses the class-1 threshold
+  zero_label <- paste(
+    mapply(
+      function(th, unit, sign) paste0(sign, " ", th[length(th)], " ", unit),
+      thresholds,
+      units,
+      zero_sign
+    ),
+    collapse = connector
+  )
+  
+  # terra levels need to be supplied in ascending raster-value order
+  level_values <- sort(c(0, positive_classes))
+  level_labels <- character(length(level_values))
+  
+  level_labels[level_values == 0] <- zero_label
+  
+  for (i in seq_along(positive_classes)) {
+    this_class <- positive_classes[i]
+    level_labels[level_values == this_class] <- positive_labels_desc[i]
+  }
+  
+  hotspot <- as.factor(hotspot)
+  levels(hotspot) <- data.frame(
+    value = level_values,
+    label = level_labels
+  )
+  
+  names(hotspot) <- old_name
+  hotspot
+}
+
+
+# ----------------------------------------------------------
+# Function: build_all_hotspots_stack
+# ----------------------------------------------------------
+# Builds the seven-layer all_hotspots_file object with plot labels.
+# ----------------------------------------------------------
+build_all_hotspots_stack <- function(richness_median,
+                                     abundance_median_100,
+                                     richness_per_abundance,
+                                     abundance_per_richness,
+                                     richness_hot_class,
+                                     abundance_hot_class,
+                                     biodiversity_hot_class,
+                                     richness_only_class,
+                                     abundance_only_class,
+                                     richness_per_abundance_class,
+                                     abundance_per_richness_class) {
+  
+  top_percentiles <- c(
+    richness_hot_class,
+    abundance_hot_class,
+    biodiversity_hot_class,
+    richness_only_class,
+    abundance_only_class,
+    richness_per_abundance_class,
+    abundance_per_richness_class
+  )
+  
+  names(top_percentiles) <- c(
+    "richness",
+    "abundance",
+    "biodiversity",
+    "richness_only",
+    "abundance_only",
+    "richness_per_abundance",
+    "abundance_per_richness"
+  )
+  
+  top_percentiles[["biodiversity"]] <- set_hotspot_plot_levels(
+    hotspot = top_percentiles[["biodiversity"]],
+    metrics = list(
+      abundance = abundance_median_100,
+      richness = richness_median
+    ),
+    units = c("%-cover", "morphospecies"),
+    digits = 0,
+    positive_sign = ">",
+    zero_sign = "<"
+  )
+  
+  top_percentiles[["richness"]] <- set_hotspot_plot_levels(
+    hotspot = top_percentiles[["richness"]],
+    metrics = list(
+      richness = richness_median
+    ),
+    units = c("morphospecies"),
+    digits = 0,
+    positive_sign = ">",
+    zero_sign = "<"
+  )
+  
+  top_percentiles[["abundance"]] <- set_hotspot_plot_levels(
+    hotspot = top_percentiles[["abundance"]],
+    metrics = list(
+      abundance = abundance_median_100
+    ),
+    units = c("%-cover"),
+    digits = 0,
+    positive_sign = ">",
+    zero_sign = "<"
+  )
+  
+  top_percentiles[["richness_only"]] <- set_hotspot_plot_levels(
+    hotspot = top_percentiles[["richness_only"]],
+    metrics = list(
+      abundance = abundance_median_100,
+      richness = richness_median
+    ),
+    units = c("%-cover", "morphospecies"),
+    digits = 0,
+    positive_sign = ">",
+    zero_sign = "<"
+  )
+  
+  top_percentiles[["abundance_only"]] <- set_hotspot_plot_levels(
+    hotspot = top_percentiles[["abundance_only"]],
+    metrics = list(
+      abundance = abundance_median_100,
+      richness = richness_median
+    ),
+    units = c("%-cover", "morphospecies"),
+    digits = 0,
+    positive_sign = ">",
+    zero_sign = "<"
+  )
+  
+  top_percentiles[["richness_per_abundance"]] <- set_hotspot_plot_levels(
+    hotspot = top_percentiles[["richness_per_abundance"]],
+    metrics = list(
+      richness_per_abundance = richness_per_abundance
+    ),
+    units = c("morphospecies for each 1% cover"),
+    digits = 1,
+    positive_sign = ">",
+    zero_sign = "<"
+  )
+  
+  top_percentiles[["abundance_per_richness"]] <- set_hotspot_plot_levels(
+    hotspot = top_percentiles[["abundance_per_richness"]],
+    metrics = list(
+      abundance_per_richness = abundance_per_richness
+    ),
+    units = c("%-cover per morphospecies"),
+    digits = 1,
+    positive_sign = ">",
+    zero_sign = "<"
+  )
+  
+  top_percentiles
+}
+
+

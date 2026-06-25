@@ -281,7 +281,7 @@ for(i in 1:4){
   
   ####  calculate hypervolume, takes ~1h
   ## option SVM is not good, way to narrow volume
-  file.basename <- file.path(gap_output_dir, paste0("Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_ExceptDepth2DistanceToCanyons_",model.names[i]))
+  file.basename <- file.path(gap_output_dir, paste0("Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_ExceptDepth2_",model.names[i]))
   hv_comb.all <- hypervolume(Ant_dat, name='comb', verbose=FALSE, quantile.requested = 0.95)
   print("hypervolume calculated")
   ## 
@@ -298,6 +298,60 @@ for(i in 1:4){
   writeRaster(r.gaps.all, filename=paste0(file.basename,".tif"), overwrite=TRUE)
 }
 
+
+## INDIVIDUAL SURVEYS ? per loop
+for(i in 1:4){
+  message(i)
+  for(j in 1:length(cells.individual)){
+    s.name <- names(cells.individual)[j]
+    cells.ind <- as.vector(cells.individual[[j]])$cell_id
+    print(j)
+  #### prep and save environmental variables
+  Ant_dat <- data.frame(extract(env_stack[[i]],cells.ind))
+  na.sel <- which(is.na(rowSums(Ant_dat)))
+  if(any(is.na(rowSums(Ant_dat)))){
+    Ant_dat <- Ant_dat[-na.sel,]
+  }
+  env.na.sel <- which(is.na(rowSums(env_values_raw[[i]])))
+  env_values_red <- env_values_raw[[i]][-env.na.sel,]
+  print("env-prep done")
+  save(env_values_red, env.na.sel, file=file.path(env.derived,paste0("Circumpolar_EnvData_2km_env_values_scaled_forGaps_",model.names[i],"_",s.name,".Rdata")))
+  
+  ####  calculate hypervolume, takes ~1h
+  ## option SVM is not good, way to narrow volume
+  file.basename <- file.path(gap_output_dir, paste0("Circumpolar_Analysis_GapHypervolume_2km_IndividualSurveys_AllVariables_ExceptDepth2_",model.names[i],"_",s.name))
+  hv_comb.all <- hypervolume(Ant_dat, name='comb', verbose=FALSE, quantile.requested = 0.95)
+  print("hypervolume calculated")
+  ## 
+  ptm <- proc.time()
+  comb_inout.all <- hypervolume_inclusion_test(hv_comb.all, env_values_red, verbose=FALSE)#, reduction.factor = 0.1)
+  print(runtime <- proc.time() - ptm)
+  save(hv_comb.all, comb_inout.all, env.na.sel, file=paste0(file.basename,".Rdata"))
+  print("inclusion test finished")
+  
+  #### save tif files
+  r.gaps.all <- rast(r.stack$depth)
+  r.gaps.all[-env.na.sel] <- 0
+  values(r.gaps.all)[-env.na.sel][which(comb_inout.all)] <- 1
+  writeRaster(r.gaps.all, filename=paste0(file.basename,".tif"), overwrite=TRUE)
+  }
+}
+
+
+
+# ## ~1h per loop
+# for(i in 1:4){
+#   print(i)
+#   load(file.path(env.derived,paste0("Circumpolar_EnvData_2km_env_values_scaled_forGaps_",model.names[i],".Rdata")))
+#   ####  calculate hypervolume, takes ~1h
+#   file.basename <- file.path(gap_output_dir, paste0("Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_",model.names[i]))
+#   load(paste0(file.basename,".Rdata"))
+#   #### save tif files
+#   r.gaps.all <- rast(r.stack$depth)
+#   r.gaps.all[-env.na.sel] <- 0
+#   values(r.gaps.all)[-env.na.sel][which(comb_inout.all)] <- 1
+#   writeRaster(r.gaps.all, filename=paste0(file.basename,".tif"), overwrite=TRUE)
+# }
 ############################
 # environmental conditions inside/outside
 ############################
