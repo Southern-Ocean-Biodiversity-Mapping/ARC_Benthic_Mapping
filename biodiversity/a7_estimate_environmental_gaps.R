@@ -255,20 +255,10 @@ for(i in 1:4){
   ## prepare raster stack
   env_stack[[i]] <- c(env_stack_fixed, env_stack_loop)
 }
-# # na.sel <- unique(c(which(is.na(r.stack$seafloortemperature[])),which(is.na(r.stack$depth[]))))
-# for(i in 1:nlyr(env.stack)){
-#   print(i)
-#   env.stack[[i]][na.sel] <- NA
-# }
-# ## prepare environmental data layers
-# env_values <- data.frame(values(env.stack))
-# #save(env_values, na.sel, file=paste0(env.dir,"Circumpolar_EnvData_2km_env_values.Rdata"))
-# load(paste0(env.dir,"Circumpolar_EnvData_2km_env_values.Rdata"))
 
-## ~1h per loop
+#### prep and save environmental variables
 for(i in 1:4){
   print(i)
-  #### prep and save environmental variables
   Ant_dat <- data.frame(extract(env_stack[[i]],cells))
   na.sel <- which(is.na(rowSums(Ant_dat)))
   if(any(is.na(rowSums(Ant_dat)))){
@@ -278,10 +268,17 @@ for(i in 1:4){
   env_values_red <- env_values_raw[[i]][-env.na.sel,]
   print("env-prep done")
   save(env_values_red, env.na.sel, file=file.path(env.derived,paste0("Circumpolar_EnvData_2km_env_values_scaled_forGaps_",model.names[i],".Rdata")))
-  
+}
+
+## ~1h per loop
+for(i in 1:4){
+  print(i)
+  ## load environment
+  load(file.path(env.derived,paste0("Circumpolar_EnvData_2km_env_values_scaled_forGaps_",model.names[i],".Rdata")))
+
   ####  calculate hypervolume, takes ~1h
   ## option SVM is not good, way to narrow volume
-  file.basename <- file.path(gap_output_dir, paste0("Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_ExceptDepth2DistanceToCanyons_",model.names[i]))
+  file.basename <- file.path(gap_output_dir, paste0("Circumpolar_Analysis_GapHypervolume_2km_AllSurveys_AllVariables_ExceptDepth2_",model.names[i]))
   hv_comb.all <- hypervolume(Ant_dat, name='comb', verbose=FALSE, quantile.requested = 0.95)
   print("hypervolume calculated")
   ## 

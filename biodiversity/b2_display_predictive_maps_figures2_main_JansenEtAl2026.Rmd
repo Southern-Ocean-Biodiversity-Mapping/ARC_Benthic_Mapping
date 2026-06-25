@@ -1,0 +1,996 @@
+---
+title: "display circumpolar biodiversity maps - file 2"
+output:
+  html_document:
+    keep_md: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, echo=FALSE,
+                      dev='png', fig.height=10, fig.width=10, dpi=300)#,
+#                      fig.path='display_predictive_maps_figures/') 
+
+
+############################################################
+# USER OPTIONS
+############################################################
+usr <- "JJ"
+
+# Toggle writing figures to file
+pngs <- FALSE
+pdfs <- FALSE
+
+# Spatial resolution
+res <- "2km"
+
+# Select the model folder to display in this report
+# Examples:
+#   "fam_cafe", "fam_cbpm", "fam_eppl", "fam_vpmg",
+#   "npp_cafe", "npp_cbpm", "npp_eppl", "npp_vpmg"
+model_id <- "npp_and_fam_cafe"
+
+# Plot export settings
+png.height <- 2400
+png.width  <- 2400
+png.res    <- 300
+pdf.height <- 8
+pdf.width  <- 8
+
+############################################################
+# LOAD SHARED PROJECT SETUP FILES
+############################################################
+# Look for 0_SourceFile.R and 0_Functions.R either in the current folder or one level above.
+source_file <- if (file.exists("0_SourceFile.R")) {"0_SourceFile.R"
+} else if (file.exists(file.path("..", "0_SourceFile.R"))) {file.path("..", "0_SourceFile.R")
+} else {stop("Could not find 0_SourceFile.R in the current or parent directory.")}
+
+functions_file <- if (file.exists("0_Functions.R")) {"0_Functions.R"
+} else if (file.exists(file.path("..", "0_Functions.R"))) {file.path("..", "0_Functions.R")
+} else {stop("Could not find 0_Functions.R in the current or parent directory.")}
+
+source(source_file)
+source(functions_file)
+
+
+############################################################
+# PACKAGES
+############################################################
+library(Hmsc)
+library(terra)
+library(SOmap)
+library(viridis)
+library(knitr)
+library(RColorBrewer)
+library(vioplot)
+'%!in%' <- function(x, y) !('%in%'(x, y))
+
+############################################################
+# DIRECTORY DEFINITIONS
+############################################################
+
+# Environmental rasters
+env.derived <- file.path(usr.dropbox.dir,
+  "data_environmental/derived")
+
+# Biological data
+bio.dir <- file.path(usr.dropbox.dir, 
+  "data_biological")
+
+# Predictive-map root directory
+pred.dir <- file.path(usr.dropbox.dir,
+  "data_products/predictive_maps/circum_antarctic")
+
+# Model-specific directory containing species maps and total abundance
+pred.model.dir <- file.path(pred.dir, paste0("hmsc_with_", model_id))
+
+# Subdirectories for current derived outputs
+cont.dir   <- file.path(pred.model.dir, "continuous")
+pct.dir    <- file.path(pred.model.dir, "percentiles")
+hot.dir    <- file.path(pred.model.dir, "hotspots")
+domain.dir <- file.path(pred.model.dir, "domains")
+poly.dir   <- file.path(pred.model.dir, "polygons")
+
+# Directory for any figure exports created by this report
+export.dir <- file.path(usr.dropbox.dir,
+  "data_products/publication_figures/JansenEtAl", model_id, "/")
+dir.create(export.dir, recursive = TRUE, showWarnings = FALSE)
+
+############################################################
+# LOAD VARIABLES AND SETTINGS
+############################################################
+setup1_file <- if (file.exists("b2_setup1_JansenEtAl2026.R")) {"b2_setup1_JansenEtAl2026.R"
+} else if (file.exists(file.path("biodiversity", "b2_setup1_JansenEtAl2026.R"))) {file.path("biodiversity", "b2_setup1_JansenEtAl2026.R")}
+
+setup2_file <- if (file.exists("b2_setup2_JansenEtAl2026.R")) {"b2_setup2_JansenEtAl2026.R"
+} else if (file.exists(file.path("biodiversity", "b2_setup2_JansenEtAl2026.R"))) {file.path("biodiversity", "b2_setup2_JansenEtAl2026.R")}
+
+source(setup1_file)
+source(setup2_file)
+```
+
+# Displaying predictive maps {.tabset}
+
+## MPA relationships {.tabset}
+
+```{r, echo=FALSE}
+## Emma's files:
+mpa.raw <- vect(paste0(sci.dir,"data_environmental/ccamlr_data_2025/MPAs_within_CCAMLR_Planning_Domains/MPAs_within_CCAMLR_Planning_Domains.shp"))
+mpa.proposed <- vect(paste0(sci.dir,"data_environmental/ccamlr_data_2025/Proposed_MPAs/Proposed_MPAs.shp"))
+
+## subset MPA to South Orkney and Ross Sea no-take
+mpa <- mpa.raw[mpa.raw$ZoneType%in%"No-take"]
+mpa <- mpa[mpa$MPA%in%c("South Orkney Islands Southern Shelf MPA", "Ross Sea Region MPA")]
+
+#### East Antarctica
+mpa.proposed.EA <- mpa.proposed[which(mpa.proposed$MPA%in%"East Antarctic Proposed MPA")]
+#### AP
+mpa.proposed.AP <- mpa.proposed[which(mpa.proposed$MPA%in%"Domain 1 Proposed MPA")]
+#### Weddell Sea Phase 1
+mpa.proposed.WS1 <- mpa.proposed[which(mpa.proposed$MPA%in%"Weddell Sea Proposed MPA Phase 1")]
+#### Weddell Sea Phase 2
+mpa.proposed.WS2 <- mpa.proposed[which(mpa.proposed$MPA%in%"Weddell Sea Proposed MPA Phase 2")]
+
+#### and simplify to outer boundaries only
+# Use the aggregate function to remove inner polygons
+mpa.proposed.clean <- aggregate(mpa.proposed, dissolve = TRUE)
+mpa.clean <- aggregate(mpa, dissolve = TRUE)
+# # Use the union function to merge polygons that share a line
+mpa.clean.merged <- union(mpa.clean)
+```
+
+### Percentiles
+
+```{r, echo=FALSE}
+ra <- top.percentiles$biodiversity
+levels(ra)[[1]]$biodiversity[2:5] <- paste0("   ",levels(ra)[[1]]$biodiversity[2:5])
+
+## extract, zoom and shift inset maps
+crop_and_shift(ra)
+#### plot everything
+if(pngs){png(paste0(pred.dir,"Circumpolar_MPA_biodiversity_percentiles.png"), width=2400, height=2400, res=300)}
+par(plot.par)
+plot(ra, main="", col=cols, axes=FALSE, plg=list(x=l.x, y=l.y-100000), loc.main=loc.main)
+text(x=l.xt, y=l.yt-100000, "percentiles")
+plot(mpa.clean, add=TRUE, col="orange2", alpha=0.3)#, border=NA)
+plot(mpa.proposed.clean, add=TRUE, col="red", alpha=0.1)#, border=NA)
+#add.plotsandlines()
+plot(coast.proj[values(coast.proj)=="land"], col="grey60", add=TRUE)
+lines(coast.proj, col="grey40")
+if(pngs){dev.off()}
+```
+
+### AES
+
+```{r, echo=FALSE}
+ra <- r2
+range=range(values(ra), na.rm=TRUE)
+
+if(pngs){png(paste0(pred.dir,"Circumpolar_MPA_biodiversity_AES.png"), width=2400, height=2400, res=300)}
+par(plot.par)
+plot(ra, main="", col=cols.grey, axes=FALSE, plg=plg.c, loc.main=loc.main)
+plot(top.biodiv.polygons, add=TRUE, col=cols.discr[1], border=NA)#, alpha=0.5)
+text(x=l.x2, y=l.y2, "Depth (m)")
+plot(mpa.clean, add=TRUE, col="orange", alpha=0.3)
+plot(mpa.proposed.clean, add=TRUE, col="red", alpha=0.1)
+#add.plotsandlines()
+plot(coast.proj[values(coast.proj)=="land"], col="grey60", add=TRUE)
+lines(coast.proj, col="grey40")
+if(pngs){dev.off()}
+```
+
+### Frequencies of hotspot occurrence inside/outside of MPAs
+
+```{r, echo=FALSE}
+#### frequencies of the full raster, should be as expected
+freq_raster <- freq(top.percentiles$biodiversity)
+tot.cells <- sum(freq_raster$count)
+freq_raster$prop <- round(freq_raster$count/tot.cells,2)
+
+#### calculate for existing mpa, proposed mpa, and unprotected areas
+current.mpa.biodiv <- mask(top.percentiles$biodiversity, mpa)
+freq_current <- freq(current.mpa.biodiv)
+# freq_current$summed <- NA
+# freq_current$summed[1] <- freq_current$count
+# for(i in 2:5){freq_current$summed[i] <- sum(freq_current$summed[i-1], freq_current$count[i])}
+# freq_current$summed.prop <- round(freq_current$summed/sum(freq_current$count),4)
+# freq_current$summed.prop.of.total <- round(freq_current$summed/tot.cells,4)
+freq_current$prop <- round(freq_current$count/sum(freq_current$count),4)
+freq_current$prop.of.total <- round(freq_current$count/tot.cells,4)
+
+proposed.mpa.biodiv <- mask(top.percentiles$biodiversity, mpa.proposed)
+freq_proposed <- freq(proposed.mpa.biodiv)
+freq_proposed$prop <- round(freq_proposed$count/sum(freq_proposed$count),4)
+freq_proposed$prop.of.total <- round(freq_proposed$count/tot.cells,4)
+
+proposed.EA.mpa.biodiv <- mask(top.percentiles$biodiversity, mpa.proposed.EA)
+freq_proposed_EA <- freq(proposed.EA.mpa.biodiv)
+freq_proposed$prop.EA <- round(freq_proposed_EA$count/sum(freq_proposed_EA$count),4)
+freq_proposed$prop.EA.of.total <- round(freq_proposed_EA$count/tot.cells,4)
+
+outside.mpa.biodiv1 <- mask(top.percentiles$biodiversity, mpa.proposed, inverse=TRUE)
+outside.mpa.biodiv <- mask(outside.mpa.biodiv1, mpa, inverse=TRUE)
+freq_outside <- freq(outside.mpa.biodiv)
+freq_outside$prop <- round(freq_outside$count/sum(freq_outside$count),4)
+freq_outside$prop.of.total <- round(freq_outside$count/tot.cells,4)
+
+# ## masking needs to exclude cells with center-points outside the line
+# current.mpa.biodiv2 <- mask(top.biodiv, mpa, touches=FALSE)
+# freq_current2 <- freq(current.mpa.biodiv2)
+# inside.mpa.biodiv2 <- mask(top.biodiv, mpa.proposed, touches=FALSE)
+# freq_within2 <- freq(inside.mpa.biodiv2)
+# outside.mpa.biodiv2 <- mask(top.biodiv, mpa.proposed, inverse=TRUE, touches=FALSE)
+# freq_outside2 <- freq(outside.mpa.biodiv2)
+```
+
+##### Cell-counts raw: per managment zone (75th are 15% of cells, 90th are 5% of cells, 95th are 4% of cells)
+
+```{r}
+freq_raw.count1 <- cbind(freq_raster[2:3], freq_current$count, freq_proposed$count, freq_outside$count, freq_proposed_EA$count)
+freq_raw.count.sums <- c(NA ,colSums(freq_raw.count1[,2:6]))
+freq_raw.count <- rbind(freq_raw.count.sums, freq_raw.count1)
+names(freq_raw.count) <- c("percentile","all","current","proposed","outside","proposed.EA")
+freq_raw.count[1,1] <- "Total"
+freq_raw.count
+```
+
+##### Cell-counts: per management zone
+
+```{r}
+freq_count <- rbind(freq_raw.count)
+freq_count[3,2:6] <- colSums(freq_count[3:6,2:6])
+freq_count[4,2:6] <- colSums(freq_count[4:6,2:6])
+freq_count[5,2:6] <- colSums(freq_count[5:6,2:6])
+freq_count
+```
+
+```{r}
+print("% of hotspots currently protected")
+freq_count[4,3]/freq_count[4,2]
+
+print("% of hotspots protected when including proposed MPAs")
+sum(freq_count[4,3:4])/freq_count[4,2]
+
+print("% of hotspots protected from proposed East Antarctic MPA")
+sum(freq_count[4,6])/freq_count[4,2]
+
+## how much is shallower than 550m, and hotspots in there
+depth550 <- r2
+depth550[values(depth550)<(-550)] <- NA
+depth.biodiv <- mask(top.percentiles$biodiversity, depth550)
+##
+freq_depth <- freq(depth.biodiv)
+print("% of hotspots shallower than 550m")
+(sum(freq_depth[3:5,3]))/freq_count[4,2]
+## which hotspots are in mpas
+#current.mpa.biodiv
+## hotspots in either shallow/mpa or both
+sel.depth.mpa <- which(depth.biodiv[]%in%2:4|current.mpa.biodiv[]%in%2:4)
+current.mpa.or.shallow <- top.percentiles$biodiversity
+current.mpa.or.shallow[] <- NA
+current.mpa.or.shallow[sel.depth.mpa] <- 1
+freq.current.mpa.or.shallow <- freq(current.mpa.or.shallow)
+
+print("% of hotspots in MPAs or shallower than 550m")
+(freq.current.mpa.or.shallow[3])/freq_count[4,2]
+
+```
+
+
+##### Proportions: per management zone
+
+```{r}
+freq_prop <- cbind(freq_count$percentile,round(freq_count[,2:6]/freq_count[,2],4))
+names(freq_prop) <- names(freq_raw.count)
+freq_prop
+```
+
+##### Proportions: per managment zone relative to total shelf area
+
+```{r}
+freq_prop.shelf <- cbind(freq_count$percentile,round(freq_count[,2:6]/freq_count[1,2],5))
+names(freq_prop.shelf) <- names(freq_raw.count)
+freq_prop.shelf
+```
+
+##### Proportions: per managment zone relative to managment zone area
+
+```{r}
+divide_by_first_row <- function(column) {column[2:6] / column[1]}
+freq_prop.zone <- cbind(freq_count$percentile[2:6],round(as.data.frame(lapply(freq_count[,2:5], divide_by_first_row)),4))
+freq_prop.zone
+```
+
+##### km\^2 area: per management zone (in 1000 km\^2)
+
+```{r}
+## as absolute values in km^2 (*1000)
+freq_area.1000km <- freq_count
+freq_area.1000km[,2] <- round((freq_count[,2]/4)/1000,3)
+freq_area.1000km[,3] <- round((freq_count[,3]/4)/1000,3)
+freq_area.1000km[,4] <- round((freq_count[,4]/4)/1000,3)
+freq_area.1000km[,5] <- round((freq_count[,5]/4)/1000,3)
+(freq_area.1000km)
+```
+
+```{r}
+dat <- as.data.frame(freq_prop.zone[,3:5])
+names(dat) <- c("Existing MPA","Proposed MPA","Not protected")
+```
+
+```{r, fig.width=7, fig.height=5}
+par(mar=c(5,4,4,7),oma=c(0,0,0,10))
+plot(1:ncol(dat), dat[1,], type = "n", xaxt = "n", xlab = "Management Zones", ylab = "Proportion of area", main = "", ylim=c(0,0.35))
+axis(1, at = 1:ncol(dat), labels = names(dat))
+# add percentile lines
+abline(0.01,0, lty=2)
+abline(0.05,0, lty=2)
+abline(0.10,0, lty=2)
+abline(0.25,0, lty=2)
+# Plot each row as a line
+for (i in 1:nrow(dat)) {
+  lines(1:ncol(dat), dat[i,], col = cols[i], lwd = 3, add=TRUE)
+}
+# Add a legend
+legend("topright", legend = c("75th", "90th", "95th", "99th"), col = cols[2:5], lwd = 3, xpd = TRUE, inset = c(-0.4, 0), title="percentile", bty="n")
+```
+
+```{r, fig.width=7, fig.height=5}
+mpa.mat <- as.matrix(t(freq_count[4,3:4]/freq_count[4,2]))
+colnames(mpa.mat) <- ""
+rownames(mpa.mat)[1] <- "existing"
+transp.red <- adjustcolor("red", alpha.f = 0.1)
+transp.orange <- adjustcolor("orange2", alpha.f = 0.3)
+barplot(mpa.mat, 
+        col = c(transp.orange, transp.red), # Colors for the stacked segments
+        ylab = "proportion of hotspots covered",
+        legend.text = rownames(mpa.mat), # Legend labels for the stacked segments
+        args.legend = list(x = "topright", bty = "n"))
+```
+
+
+### Frequencies of hotspot percentiles inside/outside of MPAs
+
+```{r, echo=FALSE}
+## Define the inset plotting region (adjust the coordinates as needed)
+inset_x <- 0.49
+inset_y <- 0.43
+inset_width <- 0.1
+inset_height <- 0.3
+```
+
+```{r, echo=FALSE}
+#### prep:
+ra <- top.percentiles$biodiversity
+levels(ra)[[1]]$biodiversity[2:5] <- paste0("   ",levels(ra)[[1]]$biodiversity[2:5])
+
+## extract, zoom and shift inset maps
+crop_and_shift(ra)
+
+#### plot everything
+if(pngs){png(paste0(pred.dir,"Circumpolar_MPA_biodiversity_coverage.png"), width=2400, height=2400, res=300)}
+if(pdfs){pdf("Circumpolar_MPA_biodiversity_coverage.pdf", width=8, height=8)}
+par(plot.par)
+plot(ra, main="", col=cols, axes=FALSE, plg=list(x=l.x-100000, y=l.y-100000), loc.main=loc.main)
+text(x=l.xt-100000, y=l.yt-100000, "percentiles")
+plot(mpa.clean, add=TRUE, col="orange2", alpha=0.3)#, border=NA)
+plot(mpa.proposed.clean, add=TRUE, col="red", alpha=0.1)#, border=NA)
+#add.plotsandlines()
+plot(coast.proj[values(coast.proj)=="land"], col="grey60", add=TRUE)
+lines(coast.proj, col="grey40")
+text(x=-200000, y=650000, "% of hotspots covered", srt=90, cex=0.8)
+text(x=1000000, y=150000, "MPAs existing   ", cex=0.8)
+text(x=1000000, y=1000000, "MPAs proposed", cex=0.8)
+
+## Save current plotting parameters
+old_par <- par(no.readonly = TRUE)
+
+## Define the new plotting region
+par(fig = c(inset_x, inset_x + inset_width, inset_y, inset_y + inset_height), new = TRUE)
+
+## plot inset graphic
+par(mar=c(2,2,0,1))
+barplot(mpa.mat*100, col="white", cex.axis=0.8)
+barplot(mpa.mat*100, col=c(transp.orange, transp.red), add=TRUE, axes=FALSE)
+
+# plot(1:ncol(dat), dat[1,], type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "", main = "", ylim=c(0,0.15))
+# rect(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[4], col = "white", border = NA)
+# axis(1, at = 1:ncol(dat), labels = names(dat), cex.axis=0.7, padj=-1)
+# axis(2, at=c(0,0.05,0.1,0.15,0.2,0.25,0.3), labels=c(0,0.05,0.1,0.15,0.2,0.25,0.3), cex.axis=0.7, padj=1)
+# mtext("Proportion of area covered", side=2, line=1.5, cex=0.8)
+# ## add percentile lines
+# abline(0.01,0, lty=2)
+# abline(0.05,0, lty=2)
+# abline(0.10,0, lty=2)
+# abline(0.25,0, lty=2)
+# ## Plot each row as a line
+# for (i in 1:nrow(dat)) {
+#   lines(1:ncol(dat), dat[i,], col = cols[i], lwd = 3, add=TRUE)
+# }
+## Add a legend
+#legend("topright", legend = c("75th", "90th", "95th", "99th"), col = cols[2:5], lwd = 3, xpd = TRUE, inset = c(-0.4, 0), title="percentile", bty="n")
+if(pngs|pdfs){dev.off()}
+```
+
+```{r, echo=FALSE, eval=FALSE}
+#### prep:
+ra <- r2
+range=range(values(ra), na.rm=TRUE)
+## extract, zoom and shift inset maps
+crop_and_shift(ra)
+
+#### plot everything
+par(plot.par)
+plot(ra, main="", col=cols.grey, axes=FALSE, plg=plg.c, loc.main=loc.main)
+text(x=l.x2, y=l.y2, "Depth (m)")
+plot(top.biodiv.polygons, add=TRUE, col=cols.discr[1], border=NA)#, alpha=0.5)
+plot(mpa.clean, add=TRUE, col="orange2", alpha=0.3)#, border=NA)
+plot(mpa.proposed.clean, add=TRUE, col="red", alpha=0.1)#, border=NA)
+#add.plotsandlines()
+plot(coast.proj[values(coast.proj)=="land"], col="grey60", add=TRUE)
+lines(coast.proj, col="grey40")
+
+## Save current plotting parameters
+old_par <- par(no.readonly = TRUE)
+
+## Define the new plotting region
+par(fig = c(inset_x, inset_x + inset_width, inset_y, inset_y + inset_height), new = TRUE)
+
+## plot inset graphic
+par(mar=c(2,2,0,1))
+plot(1:ncol(dat), dat[1,], type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "", main = "", ylim=c(0,0.15))
+rect(par("usr")[1], par("usr")[3], par("usr")[2], par("usr")[4], col = "white", border = NA)
+axis(1, at = 1:ncol(dat), labels = names(dat), cex.axis=0.7, padj=-1)
+axis(2, at=c(0,0.05,0.1,0.15,0.2,0.25,0.3), labels=c(0,0.05,0.1,0.15,0.2,0.25,0.3), cex.axis=0.7, padj=1)
+mtext("Proportion of area covered", side=2, line=1.5, cex=0.8)
+## add percentile lines
+abline(0.01,0, lty=2)
+abline(0.05,0, lty=2)
+abline(0.10,0, lty=2)
+abline(0.25,0, lty=2)
+## Plot each row as a line
+for (i in 1:nrow(dat)) {
+  lines(1:ncol(dat), dat[i,], col = cols[i], lwd = 3, add=TRUE)
+}
+```
+
+
+### Other proportions
+
+#### Hotspot abundances vs other areas
+
+```{r}
+## number of cells in top 10%
+(cell.count.top10 <- sum(freq_raw.count[4:6,2]))
+(cell.count.bottom90 <- sum(freq_raw.count[2:3,2]))
+
+## abundance inside/outside the top 10%
+abund.inside <- mask(hmsc.maps.totalabundance.env$median_corrected, top.biodiv.polygons)/540
+abund.outside <- mask(hmsc.maps.totalabundance.env$median_corrected, top.biodiv.polygons, inverse=TRUE)/540
+
+## number of cells in top 10% & bottom 90%, and equivalent area (each cell is 4km^2)
+(mean.inside <- mean(values(abund.inside, na.rm=TRUE)))
+(tot.area.top10 <- cell.count.top10*4)
+(tot.area.top10.covered <- tot.area.top10*mean.inside)
+
+(mean.outside <- mean(values(abund.outside, na.rm=TRUE)))
+(tot.area.bottom90 <- cell.count.bottom90*4)
+(tot.area.bottom90.covered <- tot.area.bottom90*mean.outside)
+
+## proportion of cells that are shallower than 550m and therefore already protected
+depth.inside <- mask(r2, top.biodiv.polygons)
+depth.outside <- mask(r2, top.biodiv.polygons, inverse=TRUE)
+
+length(which(values(depth.inside, na.rm=TRUE)>=-550))/cell.count.top10
+```
+
+
+
+
+
+
+
+
+
+## CCAMLR Planning Domains {.tabset}
+
+```{r}
+domain.dat.proj <- vect(paste0(sci.dir,"data_environmental/ccamlr_data_2025/geographical_data/mpapd/CCAMLR_MPAPD_EPSG6932.shp"))
+crs(domain.dat.proj) <- "EPSG:6932"
+domain.dat <- project(domain.dat.proj, hmsc.maps.richness.env$median)
+cex=0.9
+```
+
+#### Comparing differences in each Planning Domain: circumpolar AES vs regional AES vs other areas
+
+```{r}
+## load environmental values for hotspots in each planning domain
+load("C:/Users/jjansen/OneDrive - University of Tasmania/science/data_biological/BiodiversityHotspots_EnvironmentalSetting_Domains.Rdata")
+```
+
+### Compiled
+
+```{r}
+ra <- top.percentiles.domains
+
+## the percentile descriptions create problems here, so deleting them and keeping the values 0-4 only:
+levels_list <- levels(ra)
+#Function to remove descriptions and keep only values
+clean_levels <- function(levels_df) {
+  levels_df$value <- as.numeric(levels_df$value)
+  levels_df$value2 <- as.numeric(levels_df$value)  # Add a placeholder column
+  return(levels_df[, c("value", "value2")])
+}
+#Apply the function to each level
+cleaned_levels <- lapply(levels_list, clean_levels)
+#Set the cleaned levels back to the SpatRaster object
+levels(ra) <- cleaned_levels
+
+## combine domains
+ra.rich <- sum(ra[[1:6]], na.rm=TRUE)
+ra.abund <- sum(ra[[7:12]], na.rm=TRUE)
+ra.biodiv <- sum(ra[[13:18]], na.rm=TRUE)
+
+## small overlap between 1-2, 4-5, 5-6, 6-1
+sel1 <- which(!is.na(sum(ra[[1:2]])[]))
+sel4 <- which(!is.na(sum(ra[[4:5]])[]))
+sel5 <- which(!is.na(sum(ra[[5:6]])[]))
+sel6 <- which(!is.na(sum(ra[[c(6,1)]])[]))
+ra.rich[sel1] <- ra[[1]][sel1]
+ra.rich[sel4] <- ra[[4]][sel4]
+ra.rich[sel5] <- ra[[5]][sel5]
+ra.rich[sel6] <- ra[[6]][sel6]
+ra.abund[sel1] <- ra[[7]][sel1]
+ra.abund[sel4] <- ra[[10]][sel4]
+ra.abund[sel5] <- ra[[11]][sel5]
+ra.abund[sel6] <- ra[[12]][sel6]
+ra.biodiv[sel1] <- ra[[13]][sel1]
+ra.biodiv[sel4] <- ra[[16]][sel4]
+ra.biodiv[sel5] <- ra[[17]][sel5]
+ra.biodiv[sel6] <- ra[[18]][sel6]
+```
+
+```{r, echo=FALSE}
+ra <- ra.biodiv
+levels(ra) <- as.factor(c("0-74th","75-89th", "90-94th", "95-98th", "99th"))
+ra <- extend(ra, ext(-3400000,4300000,-3400000,4600000), fill=NA)
+
+par(plot.par)
+plot(coast.proj[values(coast.proj)=="land"], col=land.col, axes=FALSE, xlim=c(-3400000,4000000), ylim=c(-3400000,4600000))
+plot(ra, main="", col=cols, plg=list(x=-300000, y=500000), loc.main=loc.main, add=TRUE) #, axes=FALSE
+plot(domain.dat[-which(domain.dat$Location%in%c("Kerguelen Plateau", "North Scotia Arc", "del Cano - Crozet"))], add=TRUE) #, axes=FALSE
+lines(coast.proj, col=coast.col)
+text(x=0, y=600000, "percentiles")
+text(x=-2800000, y=600000, "Domain 1")
+text(x=-1400000, y=2000000, "Domain 3")
+text(x=100000, y=2800000, "Domain 4")
+text(x=2800000, y=-1600000, "Domain 7")
+text(x=-200000, y=-2600000, "Domain 8")
+text(x=-2500000, y=-1000000, "Domain 9")
+
+
+
+
+
+
+
+
+
+
+#### plot everything
+#if(pngs){png(paste0(pred.dir,"Circumpolar_MPA_domains_biodiversity_percentiles.png"), width=2400, height=2400, res=300)}
+par(plot.par)
+plot(ra, main="", col=cols, axes=FALSE, plg=list(x=l.x, y=l.y), loc.main=loc.main)
+plot(domain.dat[-which(domain.dat$Location%in%c("Kerguelen Plateau", "North Scotia Arc", "del Cano - Crozet"))], axes=FALSE, xlim=ext(ra)[1:2], ylim=ext(ra)[3:4], add=TRUE)
+text(x=0, y=0, "percentiles")
+
+## add coastline
+coast.col="grey40"
+land.col="grey60"
+plot(coast.proj[values(coast.proj)=="land"], col=land.col, add=TRUE)
+lines(coast.proj, col=coast.col)
+
+# plot(mpa.clean, add=TRUE, col="orange2", alpha=0.3)#, border=NA)
+# plot(mpa.proposed.clean, add=TRUE, col="red", alpha=0.1)#, border=NA)
+# add.plotsandlines()
+# plot(coast.proj[values(coast.proj)=="land"], col="grey60", add=TRUE)
+# lines(coast.proj, col="grey40")
+#if(pngs){dev.off()}
+```
+
+```{r, echo=FALSE}
+# Variable names and labels for violin plots
+var_names <- c("depth", "curr", "temp", "flux")
+y_labels <- c(
+  "Depth (m)",
+  "Mean seafloor current speed (m/s)",
+  "Seafloor temperature (\u00B0C)",
+  "log(seafloor particle flux)"
+)
+```
+
+```{r, echo=FALSE}
+ra <- ra.rich
+
+## extract, zoom and shift inset maps
+crop_and_shift(ra)
+#### plot everything
+if(pngs){png(paste0(pred.dir,"Circumpolar_MPA_domains_richness_percentiles.png"), width=2400, height=2400, res=300)}
+par(plot.par)
+plot(domain.dat[-which(domain.dat$Location%in%c("Kerguelen Plateau", "North Scotia Arc", "del Cano - Crozet"))], axes=FALSE, xlim=ext(ra)[1:2], ylim=ext(ra)[3:4])
+plot(ra, main="", col=cols, axes=FALSE, plg=list(x=l.x, y=l.y), loc.main=loc.main, add=TRUE)
+text(x=l.xt, y=l.yt, "percentiles")
+# plot(mpa.clean, add=TRUE, col="orange2", alpha=0.3)#, border=NA)
+# plot(mpa.proposed.clean, add=TRUE, col="red", alpha=0.1)#, border=NA)
+add.plotsandlines()
+# plot(coast.proj[values(coast.proj)=="land"], col="grey60", add=TRUE)
+# lines(coast.proj, col="grey40")
+if(pngs){dev.off()}
+```
+
+### Domain 1
+
+```{r, fig.height=10, fig.width=10}
+ra <- top.percentiles.domains$`biodiversity domain 1`
+masked.ra <- mask(top.percentiles$biodiversity,ra)
+
+xlim=c(-2750000,-1700000)
+ylim=c(150000,2500000)
+mar <- c(8,1,2,0)
+inset=c(0,-0.19)
+# l.x.dom=-2350000
+# l.y.dom=1600000
+
+if(pngs){png(paste0(pred.dir,"Circumpolar_Domain1_biodiversity_percentiles.png"), width=2400, height=3000, res=300)}
+par(mfrow=c(1,2))
+plot(masked.ra, main="Circumpolar Biodiversity Hotspots",
+     xlim=xlim, ylim=ylim, col=cols, legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(masked.ra)[[1]][,2], fill=cols, xpd=NA, cex=cex)#, bty="n")
+# plot(coast.proj[values(coast.proj)=="land"], col=land.col, add=TRUE)
+lines(coast.proj, col=coast.col)
+plot(ra, main="Domain 1 Biodiversity Hotspots", 
+     xlim=xlim, ylim=ylim, col=cols, legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(ra)[[1]][,2], fill=cols, xpd=NA, cex=cex)
+# text(x=l.xt, y=l.yt, "percentiles")
+# add.plotsandlines()
+lines(coast.proj, col=coast.col)
+if(pngs){dev.off()}
+```
+
+```{r, fig.height=4, fig.width=10}
+# Domain to plot
+dom <- "dom1"
+
+# Set up plotting area
+par(mfrow = c(1, 4), mgp = c(1, 1, 0))
+# Loop through variables
+for (i in seq_along(var_names)) {
+  # Combine all values to set y-axis limits
+  all_vals <- c(
+    vals.domtop[[dom]][[i]],
+    vals.domtopout[[dom]][[i]],
+    vals.circtop[[dom]][[i]],
+    vals.circtopout[[dom]][[i]]
+  )
+  # Create empty plot
+  plot(1, type = "n", xlim = c(0.5, 2.5), ylim = range(all_vals, na.rm = TRUE),
+       xaxt = "n", xlab = "", ylab = "", main = "")
+  # Add half violins
+  vioplot(vals.domtop[[dom]][[i]],    at = 1, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.domtopout[[dom]][[i]], at = 1, side = "right", col = col.out, add = TRUE)
+  vioplot(vals.circtop[[dom]][[i]],   at = 2, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.circtopout[[dom]][[i]],at = 2, side = "right", col = col.out, add = TRUE)
+  # Add axis and title
+  axis(1, at = 1:2, labels = c("Domain", "Circumpolar"))
+  title(ylab = y_labels[i], line = 3)
+}
+```
+
+```{r, fig.height=4, fig.width=10}
+# Domain to plot
+dom <- "dom1"
+
+# Set up plotting area
+par(mfrow = c(1, 4), mgp = c(1, 1, 0))
+# Loop through variables
+for (i in seq_along(var_names)) {
+  # Create empty plot space
+  plot(1, type = "n", xlim = c(0.5, 3.5), ylim = range(
+    vals.domtop[[dom]][[i]],
+    vals.domtopout[[dom]][[i]],
+    vals.circtop[[dom]][[i]],
+    na.rm = TRUE
+  ), xaxt = "n", xlab = "", ylab = "", main = "")
+  # Add half violins
+  vioplot(vals.domtop[[dom]][[i]], at = 1, side = "left", col = col.in, add = TRUE)
+  vioplot(vals.domtopout[[dom]][[i]], at = 2, side = "left", col = col.out, add = TRUE)
+  vioplot(vals.circtop[[dom]][[i]], at = 3, side = "left", col = col.in, add = TRUE)
+  # Add axis and title
+  axis(1, at = 1:3, labels = c("Dom-in", "Dom-out", "Circ-in"))
+  title(ylab = y_labels[i], line = 3)
+}
+```
+
+### Domain 3
+
+```{r, fig.height=10, fig.width=10}
+ra <- top.percentiles.domains$`biodiversity domain 3`
+masked.ra <- mask(top.percentiles$biodiversity,ra)
+
+xlim=c(-2500000,-600000)
+ylim=c(750000,1850000)
+inset=c(0,0)
+# l.x.dom=-1900000
+# l.y.dom=1700000
+
+if(pngs){png(paste0(pred.dir,"Circumpolar_Domain3_biodiversity_percentiles.png"), width=2400, height=3000, res=300)}
+par(mfrow=c(2,1))
+plot(masked.ra, main="Circumpolar Biodiversity Hotspots",
+     xlim=xlim, ylim=ylim, col=cols, legend=FALSE)
+legend("top", inset=inset, legend=levels(masked.ra)[[1]][,2], fill=cols, cex=cex, bty="n")
+lines(coast.proj, col=coast.col)
+plot(ra, main="Domain 3 Biodiversity Hotspots",
+     xlim=xlim, ylim=ylim, col=cols, legend=FALSE)
+legend("top", inset=inset, legend=levels(ra)[[1]][,2], fill=cols, cex=cex, bty="n")
+lines(coast.proj, col=coast.col)
+# text(x=l.xt, y=l.yt, "percentiles")
+# add.plotsandlines()
+if(pngs){dev.off()}
+```
+
+```{r, fig.height=4, fig.width=10}
+# Domain to plot
+dom <- "dom3"
+
+# Set up plotting area
+par(mfrow = c(1, 4), mgp = c(1, 1, 0))
+# Loop through variables
+for (i in 1:11) {
+  # Combine all values to set y-axis limits
+  all_vals <- c(
+    vals.domtop[[dom]][[i]],
+    vals.domtopout[[dom]][[i]],
+    vals.circtop[[dom]][[i]],
+    vals.circtopout[[dom]][[i]]
+  )
+  # Create empty plot
+  plot(1, type="n", xlim=c(0.5, 2.5), ylim=range(all_vals, na.rm=TRUE), xaxt="n", xlab="", ylab="", main="")
+  
+  # Add half violins
+  vioplot(vals.domtop[[dom]][[i]],    at = 1, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.domtopout[[dom]][[i]], at = 1, side = "right", col = col.out, add = TRUE)
+  vioplot(vals.circtop[[dom]][[i]],   at = 2, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.circtopout[[dom]][[i]],at = 2, side = "right", col = col.out, add = TRUE)
+  # Add axis and title
+  axis(1, at = 1:2, labels = c("Domain", "Circumpolar"))
+  title(ylab = y_labels[i], line = 3)
+}
+```
+
+### Domain 4
+
+```{r, fig.height=10, fig.width=10}
+ra <- top.percentiles.domains$`biodiversity domain 4`
+masked.ra <- mask(top.percentiles$biodiversity,ra)
+
+xlim=c(-700000,1200000)
+ylim=c(1700000,2650000)
+inset=c(0,0.02)
+mar=c(3,2,2,1)
+# l.x.dom=-100000
+# l.y.dom=2000000
+
+if(pngs){png(paste0(pred.dir,"Circumpolar_Domain4_biodiversity_percentiles.png"), width=2400, height=3000, res=300)}
+par(mfrow=c(2,1))
+plot(masked.ra, main="Circumpolar Biodiversity Hotspots",
+     xlim=xlim, ylim=ylim, col=cols[1:4], legend=FALSE, mar=mar)
+lines(coast.proj, col=coast.col)
+legend("bottom", inset=inset, legend=levels(masked.ra)[[1]][,2], fill=cols, cex=cex, bty="n")
+plot(ra, main="Domain 4 Biodiversity Hotspots",
+     xlim=xlim, ylim=ylim, col=cols, legend=FALSE, mar=mar)
+lines(coast.proj, col=coast.col)
+legend("bottom", inset=inset, legend=levels(ra)[[1]][,2], fill=cols, cex=cex, bty="n")
+if(pngs){dev.off()}
+```
+
+```{r, fig.height=4, fig.width=10}
+# Domain to plot
+dom <- "dom4"
+
+# Set up plotting area
+par(mfrow = c(1, 4), mgp = c(1, 1, 0))
+# Loop through variables
+for (i in seq_along(var_names)) {
+  # Combine all values to set y-axis limits
+  all_vals <- c(
+    vals.domtop[[dom]][[i]],
+    vals.domtopout[[dom]][[i]],
+    vals.circtop[[dom]][[i]],
+    vals.circtopout[[dom]][[i]]
+  )
+  # Create empty plot
+  plot(1, type = "n", xlim = c(0.5, 2.5), ylim = range(all_vals, na.rm = TRUE),
+       xaxt = "n", xlab = "", ylab = "", main = "")
+  
+  # Add half violins
+  vioplot(vals.domtop[[dom]][[i]],    at = 1, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.domtopout[[dom]][[i]], at = 1, side = "right", col = col.out, add = TRUE)
+  vioplot(vals.circtop[[dom]][[i]],   at = 2, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.circtopout[[dom]][[i]],at = 2, side = "right", col = col.out, add = TRUE)
+  # Add axis and title
+  axis(1, at = 1:2, labels = c("Domain", "Circumpolar"))
+  title(ylab = y_labels[i], line = 3)
+}
+```
+
+### Domain 7
+
+```{r, fig.height=12, fig.width=10}
+ra <- top.percentiles.domains$`biodiversity domain 7`
+masked.ra <- mask(top.percentiles$biodiversity,ra)
+
+xlim=c(1100000,3000000)
+ylim=c(-2350000,2350000)
+mar <- c(8,1,2,0)
+inset=c(0,-0.12)
+# l.x.dom=1300000
+# l.y.dom=0
+
+if(pngs){png(paste0(pred.dir,"Circumpolar_Domain7_biodiversity_percentiles.png"), width=2400, height=3600, res=300)}
+par(mfrow=c(1,2))
+plot(masked.ra, col=cols, xlim=xlim, ylim=ylim, main="Circumpolar Biodiversity Hotspots", legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(masked.ra)[[1]][,2], fill=cols, cex=cex, xpd=NA)
+lines(coast.proj, col=coast.col)
+plot(ra,col=cols, xlim=xlim, ylim=ylim, main="Domain 7 Biodiversity Hotspots", legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(ra)[[1]][,2], fill=cols, cex=cex, xpd=TRUE)
+lines(coast.proj, col=coast.col)
+# text(x=l.xt, y=l.yt, "percentiles")
+# add.plotsandlines()
+if(pngs){dev.off()}
+```
+
+```{r, fig.height=4, fig.width=10}
+# Domain to plot
+dom <- "dom7"
+
+# Set up plotting area
+par(mfrow = c(1, 4), mgp = c(1, 1, 0))
+# Loop through variables
+for (i in seq_along(var_names)) {
+  # Combine all values to set y-axis limits
+  all_vals <- c(
+    vals.domtop[[dom]][[i]],
+    vals.domtopout[[dom]][[i]],
+    vals.circtop[[dom]][[i]],
+    vals.circtopout[[dom]][[i]]
+  )
+  # Create empty plot
+  plot(1, type = "n", xlim = c(0.5, 2.5), ylim = range(all_vals, na.rm = TRUE),
+       xaxt = "n", xlab = "", ylab = "", main = "")
+  
+  # Add half violins
+  vioplot(vals.domtop[[dom]][[i]],    at = 1, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.domtopout[[dom]][[i]], at = 1, side = "right", col = col.out, add = TRUE)
+  vioplot(vals.circtop[[dom]][[i]],   at = 2, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.circtopout[[dom]][[i]],at = 2, side = "right", col = col.out, add = TRUE)
+  # Add axis and title
+  axis(1, at = 1:2, labels = c("Domain", "Circumpolar"))
+  title(ylab = y_labels[i], line = 3)
+}
+```
+
+### Domain 8
+
+```{r, fig.height=10, fig.width=6}
+ra <- top.percentiles.domains$`biodiversity domain 8`
+masked.ra <- mask(top.percentiles$biodiversity,ra)
+
+xlim=c(-800000,1350000)
+ylim=c(-2650000,-1150000)
+mar <- c(8,1,2,0)
+inset=c(0,-0.35)
+# l.x.dom=475000
+# l.y.dom=-1130000
+
+if(pngs){png(paste0(pred.dir,"Circumpolar_Domain8_biodiversity_percentiles.png"), width=3600, height=1800, res=300)}
+par(mfrow=c(1,2))
+plot(masked.ra, col=cols, xlim=xlim, ylim=ylim, main="Circumpolar Biodiversity Hotspots", legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(masked.ra)[[1]][,2], fill=cols, cex=cex, xpd=NA)
+lines(coast.proj, col=coast.col)
+plot(ra, col=cols, xlim=xlim, ylim=ylim, main="Domain 8  Biodiversity Hotspots", legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(ra)[[1]][,2], fill=cols, cex=cex, xpd=NA)
+lines(coast.proj, col=coast.col)
+# text(x=l.xt, y=l.yt, "percentiles")
+# add.plotsandlines()
+if(pngs){dev.off()}
+```
+
+```{r, fig.height=4, fig.width=10}
+# Domain to plot
+dom <- "dom8"
+
+# Set up plotting area
+par(mfrow = c(1, 4), mgp = c(1, 1, 0))
+# Loop through variables
+for (i in seq_along(var_names)) {
+  # Combine all values to set y-axis limits
+  all_vals <- c(
+    vals.domtop[[dom]][[i]],
+    vals.domtopout[[dom]][[i]],
+    vals.circtop[[dom]][[i]],
+    vals.circtopout[[dom]][[i]]
+  )
+  # Create empty plot
+  plot(1, type = "n", xlim = c(0.5, 2.5), ylim = range(all_vals, na.rm = TRUE),
+       xaxt = "n", xlab = "", ylab = "", main = "")
+  
+  # Add half violins
+  vioplot(vals.domtop[[dom]][[i]],    at = 1, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.domtopout[[dom]][[i]], at = 1, side = "right", col = col.out, add = TRUE)
+  vioplot(vals.circtop[[dom]][[i]],   at = 2, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.circtopout[[dom]][[i]],at = 2, side = "right", col = col.out, add = TRUE)
+  # Add axis and title
+  axis(1, at = 1:2, labels = c("Domain", "Circumpolar"))
+  title(ylab = y_labels[i], line = 3)
+}
+```
+
+### Domain 9
+
+```{r, fig.height=6, fig.width=10}
+ra <- top.percentiles.domains$`biodiversity domain 9`
+masked.ra <- mask(top.percentiles$biodiversity,ra)
+
+xlim=c(-2300000,-700000)
+ylim=c(-1410000,250000)
+mar <- c(8,1,2,0)
+inset=c(0,-0.35)
+# l.x.dom=-1800000
+# l.y.dom=100000
+# grat <-  graticule(seq(-150, -90, by=30), proj = crs(ra))#, xlim = xl, ylim = yl)
+# plot(grat, axes=FALSE, xlim=xlim, ylim=ylim)
+# plot(coast.proj[values(coast.proj)=="land"], col="white", add=TRUE)
+
+if(pngs){png(paste0(pred.dir,"Circumpolar_Domain9_biodiversity_percentiles.png"), width=2400, height=1800, res=300)}
+par(mfrow=c(1,2))
+plot(masked.ra, main="Circumpolar Biodiversity Hotspots",
+     col=cols, xlim=xlim, ylim=ylim, legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(masked.ra)[[1]][,2], fill=cols, cex=cex, xpd=NA)
+lines(coast.proj, col=coast.col)
+plot(ra, main="Domain 9 Biodiversity Hotspots", 
+     xlim=xlim, ylim=ylim, col=cols, legend=FALSE, mar=mar)#, axes=FALSE)
+legend("bottom", inset=inset, legend=levels(ra)[[1]][,2], fill=cols, cex=cex, xpd=NA)
+lines(coast.proj, col=coast.col)
+# text(x=l.xt, y=l.yt, "percentiles")
+# add.plotsandlines()
+if(pngs){dev.off()}
+```
+
+```{r, fig.height=4, fig.width=10}
+# Domain to plot
+dom <- "dom9"
+
+# Set up plotting area
+par(mfrow = c(1, 4), mgp = c(1, 1, 0))
+# Loop through variables
+for (i in seq_along(var_names)) {
+  # Combine all values to set y-axis limits
+  all_vals <- c(
+    vals.domtop[[dom]][[i]],
+    vals.domtopout[[dom]][[i]],
+    vals.circtop[[dom]][[i]],
+    vals.circtopout[[dom]][[i]]
+  )
+  # Create empty plot
+  plot(1, type = "n", xlim = c(0.5, 2.5), ylim = range(all_vals, na.rm = TRUE),
+       xaxt = "n", xlab = "", ylab = "", main = "")
+  
+  # Add half violins
+  vioplot(vals.domtop[[dom]][[i]],    at = 1, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.domtopout[[dom]][[i]], at = 1, side = "right", col = col.out, add = TRUE)
+  vioplot(vals.circtop[[dom]][[i]],   at = 2, side = "left",  col = col.in, add = TRUE)
+  vioplot(vals.circtopout[[dom]][[i]],at = 2, side = "right", col = col.out, add = TRUE)
+  # Add axis and title
+  axis(1, at = 1:2, labels = c("Domain", "Circumpolar"))
+  title(ylab = y_labels[i], line = 3)
+}
+```

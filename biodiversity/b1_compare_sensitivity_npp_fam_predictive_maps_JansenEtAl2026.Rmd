@@ -1,0 +1,722 @@
+---
+title: "Comparing NPP, FAM and HMSC maps between 12 model setups"
+output: html_document
+date: ""
+---
+
+```{r setup, include=FALSE}
+# Create figure directory
+if (!dir.exists("figures")) dir.create("figures")
+# Chunk defaults
+knitr::opts_chunk$set(
+  dev = "png",
+  dpi = 150,
+  fig.width = 10,
+  fig.height = 10,
+  fig.path = "figures/"
+)
+
+## libraries
+library(Hmsc)
+library(terra)
+library(SOmap)
+library(viridis)
+library(knitr)
+library(RColorBrewer)
+library(vioplot)
+'%!in%' <- function(x, y) !('%in%'(x, y))
+
+############################################################
+# USER OPTIONS
+############################################################
+usr <- "JJ"
+
+# Spatial resolution
+res <- "2km"
+
+# # Plot export settings
+# png.height <- 2400
+# png.width  <- 2400
+# png.res    <- 300
+# pdf.height <- 8
+# pdf.width  <- 8
+
+# Look for 0_SourceFile.R and 0_Functions.R either in the current folder or one level above.
+source_file <- if (file.exists("0_SourceFile.R")) {"0_SourceFile.R"
+} else if (file.exists(file.path("..", "0_SourceFile.R"))) {file.path("..", "0_SourceFile.R")
+} else {stop("Could not find 0_SourceFile.R in the current or parent directory.")}
+source(source_file)
+
+############################################################
+# DIRECTORY DEFINITIONS
+############################################################
+# Environmental rasters
+env.derived <- file.path(usr.dropbox.dir, "data_environmental/derived")
+# maps directory
+maps.dir <- file.path(usr.dropbox.dir, "data_products/")
+# Predictive-map root directory
+pred.dir <- file.path(usr.dropbox.dir, "data_products/predictive_maps/circum_antarctic")
+
+model.ids <- c("npp_cafe", "npp_cbpm", "npp_eppl", "npp_vpmg",
+               "fam_cafe", "fam_cbpm", "fam_eppl", "fam_vpmg",
+               "npp_and_fam_cafe", "npp_and_fam_cbpm", "npp_and_fam_eppl", "npp_and_fam_vpmg")
+
+# Model-specific directories containing species maps and total abundance
+pred.model.dirs <- file.path(pred.dir, paste0("hmsc_with_", model.ids))
+# Subdirectories for current derived outputs
+pct.dirs    <- file.path(pred.model.dirs, "percentiles")
+```
+
+```{r}
+############################################################
+## environmental variables
+############################################################
+
+#### load NPP and FAM-outputs from unscaled variables
+vars.ra <- rast(file.path(env.derived,"Circumpolar_EnvData_2km_shelf_mask_unscaled_variables.tif"))
+## NPP rasters (4 input models)
+npp.ra <- vars.ra[[28:39]]
+## settling model rasters (4 input models, combined settling sizes)
+sed.ra <- vars.ra[[23:26]]
+## flux rasters (4 input models, combined settling sizes)
+flux.ra <- vars.ra[[19:22]]
+
+#### bottom NPP rasters are elsewhere (3 sinking speeds times 4 input models)
+bottomnpp.files <- list.files(file.path(env.derived,"FAM_outputs"), pattern="bottomnpp", full.names = TRUE)
+bottomnpp.ra <- rast(bottomnpp.files)
+# get just the file names, not full paths
+fns <- basename(bottomnpp.files)
+# extract the two changing parts
+model <- sub(".*tracking3D_(.*?)_12boxfilled.*", "\\1", fns)
+speed <- sub(".*NPP9_(.*?)_21days.*", "\\1", fns)
+# combine into layer names
+names(bottomnpp.ra) <- paste(model, speed, sep = "_")
+
+#### environmental gaps
+gaps.files <- list.files(file.path(maps.dir, "environmental_gaps","circum_antarctic"), pattern="tif", full.names=TRUE)
+gaps.ra <- rast(gaps.files)
+#fix layer names by using the last bit of the filename (without the .tif extension)
+names(gaps.ra) <- sub(".*_(.*?)\\NPPandFAM.tif", "\\1", basename(gaps.files))
+
+############################################################
+## biological variables
+############################################################
+
+#### continuous
+string.continuous <- file.path(pred.dir, paste0("hmsc_with_", model.ids), "continuous")
+## 12 hmsc richness/abundance rasters (continuous, NPP vs FAM vs NPP+FAM)
+rich.ra  <- rast(file.path(string.continuous, "richness_median.tif"))
+abund.ra <- rast(file.path(string.continuous, "abundance_median_100.tif"))
+names(rich.ra) <- names(abund.ra) <- model.ids
+
+#### hotspots
+string.hotspots <- file.path(pred.dir, paste0("hmsc_with_", model.ids), "hotspots")
+## 12 hmsc biodiversity hotspots rasters (percentile classes, NPP vs FAM vs NPP+FAM)
+hot.biodiv.ra <- rast(file.path(string.hotspots, "biodiversity_hotspots.tif"), lyrs = 5)
+hot.abund.ra  <- rast(file.path(string.hotspots, "abundance_hotspots.tif"), lyrs = 5)
+hot.rich.ra   <- rast(file.path(string.hotspots, "richness_hotspots.tif"), lyrs = 5)
+names(hot.biodiv.ra) <- names(hot.abund.ra) <- names(hot.rich.ra) <- model.ids
+
+#### domains
+string.domains <- file.path(pred.dir, paste0("hmsc_with_", model.ids), "domains")
+
+
+############################################################
+# LOAD SPECIES-LEVEL PREDICTIVE MAPS
+############################################################
+string.species <- file.path(pred.dir, paste0("hmsc_with_", model.ids))
+#### Load all PA raster files for the selected model
+pa.files <- list.files(string.species, pattern = "^PA_.*\\.tif$", full.names = TRUE)
+
+pa.median.cafe.fam <- rast(pa.files[grep("with_fam_cafe",pa.files)], lyrs = 2)
+pa.median.vpmg.fam <- rast(pa.files[grep("with_fam_vpmg",pa.files)], lyrs = 2)
+pa.median.eppl.fam <- rast(pa.files[grep("with_fam_eppl",pa.files)], lyrs = 2)
+pa.median.cbpm.fam <- rast(pa.files[grep("with_fam_cbpm",pa.files)], lyrs = 2)
+pa.median.cafe.npp <- rast(pa.files[grep("with_npp_cafe",pa.files)], lyrs = 2)
+pa.median.vpmg.npp <- rast(pa.files[grep("with_npp_vpmg",pa.files)], lyrs = 2)
+pa.median.eppl.npp <- rast(pa.files[grep("with_npp_eppl",pa.files)], lyrs = 2)
+pa.median.cbpm.npp <- rast(pa.files[grep("with_npp_cbpm",pa.files)], lyrs = 2)
+pa.median.cafe.nppfam <- rast(pa.files[grep("with_npp_and_fam_cafe",pa.files)], lyrs = 2)
+pa.median.vpmg.nppfam <- rast(pa.files[grep("with_npp_and_fam_vpmg",pa.files)], lyrs = 2)
+pa.median.eppl.nppfam <- rast(pa.files[grep("with_npp_and_fam_eppl",pa.files)], lyrs = 2)
+pa.median.cbpm.nppfam <- rast(pa.files[grep("with_npp_and_fam_cbpm",pa.files)], lyrs = 2)
+
+# # Load only the layers needed in this document:
+# # 1 = mean, 2 = median, 3 = standard error
+# hmsc.maps.pa.env.mean   <- rast(pa.files, lyrs = 1)
+# hmsc.maps.pa.env.median <- rast(pa.files, lyrs = 2)
+# hmsc.maps.pa.env.se     <- rast(pa.files, lyrs = 3)
+
+
+```
+
+
+```{r}
+## plotting setup
+maxcell=100000000
+xlim=c(-2750000, 2750000)
+ylim=c(-2500000, 2500000)
+xlim.RS=c(-500000, 1000000)
+ylim.RS=c(-2300000,-1300000)
+
+## difference with divergent colour scale where 0 is white
+cols.diff <- colorRampPalette(c("blue", "white", "red"))(99)
+```
+
+
+## NPP
+
+```{r}
+## compare NPP input rasters
+plot(npp.ra[[c(1,4,7,10)]], xlim=xlim, ylim=ylim, maxcell=maxcell)
+```
+
+## bottom-NPP {.tabset}
+
+### cafe
+```{r}
+## bottom NPP input rasters
+plot(log(bottomnpp.ra[[c(3,1,2)]]), xlim=xlim, ylim=ylim)
+plot(log(bottomnpp.ra[[c(3,1,2)]]), xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell)
+```
+
+## sed
+
+```{r}
+## sed input rasters
+plot(sed.ra, xlim=xlim, ylim=ylim, range=c(0,600))
+plot(sed.ra, xlim=xlim.RS, ylim=ylim.RS, range=c(0,600), maxcell=maxcell)
+```
+
+## flux
+
+```{r}
+## flux input rasters
+plot(flux.ra, xlim=xlim, ylim=ylim, range=c(0,11.5))
+plot(flux.ra, xlim=xlim.RS, ylim=ylim.RS, range=c(0,11.5), maxcell=maxcell)
+```
+
+## richness {.tabset}
+
+### NPP & FAM
+```{r}
+sel <- 9:12
+plot(rich.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(rich.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(rich.ra[[sel]]))
+```
+
+### NPP only
+```{r}
+sel <- 1:4
+plot(rich.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(rich.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(rich.ra[[sel]]))
+```
+
+### FAM only
+```{r}
+sel <- 5:8
+plot(rich.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(rich.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(rich.ra[[sel]]))
+```
+
+## abundance
+
+### NPP & FAM
+```{r}
+sel <- 9:12
+plot(abund.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(abund.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(abund.ra[[sel]]))
+```
+
+### NPP only
+```{r}
+sel <- 1:4
+plot(abund.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(abund.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(abund.ra[[sel]]))
+```
+
+### FAM only
+```{r}
+sel <- 5:8
+plot(abund.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(abund.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(abund.ra[[sel]]))
+```
+
+## hotspots {.tabset}
+
+```{r}
+hot.biodiv.ra10 <- hot.biodiv.ra
+hot.biodiv.ra10[hot.biodiv.ra10 == 1] <- 0
+hot.biodiv.ra10[hot.biodiv.ra10 > 1] <- 1
+```
+
+### NPP & FAM
+```{r}
+sel <- 9:12
+plot(hot.biodiv.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(hot.biodiv.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(hot.biodiv.ra[[sel]]))
+```
+
+```{r}
+par(mfrow=c(3,3))
+plot(hot.biodiv.ra10[[9]],  xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(hot.biodiv.ra[[9]]))
+plot(hot.biodiv.ra10[[9]]-hot.biodiv.ra10[[10]],  xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="diff")
+plot(hot.biodiv.ra10[[10]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(hot.biodiv.ra[[10]]))
+
+plot(hot.biodiv.ra10[[9]] -hot.biodiv.ra10[[11]],  xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="diff")
+plot(hot.biodiv.ra10[[9]] -hot.biodiv.ra10[[12]],  xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="diff")
+plot(hot.biodiv.ra10[[10]]-hot.biodiv.ra10[[12]],  xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="diff")
+
+plot(hot.biodiv.ra10[[11]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(hot.biodiv.ra[[11]]))
+plot(hot.biodiv.ra10[[11]]-hot.biodiv.ra10[[12]],  xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="diff")
+plot(hot.biodiv.ra10[[12]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(hot.biodiv.ra[[12]]))
+```
+
+```{r}
+layerCor(hot.biodiv.ra10[[9:12]], fun="cor")
+# $correlation
+#                  npp_and_fam_cafe npp_and_fam_cbpm npp_and_fam_eppl npp_and_fam_vpmg
+# npp_and_fam_cafe        1.0000000        0.8761358        0.8907246        0.8895324
+# npp_and_fam_cbpm        0.8761358        1.0000000        0.7885770        0.7872181
+# npp_and_fam_eppl        0.8907246        0.7885770        1.0000000        0.9763476
+# npp_and_fam_vpmg        0.8895324        0.7872181        0.9763476        1.0000000
+```
+
+```{r}
+layerCor(hot.biodiv.ra[[9:12]], fun="cor")
+# $correlation
+#                  npp_and_fam_cafe npp_and_fam_cbpm npp_and_fam_eppl npp_and_fam_vpmg
+# npp_and_fam_cafe        1.0000000        0.9413106        0.9467959        0.9457471
+# npp_and_fam_cbpm        0.9413106        1.0000000        0.8956925        0.8944120
+# npp_and_fam_eppl        0.9467959        0.8956925        1.0000000        0.9884870
+# npp_and_fam_vpmg        0.9457471        0.8944120        0.9884870        1.0000000
+```
+
+```{r}
+layerCor(rich.ra[[9:12]], fun="cor")
+# $correlation
+#                  npp_and_fam_cafe npp_and_fam_cbpm npp_and_fam_eppl npp_and_fam_vpmg
+# npp_and_fam_cafe        1.0000000        0.9773436        0.9675698        0.9697185
+# npp_and_fam_cbpm        0.9773436        1.0000000        0.9128923        0.9153549
+# npp_and_fam_eppl        0.9675698        0.9128923        1.0000000        0.9992581
+# npp_and_fam_vpmg        0.9697185        0.9153549        0.9992581        1.0000000
+```
+
+```{r}
+layerCor(abund.ra[[9:12]], fun="cor")
+# $correlation
+#                  npp_and_fam_cafe npp_and_fam_cbpm npp_and_fam_eppl npp_and_fam_vpmg
+# npp_and_fam_cafe        1.0000000        0.9800645        0.9901054        0.9890658
+# npp_and_fam_cbpm        0.9800645        1.0000000        0.9509942        0.9488990
+# npp_and_fam_eppl        0.9901054        0.9509942        1.0000000        0.9987338
+# npp_and_fam_vpmg        0.9890658        0.9488990        0.9987338        1.0000000
+```
+
+### NPP only
+```{r}
+sel <- 1:4
+plot(hot.biodiv.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(hot.biodiv.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(hot.biodiv.ra[[sel]]))
+```
+
+### FAM only
+```{r}
+sel <- 5:8
+plot(hot.biodiv.ra[[sel]], xlim=xlim, ylim=ylim)
+plot(hot.biodiv.ra[[sel]], xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main=names(hot.biodiv.ra[[sel]]))
+```
+
+### NPP&FAM vs NPP vs FAM
+```{r}
+hot.biodiv.ra.sumNPPFAM <- sum(hot.biodiv.ra[[9:12]])
+hot.biodiv.ra.sumNPP <- sum(hot.biodiv.ra[[1:4]])
+hot.biodiv.ra.sumFAM <- sum(hot.biodiv.ra[[5:8]])
+
+par(mfrow=c(2,2))
+plot(hot.biodiv.ra.sumNPPFAM, xlim=xlim, ylim=ylim)
+plot(hot.biodiv.ra.sumNPP, xlim=xlim, ylim=ylim)
+plot(hot.biodiv.ra.sumFAM, xlim=xlim, ylim=ylim)
+
+par(mfrow=c(3,2))
+plot(hot.biodiv.ra.sumNPPFAM, xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="NPP&FAM")
+plot(hot.biodiv.ra.sumNPPFAM-hot.biodiv.ra.sumNPP, xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="Diff: 1-2", col=cols.diff, range=c(-13,13))
+
+plot(hot.biodiv.ra.sumNPP,    xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="NPP")
+plot(hot.biodiv.ra.sumNPPFAM-hot.biodiv.ra.sumFAM, xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="Diff: 1-3", col=cols.diff, range=c(-4,4))
+
+plot(hot.biodiv.ra.sumFAM,    xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="FAM")
+plot(hot.biodiv.ra.sumNPP-hot.biodiv.ra.sumFAM,    xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="Diff: 2-3", col=cols.diff, range=c(-13,13))
+```
+
+### Top10% NPP&FAM vs NPP vs FAM
+```{r}
+hot.biodiv.ra10.sumNPPFAM <- sum(hot.biodiv.ra10[[9:12]])
+hot.biodiv.ra10.sumNPP    <- sum(hot.biodiv.ra10[[1:4]])
+hot.biodiv.ra10.sumFAM    <- sum(hot.biodiv.ra10[[5:8]])
+
+par(mfrow=c(2,2))
+plot(hot.biodiv.ra10.sumNPPFAM, xlim=xlim, ylim=ylim)
+plot(hot.biodiv.ra10.sumNPP, xlim=xlim, ylim=ylim)
+plot(hot.biodiv.ra10.sumFAM, xlim=xlim, ylim=ylim)
+
+par(mfrow=c(3,2))
+plot(hot.biodiv.ra10.sumNPPFAM, xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="NPP&FAM")
+plot(hot.biodiv.ra10.sumNPPFAM-hot.biodiv.ra10.sumNPP, xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="Diff: 1-2", col=cols.diff, range=c(-4,4))
+
+plot(hot.biodiv.ra10.sumNPP,    xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="NPP")
+plot(hot.biodiv.ra10.sumNPPFAM-hot.biodiv.ra10.sumFAM, xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="Diff: 1-3", col=cols.diff, range=c(-4,4))
+
+plot(hot.biodiv.ra10.sumFAM,    xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="FAM")
+plot(hot.biodiv.ra10.sumNPP-hot.biodiv.ra10.sumFAM,    xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="Diff: 2-3", col=cols.diff, range=c(-4,4))
+```
+
+### Persistent across NPP and FAM, all inputs:
+```{r}
+hot.biodiv.ra10.sumOFsumNPPsumFAM <- hot.biodiv.ra10.sumNPP+hot.biodiv.ra10.sumFAM
+plot(hot.biodiv.ra10.sumOFsumNPPsumFAM, xlim=xlim.RS, ylim=ylim.RS, maxcell=maxcell, main="consensus between HMSC based on NPP and FAM")
+```
+
+
+
+
+
+## Gaps
+
+```{r}
+range(rich.in.vals.cafe  <- rich.ra$npp_and_fam_cafe[gaps.ra$Cafe[]==1], na.rm=TRUE)
+range(rich.out.vals.cafe <- rich.ra$npp_and_fam_cafe[gaps.ra$Cafe[]==0], na.rm=TRUE)
+
+range(abund.in.vals.cafe  <- abund.ra$npp_and_fam_cafe[gaps.ra$Cafe[]==1], na.rm=TRUE)
+range(abund.out.vals.cafe <- abund.ra$npp_and_fam_cafe[gaps.ra$Cafe[]==0], na.rm=TRUE)
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r, eval=FALSE}
+############################################################
+# LOAD SAMPLE LOCATIONS
+############################################################
+sampling_dir   <- paste0(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic")
+dat <- readRDS(file.path(sampling_dir, paste0("cover_modelling_inputs_", res, ".rds")))
+xy <- dat$cell_metrics[,6:7]
+
+############################################################
+# LOAD COASTLINE
+############################################################
+coast.unprojected <- vect(paste0(usr.dropbox.dir,
+    "data_environmental/antarctic_coastline_2023/add_coastline_high_res_polygon_v7_8.shp"))
+
+coast.proj <- project(coast.unprojected, r2)
+
+############################################################
+# SETUP COLOURS
+############################################################
+
+better.ramp <- grDevices::colorRampPalette(rev(blues9))
+better.ramp <- viridis
+lcex <- 1
+
+# Colours for discrete hotspot categories
+perc.ramp <- grDevices::colorRampPalette(c("grey90", "grey65", rev(viridis(3))))
+cols <- perc.ramp(5)
+leg.steps <- c(1, 2, 2.75, 3)
+
+# Colours for overlap categories
+cols.discr <- c("#0072B2", "#009E73", "#E69F00")
+
+# Continuous colour scales
+cols.c <- viridis(99)
+cols.grey <- grey.colors(99, end = 0.99)
+
+# Continuous - logged
+log_data <- log10(seq(0.01, 1, length.out = 100))
+normalized_log_data <- (log_data - min(log_data)) / (max(log_data) - min(log_data))
+cols.c.log <- viridis(99)[as.numeric(cut(normalized_log_data, breaks = 99))]
+cols.grey.rev.log <- rev(grey.colors(99, end = 0.99))[as.numeric(cut(normalized_log_data, breaks = 99))]
+
+# Continuous - power transformed
+power_data <- seq(0, 1, length.out = 100)^0.5
+normalized_power_data <- (power_data - min(power_data)) / (max(power_data) - min(power_data))
+cols.c.power <- viridis(99)[as.numeric(cut(normalized_power_data, breaks = 99))]
+cols.grey.rev.power <- rev(grey.colors(99, end = 0.99))[as.numeric(cut(normalized_power_data, breaks = 99))]
+
+# Coast/land colours
+coast.col <- "grey40"
+land.col  <- "grey60"
+
+# Violin plot colours
+col.in  <- cols.discr[1]
+col.out <- cols[1]
+
+# Plotting ranges
+range.pa <- c(0, 1)
+range.ab <- c(0, 100)
+
+# Common plotting parameters
+plot.par <- par(mfrow = c(1, 1), mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0))
+
+############################################################
+# INSET MAP SETUP
+############################################################
+
+# Zoom extents
+AP.ext <- ext(-2750000, -2250000, 1050000, 1900000)
+PB.ext <- ext(2100000, 2600000, 300000, 1500000)
+RS.ext <- ext(-450000, 500000, -1900000, -1250000)
+MG.ext <- ext(1300000, 1800000, -2300000, -1900000)
+
+# Shift positions for inset plotting
+AP.dx <-  2700000
+PB.dx <- -1100000
+RS.dx <-  -275000
+MG.dx <-  -300000
+
+AP.dy <- -400000
+PB.dy <- -500000
+RS.dy <- 1100000
+MG.dy <-  850000
+
+# Legend positions
+l.x  <- -2800000
+l.y  <- -1750000
+l.xt <- l.x + 480000
+l.yt <- l.y + 50000
+
+l.x2 <- -1600000
+l.y2 <- -1950000
+plg.c <- list(size = c(0.3, 1), ext = c(-5000000, 1800000, -2200000, -2100000), loc = "bottom")
+
+# Title position
+loc.main <- c(0, 2800000)
+
+# Coastline insets
+AP.coast <- rescale(crop(coast.proj, AP.ext), fx = 2, x0 = mean(AP.ext[1:2]), y0 = mean(AP.ext[3:4]))
+PB.coast <- rescale(crop(coast.proj, PB.ext), fx = 2, x0 = mean(PB.ext[1:2]), y0 = mean(PB.ext[3:4]))
+RS.coast <- rescale(crop(coast.proj, RS.ext), fx = 2, x0 = mean(RS.ext[1:2]), y0 = mean(RS.ext[3:4]))
+MG.coast <- rescale(crop(coast.proj, MG.ext), fx = 2, x0 = mean(MG.ext[1:2]), y0 = mean(MG.ext[3:4]))
+
+AP.coast.b <- shift(AP.coast, AP.dx, AP.dy)
+PB.coast.b <- shift(PB.coast, PB.dx, PB.dy)
+RS.coast.b <- shift(RS.coast, RS.dx, RS.dy)
+MG.coast.b <- shift(MG.coast, MG.dx, MG.dy)
+
+# Sample points for inset maps
+sp.samples <- vect(img.metadata[, 5:6], geom = c("proj_coord_x", "proj_coord_y"), crs = crs(hmsc.maps.richness.env$median))
+
+sp.samples <- vect(xy, crs = crs(hmsc.maps.richness.env$median))
+
+AP.samples <- rescale(crop(sp.samples, AP.ext), fx = 2)
+PB.samples <- rescale(crop(sp.samples, PB.ext), fx = 2)
+RS.samples <- rescale(crop(sp.samples, RS.ext), fx = 2)
+MG.samples <- rescale(crop(sp.samples, MG.ext), fx = 2)
+
+AP.b.samples <- shift(AP.samples, AP.dx, AP.dy)
+PB.b.samples <- shift(PB.samples, PB.dx, PB.dy)
+RS.b.samples <- shift(RS.samples, RS.dx, RS.dy)
+MG.b.samples <- shift(MG.samples, MG.dx, MG.dy)
+```
+
+
+
+
+
+
+```{r, eval=FALSE}
+
+
+############################################################
+# BASIC CHECKS
+############################################################
+if (!dir.exists(pred.model.dir)){stop("Predictive map directory not found: ", pred.model.dir)}
+if (!dir.exists(cont.dir))      {stop("Continuous output directory not found: ", cont.dir)}
+if (!dir.exists(pct.dir))       {stop("Percentile output directory not found: ", pct.dir)}
+if (!dir.exists(hot.dir))       {stop("Hotspot output directory not found: ", hot.dir)}
+if (!dir.exists(domain.dir))    {stop("Domain output directory not found: ", domain.dir)}
+
+
+############################################################
+# LOAD ENVIRONMENTAL CONTEXT RASTERS
+############################################################
+r2 <- vars.ra$depth
+# r2[1:350, ] <- NA
+# r.stack.subset <- r.stack[[c(1:3, 14, 26, 42:45, 51, 56)]]
+# rm(r.stack)
+
+
+############################################################
+# LOAD SPECIES-LEVEL PREDICTIVE MAPS
+############################################################
+# Load all PA raster files for the selected model
+pa.files <- list.files(  pred.model.dir, pattern = "^PA_.*\\.tif$", full.names = TRUE)
+if (length(pa.files) == 0) {stop("No PA_*.tif files found in: ", pred.model.dir)}
+
+# Load only the layers needed in this document:
+# 1 = mean, 2 = median, 3 = standard error
+hmsc.maps.pa.env.mean   <- rast(pa.files, lyrs = 1)
+hmsc.maps.pa.env.median <- rast(pa.files, lyrs = 2)
+hmsc.maps.pa.env.se     <- rast(pa.files, lyrs = 3)
+
+############################################################
+# LOAD TOTAL ABUNDANCE
+############################################################
+# Load current continuous abundance outputs
+abundance.mean       <- rast(file.path(cont.dir, "abundance_mean.tif"))
+abundance.median     <- rast(file.path(cont.dir, "abundance_median.tif"))
+abundance.median.100 <- rast(file.path(cont.dir, "abundance_median_100.tif"))
+abundance.se         <- rast(file.path(cont.dir, "abundance_se.tif"))
+
+# Rebuild abundance object used in the figure code
+hmsc.maps.totalabundance.env <- c(
+  abundance.median,
+  abundance.median.100,
+  abundance.se
+)
+names(hmsc.maps.totalabundance.env) <- c("median", "median.100", "se")
+
+
+############################################################
+# LOAD DERIVED PREDICTIVE MAPS
+############################################################
+
+# Richness outputs
+richness.median <- rast(file.path(cont.dir, "richness_median.tif"))
+boots.rich.median <- rast(file.path(cont.dir, "richness_bootstrap_median.tif"))
+boots.rich.sd <- rast(file.path(cont.dir, "richness_bootstrap_sd.tif"))
+
+# Rebuild richness object used in the figure code
+hmsc.maps.richness.env <- richness.median
+names(hmsc.maps.richness.env) <- "median"
+
+# Richness / abundance percentiles
+perc.richness.median  <- rast(file.path(pct.dir, "richness_percentiles.tif"))
+perc.abundance.median <- rast(file.path(pct.dir, "abundance_percentiles.tif"))
+perc.rich_per_abund   <- rast(file.path(pct.dir, "richness_per_abundance_percentiles.tif"))
+
+# Additional continuous ratio surfaces
+rich.per.abund <- rast(file.path(cont.dir, "richness_per_abundance.tif"))
+abund.per.rich <- rast(file.path(cont.dir, "abundance_per_richness.tif"))
+
+# Combined hotspot rasters reconstructed from current hotspot outputs
+richness.hot <- rast(file.path(hot.dir, "richness_hotspots.tif"))
+abundance.hot <- rast(file.path(hot.dir, "abundance_hotspots.tif"))
+biodiversity.hot <- rast(file.path(hot.dir, "biodiversity_hotspots.tif"))
+richness.only.hot <- rast(file.path(hot.dir, "richness_only_hotspots.tif"))
+abundance.only.hot <- rast(file.path(hot.dir, "abundance_only_hotspots.tif"))
+
+top.percentiles <- c(
+  richness.hot[[5]],
+  abundance.hot[[5]],
+  biodiversity.hot[[5]],
+  richness.only.hot,
+  abundance.only.hot
+)
+names(top.percentiles) <- c(
+  "richness",
+  "abundance",
+  "biodiversity",
+  "richness-only",
+  "abundance-only"
+)
+
+# Domain-level percentiles
+perc.richness.domains  <- rast(file.path(domain.dir, "domain_richness_percentiles.tif"))
+perc.abundance.domains <- rast(file.path(domain.dir, "domain_abundance_percentiles.tif"))
+
+# Domain-level hotspot classes reconstructed from current outputs
+domain.rich.hot.class <- rast(file.path(domain.dir, "domain_richness_hotspot_class.tif"))
+domain.abund.hot.class <- rast(file.path(domain.dir, "domain_abundance_hotspot_class.tif"))
+domain.biodiv.hot.class <- rast(file.path(domain.dir, "domain_biodiversity_hotspot_class.tif"))
+
+# Domain-level hotspot thresholds used for polygon reconstruction
+domain.rich.hot.top10 <- rast(file.path(domain.dir, "domain_richness_hotspot_top10.tif"))
+domain.abund.hot.top10 <- rast(file.path(domain.dir, "domain_abundance_hotspot_top10.tif"))
+domain.biodiv.hot.top10 <- rast(file.path(domain.dir, "domain_biodiversity_hotspot_top10.tif"))
+
+top.percentiles.domains <- c(
+  domain.rich.hot.class,
+  domain.abund.hot.class,
+  domain.biodiv.hot.class
+)
+names(top.percentiles.domains) <- c(
+  paste0("richness domain ", c(1, 3, 4, 7, 8, 9)),
+  paste0("abundance domain ", c(1, 3, 4, 7, 8, 9)),
+  paste0("biodiversity domain ", c(1, 3, 4, 7, 8, 9))
+)
+
+# Beta-diversity products are not currently part of the updated pipeline.
+# Create placeholder rasters so downstream code can still run unless those
+# sections are explicitly used.
+median.betadiv <- rast(hmsc.maps.richness.env)
+median.betadiv[] <- NA
+names(median.betadiv) <- "median.betadiv"
+
+perc.betadiv.median <- rast(hmsc.maps.richness.env)
+perc.betadiv.median[] <- NA
+names(perc.betadiv.median) <- "perc.betadiv.median"
+
+
+############################################################
+# MATCH NA STRUCTURE ACROSS DERIVED RASTERS
+############################################################
+
+ra.na.sel <- which(is.na(hmsc.maps.richness.env$median[]))
+
+median.betadiv[ra.na.sel]    <- NA
+boots.rich.median[ra.na.sel] <- NA
+boots.rich.sd[ra.na.sel]     <- NA
+perc.betadiv.median[ra.na.sel] <- NA
+
+
+
+############################################################
+# CREATE HOTSPOT POLYGONS
+############################################################
+
+# Circumpolar polygons are written directly by the hotspot pipeline
+top.richness.polygons <- vect(file.path(poly.dir, "richness_top10_hotspots.gpkg"))
+top.abundance.polygons <- vect(file.path(poly.dir, "abundance_top10_hotspots.gpkg"))
+top.biodiv.polygons <- vect(file.path(poly.dir, "biodiversity_top10_hotspots.gpkg"))
+
+# Domain polygons are reconstructed from the domain top-10 hotspot rasters
+top.dom.rich.polygons <- as.polygons(domain.rich.hot.top10[[1]], dissolve = TRUE)
+for (i in 2:nlyr(domain.rich.hot.top10)) {
+  top.dom.rich.polygons <- c(
+    top.dom.rich.polygons,
+    as.polygons(domain.rich.hot.top10[[i]], dissolve = TRUE)
+  )
+}
+
+top.dom.abund.polygons <- as.polygons(domain.abund.hot.top10[[1]], dissolve = TRUE)
+for (i in 2:nlyr(domain.abund.hot.top10)) {
+  top.dom.abund.polygons <- c(
+    top.dom.abund.polygons,
+    as.polygons(domain.abund.hot.top10[[i]], dissolve = TRUE)
+  )
+}
+
+top.dom.biodiv.polygons <- as.polygons(domain.biodiv.hot.top10[[1]], dissolve = TRUE)
+for (i in 2:nlyr(domain.biodiv.hot.top10)) {
+  top.dom.biodiv.polygons <- c(
+    top.dom.biodiv.polygons,
+    as.polygons(domain.biodiv.hot.top10[[i]], dissolve = TRUE)
+  )
+}
+
+
+
+```
+
