@@ -301,7 +301,7 @@ for(i in 1){
 ## INDIVIDUAL SURVEYS ? per loop
 for(i in 1){
   message(i)
-  for(j in 1:length(cells.individual)){
+  for(j in 19:length(cells.individual)){
     s.name <- names(cells.individual)[j]
     cells.ind <- as.vector(cells.individual[[j]])$cell_id
     print(j)
@@ -317,9 +317,10 @@ for(i in 1){
     save(Ant_dat, env_values_red, env.na.sel, file=file.path(env.derived,paste0("Circumpolar_EnvData_2km_env_values_scaled_forGaps_",model.names[i],"_",s.name,".Rdata")))
   }
 }
+## 2009_CRS only has one cell, because it's been revisited in other years but only one survey can have the ID for each grid cell
 for(i in 1){
   message(i)
-  for(j in 1:length(cells.individual)){
+  for(j in 16:length(cells.individual)){
     s.name <- names(cells.individual)[j]
     cells.ind <- as.vector(cells.individual[[j]])$cell_id
     print(j)
@@ -343,6 +344,9 @@ for(i in 1){
     r.gaps.all[-env.na.sel] <- 0
     values(r.gaps.all)[-env.na.sel][which(comb_inout.all)] <- 1
     writeRaster(r.gaps.all, filename=paste0(file.basename,".tif"), overwrite=TRUE)
+    
+    ## clean up
+    rm(Ant_dat, env_values_red, env.na.sel, s.name, cells.ind, hv_comb.all, comb_inout.all, r.gaps.all)
   }
 }
 
