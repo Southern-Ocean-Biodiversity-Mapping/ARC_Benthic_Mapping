@@ -17,17 +17,21 @@ Model diagnostics for hmsc
 
 ## user settings
 usr <- "VM"
-source("0_SourceFile.R")
+source_file <- if (file.exists("0_SourceFile.R")) {"0_SourceFile.R"
+} else if (file.exists(file.path("..", "0_SourceFile.R"))) {file.path("..", "0_SourceFile.R")
+} else {stop("Could not find 0_SourceFile.R in the current or parent directory.")}
+source(source_file)
+
 bio.dir      <- paste0(usr.dropbox.dir, "data_biological/")
-model_dir   <- paste0(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic")
-dir2   <- paste0(usr.main.dir, "2_fitting_and_running_models")
+model_dir   <- paste0(usr.dropbox.dir, "data_products/modelling_files/circum_antarctic/")
+dir2   <- paste0(model_dir, "2_fitting_and_running_models")
 dir3   <- paste0(usr.main.dir, "3_model_analysis")
 
 load(file.path(model_dir, paste0("2km_model_cells_data.Rdata")))
 
 
 ## model selection
-nm <- "npp_cafe"   # CHANGE THIS TO SWITCH MODEL SETUP
+nm <- "npp_and_fam_cafe"   # CHANGE THIS TO SWITCH MODEL SETUP
 res <- "2km"
 
 ## setup
@@ -37,11 +41,11 @@ library(corrplot)
 library(abind)
 library(kableExtra) ## pretty tables
 '%!in%' <- function(x,y)!('%in%'(x,y))
-pngs=TRUE
+pngs=FALSE
 
 ## load custom versions
-source("Hmsc_plotBetaSimple.R")
-source("Hmsc_plotGradientSimple.R")
+source(file.path("..","Hmsc_plotBetaSimple.R"))
+source(file.path("..","Hmsc_plotGradientSimple.R"))
 ```
 
 ```{r}
@@ -51,7 +55,20 @@ transient = ceiling(0.5*samples*thin)
 adaptNf = rep(ceiling(0.4*samples*thin),1)
 nChains = 4
 
+## loading old spatial model and CV
+load("/pvol/2_fitting_and_running_models/2km_model_cells_1_pa_chains_4_thin_10_samples_800.Rdata")
+spatial.models <- models
+load(file.path(dir3,"2km_model_cells_1_pa_chains_4_thin_10_samples_800_5foldcv.Rdata"))
+load(file.path(dir3,"2km_model_cells_1_pa_chains_4_thin_10_samples_800_MF.Rdata"))
+spatial.MF <- MF
+spatial.MF.cv <- MF.cv
+spatial.preds.cv <- preds.cv
+rm(MF, MF.cv, preds.cv, models)
+
+## loading model
 load(file.path(dir2, paste0(res, "_model_cells_", nm, "_chains_", nChains, "_thin_", thin, "_samples_", samples, ".Rdata")))
+
+## loading MF and CV
 load(file.path(dir3, paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata")))
 ```
 
@@ -188,8 +205,6 @@ These are the species' environmental responses. In red any positive relationship
 postBeta = getPostEstimate(m, parName="Beta")
 ## original code, but hmsc version isn't flexible enough for the plotting:
 # plotBeta(m, post=postBeta, param="Support", spNamesNumbers=c(TRUE,FALSE), mar=c(10,3,4,2), SpVector=match(1:hM$ns, as.numeric(as.factor(colnames(hM$Y)))))
-## load custom version
-source("~/Hmsc_plotBetaSimple.R")
 ```
 
 ##### Response direction
@@ -202,7 +217,7 @@ if(pngs){dev.off()}
 ##### Mean response
 ```{r, fig.height=15, fig.width=10, echo=FALSE}
 if(pngs){png("HMSC_pa_EnvOnly_ParameterResponse.png", width=3600, height=4000, res=300)}
-plotBetaSimple(m, post=postBeta, mar=c(8, 30, 2, 1), param="Mean", spSort="reverse", main="Mean response estimate")
+plotBetaSimple(m, post=postBeta, mar=c(8, 30, 2, 1), param="Mean", spSort="reverse", main="Mean response estimate", centerEmphasis = 1.5)
 if(pngs){dev.off()}
 ```
 
@@ -418,16 +433,17 @@ ls.vals.unscaled <- ls.vals.sc * scale.sd[["logslope"]] + scale.means[["logslope
 s.vals.original <- exp(ls.vals.unscaled)
 
 ## positions for the following NPPs
-if(grepl("npp_",nm)){
+#if(grepl("npp_",nm)){
 npp.vals <- seq(0,900, by= 200)
 npp.vals.sc <- NA
-npp.sel <- paste0(gsub("npp_","",nm),"_mean")
+#npp.sel <- paste0(gsub("npp_","",nm),"_mean")
+npp.sel <- "cafe_mean"
 npp.vals.sc[1] <- (npp.vals[1]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
 npp.vals.sc[2] <- (npp.vals[2]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
 npp.vals.sc[3] <- (npp.vals[3]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
 npp.vals.sc[4] <- (npp.vals[4]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
 npp.vals.sc[5] <- (npp.vals[5]-scale.means[[npp.sel]])/scale.sd[[npp.sel]]
-}
+#}
 
 ## positions for the following current speeds
 curr.vals <- seq(0,0.3, by= 0.1)
@@ -438,11 +454,11 @@ curr.vals.sc[3] <- (curr.vals[3]-scale.means[["seafloorcurrents_mean"]])/scale.s
 curr.vals.sc[4] <- (curr.vals[4]-scale.means[["seafloorcurrents_mean"]])/scale.sd[["seafloorcurrents_mean"]]
 
 ## positions for the following fluxes
-if(grepl("fam_",nm)){
+#if(grepl("fam_",nm)){
 f.vals <- c(10,100,1000,10000,100000)
 lf.vals <- log(f.vals)
 lf.vals.sc <- NA
-flux.sel <- paste0("log.flux.mean.",gsub("fam_","",nm))
+flux.sel <- "log.flux.mean.cafe"
 lf.vals.sc[1] <- (lf.vals[1]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
 lf.vals.sc[2] <- (lf.vals[2]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
 lf.vals.sc[3] <- (lf.vals[3]-scale.means[[flux.sel]])/scale.sd[[flux.sel]]
@@ -453,7 +469,7 @@ lf.vals.unscaled <- lf.vals.sc * scale.sd[[flux.sel]] + scale.means[[flux.sel]]
 # Reverse the log transformation
 options(scipen=999)
 f.vals.original <- exp(lf.vals.unscaled)
-}
+#}
 ```
 
 
@@ -463,18 +479,18 @@ f.vals.original <- exp(lf.vals.unscaled)
 # • measure = “Y” plots the response of a species given by index
 # • measure = “T” plots community-weighed mean values of traits given by index
 
-if(grepl("npp_",nm)){
-  focal_prod_var <- paste0(gsub("npp_","",nm),"_mean")
+# if(grepl("npp_",nm)){
+  focal_prod_var <- "cafe_mean"
   ## npp
 Gradient.n = constructGradient(models$mENV, focalVariable=focal_prod_var)
 predY.n = predict(models$mENV, XData=Gradient.n$XDataNew, studyDesign=Gradient.n$studyDesignNew, ranLevels=Gradient.n$rLNew, expected=TRUE)
-  }
-if(grepl("fam_",nm)){
-  focal_prod_var <- paste0("log.flux.mean.",gsub("fam_","",nm))
+#   }
+# if(grepl("fam_",nm)){
+  focal_prod_var <- "log.flux.mean.cafe"
   ## flux
 Gradient.f = constructGradient(models$mENV, focalVariable=focal_prod_var)
 predY.f = predict(models$mENV, XData=Gradient.f$XDataNew, studyDesign=Gradient.f$studyDesignNew, ranLevels=Gradient.f$rLNew, expected=TRUE)
-  }
+  # }
 
 ## depth
 Gradient.d = constructGradient(models$mENV, focalVariable="depth")
@@ -577,6 +593,7 @@ The kinds of measures of model fit depend on the type of response variable.
 
 The measures O.RMSE, O.AUC, O.TjurR2, C.RMSE and C.SR2 can be computed only if the option expected=FALSE has been used when making the predictions If the model includes a mixture of response variable types, the resulting measures of model fit contain NA’s for those response variables for which they cannot be computed.  
 
+
 ##### RMSE
 
 ```{r, fig.width=10, fig.height=8, echo=FALSE}
@@ -590,20 +607,20 @@ points(MF.cv$mENV$RMSE[sel], pch=16, col="red")
 legend("topleft", pch=16, col=c("black","red"), legend=c(paste0("Env-only (mean RMSE = ",round(mean(MF$mENV$RMSE),2),")"), paste0("CV         (mean RMSE = ",round(mean(MF.cv$mENV$RMSE),2),")")))
 
 ## full CV
-plot(MF$mFULL$RMSE[sel], pch=16, main="Environment-spatial model vs Crossvalidation", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
-points(MF.cv$mFULL$RMSE[sel], pch=16, col="red")
+plot(spatial.MF[[1]]$RMSE[sel], pch=16, main="Environment-spatial model vs Crossvalidation", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
+points(spatial.MF.cv[[1]]$RMSE[sel], pch=16, col="red")
 legend("topleft", pch=16, col=c("blue","red"), legend=c(paste0("Env-spatial (mean RMSE = ",round(mean(MF$mFULL$RMSE),2),")"), paste0("CV            (mean RMSE = ",round(mean(MF.cv$mFULL$RMSE),2),")")))
 
 
 ## full vs env-only
-plot(MF$mFULL$RMSE[sel], pch=16, main="Environment-only vs Environment-spatial", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
+plot(spatial.MF[[1]]$RMSE[sel], pch=16, main="Environment-only vs Environment-spatial", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
 points(MF$mENV$RMSE[sel], pch=16, col="black")
-legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("Env-only    (mean RMSE = ",round(mean(MF$mENV$RMSE),2),")"),paste0("Env-spatial (mean RMSE = ",round(mean(MF$mFULL$RMSE),2),")")))
+legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("Env-only    (mean RMSE = ",round(mean(MF$mENV$RMSE),2),")"),paste0("Env-spatial (mean RMSE = ",round(mean(spatial.MF[[1]]$RMSE),2),")")))
 
 ## full CV vs env-only CV
-plot(MF.cv$mFULL$RMSE[sel], pch=16, main="Environment-only CV vs Environment-spatial CV", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
+plot(spatial.MF.cv[[1]]$RMSE[sel], pch=16, main="Environment-only CV vs Environment-spatial CV", ylim=c(0.1,0.5), col="blue", ylab="RMSE")
 points(MF.cv$mENV$RMSE[sel], pch=16, col="black")
-legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("CV Env-only    (mean RMSE = ",round(mean(MF.cv$mENV$RMSE),2),")"), paste0("CV Env-spatial (mean RMSE = ",round(mean(MF.cv$mFULL$RMSE),2),")")))
+legend("topleft", pch=16, col=c("black","blue"), legend=c(paste0("CV Env-only    (mean RMSE = ",round(mean(MF.cv$mENV$RMSE),2),")"), paste0("CV Env-spatial (mean RMSE = ",round(mean(spatial.MF.cv[[1]]$RMSE),2),")")))
 if(pngs){dev.off()}
 ```
 
@@ -611,19 +628,19 @@ if(pngs){dev.off()}
 ##### AUC
 
 ```{r, fig.width=10, fig.height=8, echo=FALSE}
-sel <- order(MF[[2]]$AUC)
+sel <- order(MF[[1]]$AUC)
 
 if(pngs){png("HMSC_pa_ModelFit_AUC.png", width=2400, height=2400, res=300)}
 par(mfrow=c(2,2))
 ## env-only CV
-plot(MF[[2]]$AUC[sel], pch=16, main="Environment-only model vs Crossvalidation", ylim=c(0.1,1), ylab="AUC")
-points(MF.cv[[2]]$AUC[sel], pch=16, col="red")
-legend("bottomright", pch=16, col=c("black","red"), legend=c(paste0("Env-only (mean AUC = ",round(mean(MF[[2]]$AUC),2),")"), paste0("CV         (mean AUC = ",round(mean(MF.cv[[2]]$AUC),2),")")))
+plot(MF[[1]]$AUC[sel], pch=16, main="Environment-only model vs Crossvalidation", ylim=c(0.1,1), ylab="AUC")
+points(MF.cv[[1]]$AUC[sel], pch=16, col="red")
+legend("bottomright", pch=16, col=c("black","red"), legend=c(paste0("Env-only (mean AUC = ",round(mean(MF[[1]]$AUC),2),")"), paste0("CV         (mean AUC = ",round(mean(MF.cv[[1]]$AUC),2),")")))
 
 ## full CV
-plot(MF$mFULL$AUC[sel], pch=16, main="Environment-spatial model vs Crossvalidation", ylim=c(0.1,1), col="blue", ylab="AUC")
-points(MF.cv$mFULL$AUC[sel], pch=16, col="red")
-legend("bottomright", pch=16, col=c("blue","red"), legend=c(paste0("Env-spatial (mean AUC = ",round(mean(MF$mFULL$AUC),2),")"), paste0("CV            (mean AUC = ",round(mean(MF.cv$mFULL$AUC),2),")")))
+plot(spatial.MF[[1]]$AUC[sel], pch=16, main="Environment-spatial model vs Crossvalidation", ylim=c(0.1,1), col="blue", ylab="AUC")
+points(spatial.MF.cv[[1]]$AUC[sel], pch=16, col="red")
+legend("bottomright", pch=16, col=c("blue","red"), legend=c(paste0("Env-spatial (mean AUC = ",round(mean(spatial.MF[[1]]$AUC),2),")"), paste0("CV            (mean AUC = ",round(mean(spatial.MF.cv[[1]]$AUC),2),")")))
 
 
 ## full vs env-only

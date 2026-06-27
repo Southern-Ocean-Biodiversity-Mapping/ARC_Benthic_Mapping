@@ -11,6 +11,7 @@ plotBetaSimple <- function(
     covariateNames = TRUE, # Whether to show covariate names
     colors = colorRampPalette(c("blue", "white", "red")), # Color scheme
     colorLevels = NULL,    # Number of color levels
+    centerEmphasis = 1,   # lever to adjust colour breaks near 0
     cex = c(0.7, 0.7),    # Text size for covariate and species names
     mar = c(8, 15, 2, 2), # Margins
     spSort = "none",      # Sorting option: "none", "alphabetical", or "reverse"
@@ -77,11 +78,11 @@ plotBetaSimple <- function(
   par(mar = mar)
   
   X <- t(betaMat)
-  zlim <- if(all(is.na(X)) || sum(abs(X)) == 0) {
-    c(-1, 1)
-  } else {
-    c(-max(abs(range(X))), max(abs(range(X))))
-  }
+  # zlim <- if(all(is.na(X)) || sum(abs(X)) == 0) {
+  #   c(-1, 1)
+  # } else {
+  #   c(-max(abs(range(X))), max(abs(range(X))))
+  # }
   
   # Create sequence for positioning
   x_pos <- seq(0.1, 0.9, length.out = ncol(X))
@@ -98,6 +99,15 @@ plotBetaSimple <- function(
     list(cex.axis = cex[1])
   }
   
+  ## adjust colour spacing
+  nBreaks <- length(colors)+1
+  # symmetric range
+  maxZ <- max(abs(X), na.rm = TRUE)
+  # nonlinear scaling control
+  p <- centerEmphasis
+  vals <- seq(-1, 1, length.out = nBreaks)
+  breaks <- sign(vals) * (abs(vals)^p) * maxZ
+  
   # Plot without axes
   fields::image.plot(
     x = x_pos,
@@ -106,7 +116,8 @@ plotBetaSimple <- function(
     xlab = "",
     ylab = "",
     col = colors,
-    zlim = zlim,
+    breaks=breaks,
+#    zlim = zlim,
     axes = FALSE,
     main = main,
     axis.args = legend.args
