@@ -129,7 +129,7 @@ cell.sel.df <- which(!is.na(cells_with_data), arr.ind = TRUE)
 ## RUN ALL MODELS FOR PA AND AB
 #############################################################
 #############################################################
-for(nm in model_ids[1:8]) { #c(12,1:8)
+for(nm in model_ids[6:8]) { #c(12,1:8)
   ## parallel processing: PER CELL that contains values
   library(doParallel)
   library(foreach)

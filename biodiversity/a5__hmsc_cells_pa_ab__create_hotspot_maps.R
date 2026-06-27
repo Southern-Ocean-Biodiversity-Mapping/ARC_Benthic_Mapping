@@ -192,9 +192,13 @@ empty_named_raster <- function(template, layer_name) {
 #   full.names = TRUE,
 #   include.dirs = FALSE
 # )
-# 
+# ## remove old files
+# all_files <- all_files[-which(grepl("old/", all_files, ignore.case = TRUE))]
+# ## tifs only
 # all_files <- all_files[grepl("\\.tif$", all_files, ignore.case = TRUE)]
-# all_files <- all_files[which(grepl("npp_and_fam_cbpm/continuous", all_files, ignore.case = TRUE))]
+# # all_files <- all_files[-which(grepl("npp_", all_files, ignore.case = TRUE))]
+# # all_files <- all_files[-which(grepl("predator", all_files, ignore.case = TRUE))]
+# # all_files <- all_files[which(grepl("npp_and_fam_cbpm/continuous", all_files, ignore.case = TRUE))]
 # 
 # rel_paths <- substring(all_files, nchar(src_base) + 2)
 # dst_files <- file.path(dst_base, rel_paths)
@@ -323,7 +327,7 @@ domain_template_raster <- NULL
 ############################
 # 5) PROCESS EACH MODEL
 ############################
-for (nm in model_ids) {
+for (nm in model_ids[c(5:8)]) {
   t0 <- Sys.time()
   
   message("======================================")

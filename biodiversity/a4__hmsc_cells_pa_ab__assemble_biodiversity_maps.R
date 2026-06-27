@@ -45,7 +45,7 @@ load(file.path(model_dir,paste0("4_model_prediction/hmsc_", res, "_model_cell_gr
 ##### MAIN LOOP OVER MODELS
 #############################################################
 
-for (nm in model_ids[c(9:12,1:4)]) {
+for (nm in model_ids[c(5:8)]) {
   message("==========================================")
   message("Assembling biodiversity maps for: ", nm)
   message("==========================================")
