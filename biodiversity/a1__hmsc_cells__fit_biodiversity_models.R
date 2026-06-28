@@ -133,7 +133,7 @@ rL.y <- HmscRandomLevel(units = levels(studyDesign$year))
 ## spatial random effect
 xy <- df[,c("proj_coord_x","proj_coord_y")]
 colnames(xy) = c("x","y")
-sRL = xy
+sRL = as.matrix(xy)
 rownames(sRL) = df$cell_id
 
 ### using the standard algorithm:
@@ -242,7 +242,7 @@ for (i in 1:4) {
 all_models <- list()
 all_times  <- list()
 
-for (nm in names(formulas)[1:12]) {
+for (nm in names(formulas)[9]) {
   
   message("====================================")
   message("Building models for formula: ", nm)
@@ -308,6 +308,8 @@ for (nm in names(formulas)[1:12]) {
   ##### RUN MCMC
   ##################################################
   
+  # thin      <- 5
+  # samples   <- 600
   thin      <- 10
   samples   <- 800
   transient <- ceiling(0.5 * samples * thin)
@@ -316,7 +318,7 @@ for (nm in names(formulas)[1:12]) {
   set.seed(2)
   ptm <- proc.time()
   
-  for (m in c("mENV","mAB")) {
+  for (m in c("mFULL","mENV","mAB")) {
     message("Sampling model: ", m)
     
     models[[m]] <- sampleMcmc(
@@ -337,7 +339,7 @@ for (nm in names(formulas)[1:12]) {
   ##################################################
   
   filename.string <- paste0(
-    res, "_model_cells_", nm,
+    res, "_model_cells_COMPLETE_", nm,
     "_chains_", nChains,
     "_thin_", thin,
     "_samples_", samples
@@ -367,7 +369,7 @@ for (nm in names(formulas)[1:12]) {
 
 model_ids <- names(formulas)
 
-for (nm in model_ids[9:12]) {
+for (nm in model_ids[9]) {
   
   message("====================================")
   message("Evaluating model: ", nm)
@@ -376,7 +378,7 @@ for (nm in model_ids[9:12]) {
   model_file <- file.path(
     local_dir, "2_fitting_and_running_models/",
     paste0(
-      res, "_model_cells_", nm,
+      res, "_model_cells_COMPLETE_", nm,
       "_chains_", nChains,
       "_thin_", thin,
       "_samples_", samples,
@@ -393,7 +395,7 @@ for (nm in model_ids[9:12]) {
   MF    <- list()
   preds <- list()
   
-  for (m in c("mENV", "mAB")) {
+  for (m in c("mFULL","mENV", "mAB")) {
     preds[[m]] <- computePredictedValues(models[[m]])
     MF[[m]]    <- evaluateModelFit(models[[m]], preds[[m]])
   }
@@ -402,8 +404,8 @@ for (nm in model_ids[9:12]) {
   ##### 5-FOLD CROSS-VALIDATION
   ##################################################
   ## This takes a long time, 5 days for one full model & 1h for an environment only model
-  
-  set.seed(2)
+
+    set.seed(2)
   partition <- createPartition(
     models$mENV,
     nfolds = 5,
@@ -420,19 +422,28 @@ for (nm in model_ids[9:12]) {
   MF.cv    <- list()
   preds.cv <- list()
   
-  for (m in c("mENV", "mAB")) {
+  for (m in c("mFULL", "mENV", "mAB")) {
+  if(m == "mFULL"){
+      preds.cv[[m]] <- pcomputePredictedValues(
+      models[[m]],
+      partition = partition,
+      nParallel = UseCores,
+      start = 301,   # skip burn-in
+      thin = 5       # take every 5th sample
+    )
+  }else{
     preds.cv[[m]] <- pcomputePredictedValues(
       models[[m]],
       partition = partition,
       nParallel = UseCores
     )
-    
+}
     MF.cv[[m]] <- evaluateModelFit(
       models[[m]],
       preds.cv[[m]]
     )
   }
-  
+
   cv_time <- proc.time() - ptm
   stopCluster(cl)
   
@@ -442,7 +453,7 @@ for (nm in model_ids[9:12]) {
   ##### SAVE RESULTS
   ##################################################
   
-  out_file <- file.path(local_dir,"3_model_analysis/", paste0(res, "_model_cells_", nm, "_ENV_pa_ab_MF_CV.Rdata"))
+  out_file <- file.path(local_dir,"3_model_analysis/", paste0(res, "_model_cells_COMPLETE_", nm, "_ENV_pa_ab_MF_CV.Rdata"))
   
   save(nm, XFormula, MF, MF.cv, preds, preds.cv, partition, runtime, cv_time, file = out_file)
   
